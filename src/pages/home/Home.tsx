@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, ScrollView, RefreshControl, Text, Alert } from 'react-native';
 import { Divider, FAB, ActivityIndicator, Snackbar, Icon } from 'react-native-paper';
 import RNNotificationCall from 'react-native-full-screen-notification-incoming-call';
-import { useNavigation } from '@react-navigation/native';
 import InCallManager from 'react-native-incall-manager';
 import { useSelector } from 'react-redux';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ConversationPeek from '~/components/ConversationPeek';
@@ -18,7 +18,7 @@ import {
 } from '~/store/actions/user';
 import { initializeWebsocket, destroyWebsocket, SocketMessage } from '~/store/actions/websocket';
 import { Conversation, UserData } from '~/store/reducers/user';
-import { setupInterceptors } from '~/store/actions/auth';
+import { setupInterceptors, RootNavigation } from '~/store/actions/auth';
 import { RootState, store } from '~/store/store';
 import { popFromStorage } from '~/global/storage';
 import { dbSaveCallRecord } from '~/global/database';
@@ -26,7 +26,7 @@ import { PRIMARY } from '~/global/variables';
 import globalStyle from '~/global/style';
 
 export default function Home() {
-    const navigation = useNavigation<any>();
+    const navigation = useNavigation<RootNavigation>();
     const insets = useSafeAreaInsets();
     const { conversations, loading, refreshing, socketErr } = useSelector((state: RootState) => state.userReducer);
     const [loadingMsg, setLoadingMsg] = useState('');

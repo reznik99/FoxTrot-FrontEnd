@@ -3,7 +3,7 @@
  * Tests that data is correctly stored and retrieved from SQLite.
  */
 import initSqlJs, { Database } from 'sql.js';
-import { message, UserData } from '~/store/reducers/user';
+import { CallRecord, message, UserData } from '~/store/reducers/user';
 
 // Adapter to make sql.js match op-sqlite's executeSync API
 function createOpSqliteAdapter(sqlJsDb: Database) {
@@ -51,6 +51,11 @@ import {
     dbGetConversations,
     dbGetConversation,
     dbUpdateMessageDecrypted,
+    dbSaveCallRecord,
+    dbGetCallHistory,
+    dbClearCallHistory,
+    dbGetUnseenCallCount,
+    dbMarkAllCallsSeen,
 } from '../database';
 
 // Sample test data
@@ -207,6 +212,124 @@ describe('database operations', () => {
 
             const conversations = dbGetConversations();
             expect(conversations[0].messageCount).toBe(2);
+        });
+    });
+
+    describe('calls', () => {
+        const testCallRecord: Omit<CallRecord, 'id' | 'seen'> = {
+            peer_phone: '+1111111111',
+            peer_id: '101',
+            peer_pic: 'https://example.com/pic1.jpg',
+            direction: 'outgoing',
+            call_type: 'audio',
+            status: 'answered',
+            duration: 120,
+            started_at: '2024-01-15T10:30:00.000Z',
+        };
+
+        it('should save and retrieve a call record', () => {
+            dbSaveCallRecord(testCallRecord);
+
+            const history = dbGetCallHistory();
+            expect(history).toHaveLength(1);
+            expect(history[0].peer_phone).toBe(testCallRecord.peer_phone);
+            expect(history[0].direction).toBe('outgoing');
+            expect(history[0].status).toBe('answered');
+            expect(history[0].duration).toBe(120);
+        });
+
+        it('should return records in descending order by started_at', () => {
+            dbSaveCallRecord({ ...testCallRecord, started_at: '2024-01-15T10:00:00.000Z' });
+            dbSaveCallRecord({ ...testCallRecord, started_at: '2024-01-15T12:00:00.000Z' });
+            dbSaveCallRecord({ ...testCallRecord, started_at: '2024-01-15T11:00:00.000Z' });
+
+            const history = dbGetCallHistory();
+            expect(history).toHaveLength(3);
+            expect(history[0].started_at).toBe('2024-01-15T12:00:00.000Z');
+            expect(history[1].started_at).toBe('2024-01-15T11:00:00.000Z');
+            expect(history[2].started_at).toBe('2024-01-15T10:00:00.000Z');
+        });
+
+        it('should respect limit and offset', () => {
+            dbSaveCallRecord({ ...testCallRecord, started_at: '2024-01-15T10:00:00.000Z' });
+            dbSaveCallRecord({ ...testCallRecord, started_at: '2024-01-15T11:00:00.000Z' });
+            dbSaveCallRecord({ ...testCallRecord, started_at: '2024-01-15T12:00:00.000Z' });
+
+            const limited = dbGetCallHistory(2, 0);
+            expect(limited).toHaveLength(2);
+
+            const offset = dbGetCallHistory(2, 1);
+            expect(offset).toHaveLength(2);
+            expect(offset[0].started_at).toBe('2024-01-15T11:00:00.000Z');
+        });
+
+        it('should clear all call records', () => {
+            dbSaveCallRecord(testCallRecord);
+            dbSaveCallRecord({ ...testCallRecord, started_at: '2024-01-15T11:00:00.000Z' });
+
+            expect(dbGetCallHistory()).toHaveLength(2);
+
+            dbClearCallHistory();
+
+            expect(dbGetCallHistory()).toHaveLength(0);
+        });
+
+        it('should handle missing peer_pic', () => {
+            dbSaveCallRecord({ ...testCallRecord, peer_pic: undefined });
+
+            const history = dbGetCallHistory();
+            expect(history).toHaveLength(1);
+            expect(history[0].peer_pic).toBeUndefined();
+        });
+
+        it('should store and distinguish all call statuses and directions', () => {
+            dbSaveCallRecord({
+                ...testCallRecord,
+                direction: 'outgoing',
+                status: 'answered',
+                started_at: '2024-01-15T10:00:00.000Z',
+            });
+            dbSaveCallRecord({
+                ...testCallRecord,
+                direction: 'incoming',
+                status: 'answered',
+                started_at: '2024-01-15T11:00:00.000Z',
+            });
+            dbSaveCallRecord({
+                ...testCallRecord,
+                direction: 'incoming',
+                status: 'missed',
+                duration: 0,
+                started_at: '2024-01-15T12:00:00.000Z',
+            });
+
+            const history = dbGetCallHistory();
+            expect(history).toHaveLength(3);
+            // Most recent first
+            expect(history[0]).toMatchObject({ direction: 'incoming', status: 'missed', duration: 0 });
+            expect(history[1]).toMatchObject({ direction: 'incoming', status: 'answered' });
+            expect(history[2]).toMatchObject({ direction: 'outgoing', status: 'answered' });
+        });
+
+        it('should count unseen call records', () => {
+            dbSaveCallRecord({ ...testCallRecord, started_at: '2024-01-15T10:00:00.000Z' });
+            dbSaveCallRecord({ ...testCallRecord, started_at: '2024-01-15T11:00:00.000Z' });
+
+            expect(dbGetUnseenCallCount()).toBe(2);
+        });
+
+        it('should mark all calls as seen', () => {
+            dbSaveCallRecord({ ...testCallRecord, started_at: '2024-01-15T10:00:00.000Z' });
+            dbSaveCallRecord({ ...testCallRecord, started_at: '2024-01-15T11:00:00.000Z' });
+
+            expect(dbGetUnseenCallCount()).toBe(2);
+
+            dbMarkAllCallsSeen();
+
+            expect(dbGetUnseenCallCount()).toBe(0);
+
+            const history = dbGetCallHistory();
+            expect(history.every(r => r.seen === true)).toBe(true);
         });
     });
 });

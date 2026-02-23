@@ -8,3 +8,4 @@ export { default as AddContact } from './pages/conversation/AddContact';
 export { default as Call } from './pages/conversation/Call';
 export { default as CameraView } from './pages/conversation/CameraView';
 export { default as Settings } from './pages/home/Settings';
+export { default as CallHistory } from './pages/home/CallHistory';

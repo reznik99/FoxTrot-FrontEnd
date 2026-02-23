@@ -13,7 +13,7 @@ export interface LocalCandidate {
     transportId: string;
 
     isRemote: boolean;
-    networkType: 'wifi' | '?TODO?';
+    networkType: 'bluetooth' | 'cellular' | 'ethernet' | 'wifi' | 'wimax' | 'vpn' | 'unknown';
 
     ip: string;
     address: string;

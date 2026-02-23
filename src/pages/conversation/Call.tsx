@@ -20,6 +20,7 @@ import {
     getRTCConfiguration,
 } from '~/global/webrtc';
 import { DARKHEADER } from '~/global/variables';
+import { dbSaveCallRecord } from '~/global/database';
 import { resetCallState, SocketData } from '~/store/actions/websocket';
 import { UserData } from '~/store/reducers/user';
 import { RootState } from '~/store/store';
@@ -254,6 +255,22 @@ class Call extends React.Component<Props, State> {
     endCall = (isEvent: boolean = false) => {
         if (!this.state.stream && !this.state.peerConnection && !this.state.peerChannel) {
             return;
+        }
+
+        // Persist call record
+        try {
+            dbSaveCallRecord({
+                peer_phone: this.state.peerUser.phone_no,
+                peer_id: String(this.state.peerUser.id),
+                peer_pic: this.state.peerUser.pic,
+                direction: this.props.callOffer ? 'incoming' : 'outgoing',
+                call_type: this.props.route.params.data?.video_enabled ? 'video' : 'audio',
+                status: 'answered',
+                duration: Math.floor(this.state.callTime),
+                started_at: new Date(this.state.startTime).toISOString(),
+            });
+        } catch (err) {
+            console.error('Failed to save call record:', err);
         }
 
         if (!isEvent) {

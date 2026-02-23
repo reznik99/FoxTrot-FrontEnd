@@ -1,14 +1,15 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { CryptoKey as QCCryptoKey } from 'react-native-quick-crypto';
+import type { CryptoKey } from 'react-native-quick-crypto/src/keys/classes';
+import type { WebCryptoKeyPair } from 'react-native-quick-crypto';
 import { RTCIceCandidate } from 'react-native-webrtc';
 import { getAvatar } from '~/global/helper';
 import { writeToStorage } from '~/global/storage';
-import { dbSaveMessage, dbSaveConversation, dbUpdateMessageDecrypted } from '~/global/database';
+import { dbSaveMessage, dbSaveConversation, dbUpdateMessageDecrypted, dbMarkMessagesSeen } from '~/global/database';
 
 export interface State {
     tokenValid: boolean;
     token: string;
-    keys?: CryptoKeyPair;
+    keys?: WebCryptoKeyPair;
     user_data: UserData;
     contacts: UserData[];
     conversations: Map<string, Conversation>;
@@ -32,7 +33,7 @@ export interface UserData {
     online: boolean;
     pic?: string;
     public_key?: string;
-    session_key?: QCCryptoKey;
+    session_key?: CryptoKey;
 }
 
 export interface Conversation {
@@ -50,6 +51,19 @@ export interface message {
     sender: string;
     sender_id: string | number;
     is_decrypted?: boolean;
+}
+
+export interface CallRecord {
+    id: number;
+    peer_phone: string;
+    peer_id: string;
+    peer_pic?: string;
+    direction: 'incoming' | 'outgoing';
+    call_type: 'audio' | 'video';
+    status: 'answered' | 'missed';
+    duration: number;
+    started_at: string;
+    seen: boolean;
 }
 
 export interface TURNCredentials {
@@ -102,7 +116,7 @@ export const userSlice = createSlice({
         SYNC_FROM_STORAGE: (state, action: PayloadAction<{ user_data: UserData }>) => {
             state.user_data = action.payload.user_data;
         },
-        KEY_LOAD: (state, action: PayloadAction<CryptoKeyPair>) => {
+        KEY_LOAD: (state, action: PayloadAction<WebCryptoKeyPair>) => {
             state.keys = action.payload;
         },
         TOKEN_VALID: (state, action: PayloadAction<{ token: string; valid: boolean }>) => {
@@ -159,12 +173,12 @@ export const userSlice = createSlice({
                 contact = {
                     id: data.sender_id,
                     phone_no: data.sender,
-                    last_seen: Number(data.sent_at),
+                    last_seen: new Date(data.sent_at).getTime(),
                     online: true,
                     pic: getAvatar(data.sender_id),
                 };
             }
-            contact.last_seen = Number(data.sent_at);
+            contact.last_seen = new Date(data.sent_at).getTime();
             contact.online = true;
             // Update conversation
             if (conversationR) {
@@ -203,6 +217,25 @@ export const userSlice = createSlice({
                 dbUpdateMessageDecrypted(messageId, decryptedContent);
             } catch (err) {
                 console.error('Error persisting decrypted message to SQLite:', err);
+            }
+        },
+        MARK_MESSAGES_SEEN: (state, action: PayloadAction<{ conversationId: string; messageIds: number[] }>) => {
+            const { conversationId, messageIds } = action.payload;
+            if (messageIds.length === 0) return;
+
+            const conversation = state.conversations.get(conversationId);
+            if (conversation) {
+                const idSet = new Set(messageIds);
+                conversation.messages.forEach(msg => {
+                    if (idSet.has(msg.id)) {
+                        msg.seen = true;
+                    }
+                });
+            }
+            try {
+                dbMarkMessagesSeen(messageIds);
+            } catch (err) {
+                console.error('Error persisting seen status to SQLite:', err);
             }
         },
         APPEND_OLDER_MESSAGES: (state, action: PayloadAction<{ conversationId: string; messages: message[] }>) => {
@@ -261,6 +294,7 @@ export const {
     SEND_MESSAGE,
     RECV_MESSAGE,
     UPDATE_MESSAGE_DECRYPTED,
+    MARK_MESSAGES_SEEN,
     APPEND_OLDER_MESSAGES,
     RECV_CALL_OFFER,
     RECV_CALL_ANSWER,

@@ -1,5 +1,5 @@
 import * as Keychain from 'react-native-keychain';
-import { AnyAlgorithm } from 'react-native-quick-crypto';
+import { AnyAlgorithm, NamedCurve } from 'react-native-quick-crypto';
 
 // Networking (dev: 'http://10.0.2.2:1234/foxtrot-api')
 export const API_URL = 'https://francescogorini.com/foxtrot-api';
@@ -7,8 +7,8 @@ export const WEBSOCKET_URL = 'wss://francescogorini.com/foxtrot-api/ws';
 
 // Crypto
 export const KeypairAlgorithm = {
-    name: 'ECDH',
-    namedCurve: 'P-384',
+    name: 'ECDH' as AnyAlgorithm,
+    namedCurve: 'P-384' as NamedCurve,
 };
 export const SymmetricAlgorithm = {
     name: 'AES-GCM' as AnyAlgorithm,

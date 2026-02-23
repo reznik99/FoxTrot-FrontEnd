@@ -1,4 +1,4 @@
-import React, { PureComponent, useState, useCallback, useMemo } from 'react';
+import React, { PureComponent, useState, useCallback, useEffect, useMemo } from 'react';
 import { StyleSheet, Text, Pressable, View, Linking, ToastAndroid, Image, Vibration } from 'react-native';
 import { ActivityIndicator, Icon, Modal, Portal } from 'react-native-paper';
 import { useSelector } from 'react-redux';
@@ -14,7 +14,13 @@ import Messaging from '~/components/Messaging';
 import { DB_MSG_PAGE_SIZE, PRIMARY, SECONDARY } from '~/global/variables';
 import { decrypt } from '~/global/crypto';
 
-import { message, UserData, UPDATE_MESSAGE_DECRYPTED, APPEND_OLDER_MESSAGES } from '~/store/reducers/user';
+import {
+    message,
+    UserData,
+    UPDATE_MESSAGE_DECRYPTED,
+    MARK_MESSAGES_SEEN,
+    APPEND_OLDER_MESSAGES,
+} from '~/store/reducers/user';
 import { RootState, store } from '~/store/store';
 import { sendMessage } from '~/store/actions/user';
 import { dbGetMessages } from '~/global/database';
@@ -40,6 +46,16 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
     const [offset, setOffset] = useState(DB_MSG_PAGE_SIZE);
     const [hasMore, setHasMore] = useState(conversation.messages.length >= DB_MSG_PAGE_SIZE);
     const [loadingMore, setLoadingMore] = useState(false);
+
+    // Mark unseen decrypted received messages as seen
+    useEffect(() => {
+        const unseenIds = conversation.messages
+            .filter(msg => !msg.seen && msg.is_decrypted && msg.sender !== user_data.phone_no)
+            .map(msg => msg.id);
+        if (unseenIds.length > 0) {
+            store.dispatch(MARK_MESSAGES_SEEN({ conversationId: peer.phone_no, messageIds: unseenIds }));
+        }
+    }, [conversation.messages, user_data.phone_no, peer.phone_no]);
 
     // Memoize the reversed messages
     const reversedMessages = useMemo(() => {
@@ -319,7 +335,7 @@ class Message extends PureComponent<MProps, MState> {
                 return (
                     <Text style={styles.text}>
                         <Text selectable>{messageChunks.slice(0, linkIndex).join(' ')}</Text>
-                        <Text selectable style={{ color: 'blue' }}>
+                        <Text selectable style={{ color: '#82B1FF' }}>
                             {linkIndex > 0 ? ' ' : ''}
                             {messageChunks[linkIndex]}
                             {linkIndex < messageChunks.length - 1 ? ' ' : ''}
@@ -413,8 +429,8 @@ class Message extends PureComponent<MProps, MState> {
                                     ? item.message
                                     : item.message?.substring(0, 197).padEnd(200, '...')}
                             </Text>
-                            <View style={{ position: 'absolute', zIndex: 10 }}>
-                                <Icon source="lock" color="#000" size={25} />
+                            <View style={{ position: 'absolute', zIndex: 10, left: '50%', top: '50%' }}>
+                                <Icon source="lock" color="#00ff00" size={25} />
                             </View>
                         </>
                     )}
@@ -456,8 +472,6 @@ const styles = StyleSheet.create({
     message: {
         padding: 15,
         borderRadius: 10,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
     received: {
         alignSelf: 'flex-start',

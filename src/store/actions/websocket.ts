@@ -19,7 +19,7 @@ export interface SocketMessage {
     reciever: string;
     reciever_id: string | number;
     message?: string;
-    sent_at?: number;
+    sent_at?: string;
     seen?: boolean;
     offer?: any;
     answer?: any;
@@ -120,7 +120,7 @@ function handleSocketMessage(data: any, dispatch: AppDispatch, getState: GetStat
                     channelId: 'Messages',
                     title: `Message from ${parsedData.data.sender}`,
                     message: parsedData.data?.message || '',
-                    when: parsedData.data.sent_at,
+                    when: parsedData.data.sent_at ? new Date(parsedData.data.sent_at).getTime() : Date.now(),
                     visibility: 'private',
                     picture: getAvatar(parsedData.data.sender_id),
                     largeIcon: 'foxtrot',

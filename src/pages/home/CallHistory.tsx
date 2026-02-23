@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, ScrollView, Text, Alert } from 'react-native';
-import { Divider, Button, Icon } from 'react-native-paper';
+import { View, ScrollView } from 'react-native';
+import { Divider, Button, Dialog, Icon, Portal, Text } from 'react-native-paper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 import CallHistoryItem from '~/components/CallHistoryItem';
@@ -28,22 +28,16 @@ export default function CallHistory() {
         }, [loadHistory]),
     );
 
-    const onClearHistory = useCallback(() => {
-        Alert.alert('Clear Call History', 'Are you sure you want to delete all call records?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Clear',
-                style: 'destructive',
-                onPress: () => {
-                    try {
-                        dbClearCallHistory();
-                        setRecords([]);
-                    } catch (err) {
-                        console.error('Failed to clear call history:', err);
-                    }
-                },
-            },
-        ]);
+    const [showClearDialog, setShowClearDialog] = useState(false);
+
+    const onConfirmClear = useCallback(() => {
+        setShowClearDialog(false);
+        try {
+            dbClearCallHistory();
+            setRecords([]);
+        } catch (err) {
+            console.error('Failed to clear call history:', err);
+        }
     }, []);
 
     return (
@@ -57,7 +51,12 @@ export default function CallHistory() {
                                 <Divider />
                             </View>
                         ))}
-                        <Button mode="text" textColor="#e53935" onPress={onClearHistory} style={{ marginVertical: 20 }}>
+                        <Button
+                            mode="text"
+                            textColor="#e53935"
+                            onPress={() => setShowClearDialog(true)}
+                            style={{ marginVertical: 20 }}
+                        >
                             Clear Call History
                         </Button>
                     </>
@@ -68,6 +67,32 @@ export default function CallHistory() {
                     </View>
                 )}
             </ScrollView>
+            <Portal>
+                <Dialog visible={showClearDialog} onDismiss={() => setShowClearDialog(false)}>
+                    <Dialog.Icon icon="delete-alert" />
+                    <Dialog.Title style={{ textAlign: 'center' }}>Clear Call History</Dialog.Title>
+                    <Dialog.Content>
+                        <Text style={{ textAlign: 'center' }}>Are you sure you want to delete all call records?</Text>
+                    </Dialog.Content>
+                    <Dialog.Actions style={{ justifyContent: 'space-evenly' }}>
+                        <Button
+                            mode="contained-tonal"
+                            onPress={() => setShowClearDialog(false)}
+                            style={{ paddingHorizontal: 15 }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            mode="contained"
+                            buttonColor="#e53935"
+                            onPress={onConfirmClear}
+                            style={{ paddingHorizontal: 15 }}
+                        >
+                            Clear
+                        </Button>
+                    </Dialog.Actions>
+                </Dialog>
+            </Portal>
         </View>
     );
 }

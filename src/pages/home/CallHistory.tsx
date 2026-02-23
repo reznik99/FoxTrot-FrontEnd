@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, ScrollView, RefreshControl, Text, Alert } from 'react-native';
+import { View, ScrollView, Text, Alert } from 'react-native';
 import { Divider, Button, Icon } from 'react-native-paper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
@@ -12,8 +12,6 @@ import globalStyle from '~/global/style';
 export default function CallHistory() {
     const navigation = useNavigation<any>();
     const [records, setRecords] = useState<CallRecord[]>([]);
-    const [refreshing, setRefreshing] = useState(false);
-
     const loadHistory = useCallback(() => {
         try {
             const history = dbGetCallHistory();
@@ -29,12 +27,6 @@ export default function CallHistory() {
             dbMarkAllCallsSeen();
         }, [loadHistory]),
     );
-
-    const onRefresh = useCallback(() => {
-        setRefreshing(true);
-        loadHistory();
-        setRefreshing(false);
-    }, [loadHistory]);
 
     const onClearHistory = useCallback(() => {
         Alert.alert('Clear Call History', 'Are you sure you want to delete all call records?', [
@@ -56,7 +48,7 @@ export default function CallHistory() {
 
     return (
         <View style={globalStyle.wrapper}>
-            <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+            <ScrollView>
                 {records.length > 0 ? (
                     <>
                         {records.map((record, index) => (

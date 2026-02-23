@@ -45,7 +45,7 @@ export default function CallHistoryItem({ record, navigation }: IProps) {
                     id: record.peer_id,
                     phone_no: record.peer_phone,
                     pic: record.peer_pic,
-                    last_seen: 0,
+                    last_seen: new Date(record.started_at).getTime(),
                     online: false,
                 },
             },

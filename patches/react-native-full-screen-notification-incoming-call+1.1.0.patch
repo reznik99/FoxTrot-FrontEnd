@@ -1,0 +1,76 @@
+diff --git a/node_modules/react-native-full-screen-notification-incoming-call/android/src/main/java/com/reactnativefullscreennotificationincomingcall/IncomingCallService.java b/node_modules/react-native-full-screen-notification-incoming-call/android/src/main/java/com/reactnativefullscreennotificationincomingcall/IncomingCallService.java
+index 502fe36..c74b06d 100644
+--- a/node_modules/react-native-full-screen-notification-incoming-call/android/src/main/java/com/reactnativefullscreennotificationincomingcall/IncomingCallService.java
++++ b/node_modules/react-native-full-screen-notification-incoming-call/android/src/main/java/com/reactnativefullscreennotificationincomingcall/IncomingCallService.java
+@@ -52,6 +52,8 @@ public class IncomingCallService extends Service {
+   // you can perform a click only once time
+   private Bundle bundleData;
+   private static final String TAG = "FullscreenService";
++  // Strong reference to prevent GC from collecting the Picasso Target
++  private Target avatarTarget;
+ 
+   public int onStartCommand(Intent intent, int flags, int startId) {
+     String action = intent.getAction();
+@@ -119,14 +121,16 @@ public class IncomingCallService extends Service {
+   }
+ 
+   private void loadAvatarAndStartForeground(String avatarUrl, Intent intent) {
+-    Picasso.get().load(avatarUrl).transform(new CircleTransform()).into(new Target() {
++    avatarTarget = new Target() {
+       @Override
+       public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom from) {
++        avatarTarget = null;
+         startForegroundWithNotification(intent, CircleTransform.transformWithRecycle(bitmap,false));
+       }
+ 
+       @Override
+       public void onBitmapFailed(Exception e, Drawable errorDrawable) {
++        avatarTarget = null;
+         startForegroundWithNotification(intent, null);
+       }
+ 
+@@ -134,7 +138,8 @@ public class IncomingCallService extends Service {
+       public void onPrepareLoad(Drawable placeHolderDrawable) {
+         // No-op
+       }
+-    });
++    };
++    Picasso.get().load(avatarUrl).transform(new CircleTransform()).into(avatarTarget);
+   }
+ 
+   private void startForegroundWithNotification(Intent intent, Bitmap avatarBitmap) {
+diff --git a/node_modules/react-native-full-screen-notification-incoming-call/android/src/main/java/com/reactnativefullscreennotificationincomingcall/NotificationReceiverHandler.java b/node_modules/react-native-full-screen-notification-incoming-call/android/src/main/java/com/reactnativefullscreennotificationincomingcall/NotificationReceiverHandler.java
+index beb50db..dbd4079 100644
+--- a/node_modules/react-native-full-screen-notification-incoming-call/android/src/main/java/com/reactnativefullscreennotificationincomingcall/NotificationReceiverHandler.java
++++ b/node_modules/react-native-full-screen-notification-incoming-call/android/src/main/java/com/reactnativefullscreennotificationincomingcall/NotificationReceiverHandler.java
+@@ -7,6 +7,7 @@ import android.content.Intent;
+ import android.os.Build;
+ import android.os.Bundle;
+ import android.util.Log;
++import android.view.WindowManager;
+ import com.facebook.react.bridge.Arguments;
+ import com.facebook.react.bridge.WritableMap;
+ 
+@@ -66,6 +67,22 @@ public class NotificationReceiverHandler {
+     if (IncomingCallActivity.active) {
+       IncomingCallActivity.getInstance().destroyActivity(false);
+     }
++    // Launch the main app immediately from the native side while still within
++    // the PendingIntent grace period. Waiting for JS to call backToApp() is
++    // too slow and gets blocked by Android 12+ BAL restrictions.
++    try {
++      String packageName = context.getApplicationContext().getPackageName();
++      Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(packageName);
++      if (launchIntent != null) {
++        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
++            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
++            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
++            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
++        context.startActivity(launchIntent);
++      }
++    } catch (Exception e) {
++      Log.e(TAG, "Failed to launch main app on answer", e);
++    }
+     WritableMap params = Arguments.createMap();
+     if(bundle.containsKey("payload")){
+       params.putString("payload",bundle.getString("payload"));

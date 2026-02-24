@@ -264,7 +264,7 @@ setBackgroundMessageHandler(messaging, async remoteMessage => {
     RNNotificationCall.displayNotification(QuickCrypto.randomUUID(), caller.pic || getAvatar(caller.id), 20000, {
         channelId: 'com.foxtrot.callNotifications',
         channelName: 'Notifications for incoming calls',
-        notificationIcon: '@mipmap/foxtrot', // mipmap
+        notificationIcon: 'foxtrot',
         notificationTitle: caller.phone_no || 'Unknown User',
         notificationBody: `Incoming ${eventData.type || 'audio'} call`,
         answerText: 'Answer',

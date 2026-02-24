@@ -191,13 +191,19 @@ const darkTheme = {
 // Register background handler
 const messaging = getMessaging();
 setBackgroundMessageHandler(messaging, async remoteMessage => {
-    InCallManager.stopRingtone();
     console.log('Message handled in the background!', remoteMessage);
-    const callerRaw = remoteMessage.data?.caller as string;
-    if (!callerRaw) {
+    // Stop duplicate ringtones
+    InCallManager.stopRingtone();
+    // Parse event & caller data
+    const caller = JSON.parse((remoteMessage.data?.caller as string) || '{}') as UserData;
+    if (Object.keys(caller).length === 0) {
         return console.error('Caller data is not defined');
     }
-
+    const eventData = JSON.parse((remoteMessage.data?.data as string) || '{}') as SocketMessage;
+    if (Object.keys(eventData).length === 0) {
+        return console.error('Event data is not defined');
+    }
+    // Register call event listeners
     RNNotificationCall.addEventListener('answer', async info => {
         console.debug('RNNotificationCall: User answered call', info.callUUID);
         RNNotificationCall.backToApp();
@@ -211,18 +217,18 @@ setBackgroundMessageHandler(messaging, async remoteMessage => {
     });
     RNNotificationCall.addEventListener('endCall', async info => {
         console.debug('RNNotificationCall: User ended call', info.callUUID);
+        // Stop ringing
         InCallManager.stopRingtone();
+
         const data = info as DeclinePayload;
-        // If call was missed, show push notification of missed call
-        PushNotification.createChannel(
-            {
+        if (data.endAction === 'ACTION_HIDE_CALL') {
+            // If call was missed, show push notification of missed call
+            const callChannelOpts = {
                 channelId: 'Calls',
                 channelName: 'Notifications for missed calls',
                 channelDescription: 'Notifications for missed calls',
-            },
-            () => {},
-        );
-        if (data.endAction === 'ACTION_HIDE_CALL') {
+            };
+            PushNotification.createChannel(callChannelOpts, () => {});
             PushNotification.localNotification({
                 channelId: 'Calls',
                 title: 'Missed Call',
@@ -248,15 +254,13 @@ setBackgroundMessageHandler(messaging, async remoteMessage => {
                 started_at: new Date().toISOString(),
             });
         } catch (err) {
-            console.error('Failed to save missed call record in background:', err);
+            console.error('Failed to save missed call record to db:', err);
         }
         // Delete storage info about caller so they don't get routed to call screen on next app open
         await deleteFromStorage('call_answered_in_background');
     });
     InCallManager.startRingtone('_DEFAULT_', VibratePattern, '', 20);
 
-    const eventData = JSON.parse((remoteMessage.data?.data as string) || '{}') as SocketMessage;
-    const caller = JSON.parse(callerRaw) as UserData;
     RNNotificationCall.displayNotification(QuickCrypto.randomUUID(), caller.pic || getAvatar(caller.id), 20000, {
         channelId: 'com.foxtrot.callNotifications',
         channelName: 'Notifications for incoming calls',

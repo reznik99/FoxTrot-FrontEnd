@@ -137,7 +137,12 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
     const handleImageSelect = useCallback(async () => {
         try {
             setLoading(true);
-            const { didCancel, assets } = await launchImageLibrary({ mediaType: 'photo', quality: 0.3 });
+            const { didCancel, assets } = await launchImageLibrary({
+                mediaType: 'photo',
+                quality: 0.3,
+                maxWidth: 1600,
+                maxHeight: 1600,
+            });
             if (didCancel || !assets?.length) return;
 
             // Render Camera page pre-filled with selected image

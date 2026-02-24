@@ -59,7 +59,6 @@ class Call extends React.Component<Props, State> {
         this.callTimer = setInterval(() => this.setState({ callTime: (Date.now() - this.state.startTime) / 1000 }), 1000);
         this.callStatsTimer = setInterval(this.calculatePing, 2500);
 
-        InCallManager.start({ media: this.state.videoEnabled ? 'video' : 'audio', auto: true });
         this.checkCallStatus(undefined);
     };
 
@@ -228,6 +227,8 @@ class Call extends React.Component<Props, State> {
                 });
             });
 
+            InCallManager.start({ media: this.state.videoEnabled ? 'video' : 'audio', auto: true });
+
             console.debug('startStream - Loading tracks');
             newStream.getTracks().forEach(track => newConnection.addTrack(track, newStream));
             // Disable video if it's an audio call (can be enabled later)
@@ -285,6 +286,8 @@ class Call extends React.Component<Props, State> {
                 text2: `Call lasted ${this.calculateCallTime()}`,
             });
         }
+        // Stop InCallManager (proximity sensor, audio routing, etc.)
+        InCallManager.stop();
         // Close networking
         this.state.stream?.release?.();
         this.state.peerConnection?.close?.();

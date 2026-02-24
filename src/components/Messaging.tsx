@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { ActivityIndicator, Icon, Text } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Sound, { AudioSet } from 'react-native-nitro-sound';
+import Sound, { AudioSet, AudioEncoderAndroidType } from 'react-native-nitro-sound';
 import RNFS from 'react-native-fs';
 
 import CustomKeyboardAvoidingView from '~/components/CustomKeyboardAvoidingView';
@@ -53,20 +53,25 @@ export default function Messaging(props: IProps) {
             const hasPermission = await getMicrophoneRecordingPermission();
             if (!hasPermission) {
                 return;
-            } // Show error
+            }
             const hasPermission2 = await getReadExtPermission();
             if (!hasPermission2) {
                 return;
-            } // Show error
+            }
             // Start recording
             Sound.addRecordBackListener(e => setAudioRecordTime(e.currentPosition));
             await Sound.setVolume(1.0);
-            const audioConfig: AudioSet = { AudioQuality: 'low' };
+            const audioConfig: AudioSet = {
+                AudioEncoderAndroid: AudioEncoderAndroidType.AAC,
+                AudioSamplingRate: 22050,
+                AudioEncodingBitRate: 32000,
+                AudioChannels: 1,
+            };
             const result = await Sound.startRecorder(undefined, audioConfig);
             setAudioFilePath(result);
             console.log('Recording started:', result);
         } catch (err) {
-            console.error(err); // Show error
+            console.error(err);
         }
     }, [resetAudio]);
 
@@ -76,7 +81,7 @@ export default function Messaging(props: IProps) {
             await Sound.stopRecorder();
             Sound.removeRecordBackListener();
         } catch (err) {
-            console.error(err); // Show error
+            console.error(err);
         }
     }, []);
 
@@ -87,7 +92,7 @@ export default function Messaging(props: IProps) {
             Sound.addPlaybackEndListener(() => setPlayingAudio(false));
             setPlayingAudio(true);
         } catch (err) {
-            console.error(err); // Show error
+            console.error(err);
         }
     }, [audioFilePath]);
 
@@ -98,7 +103,7 @@ export default function Messaging(props: IProps) {
             Sound.removePlayBackListener();
             Sound.removePlaybackEndListener();
         } catch (err) {
-            console.error(err); // Show error
+            console.error(err);
         }
     }, []);
 
@@ -139,7 +144,7 @@ export default function Messaging(props: IProps) {
                         <View
                             style={{
                                 width: `${(audioPlaybackTime / audioRecordTime) * 100}%`,
-                                height: 1,
+                                height: 2,
                                 backgroundColor: playingAudio ? PRIMARY : 'transparent',
                             }}
                         />

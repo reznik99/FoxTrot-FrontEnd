@@ -39,6 +39,7 @@ export default function Home() {
     }, [conversations]);
 
     useEffect(() => {
+        let cleanupCallHandlers: (() => void) | undefined;
         const initLoad = async () => {
             // [background] Register device for push notifications
             store.dispatch(registerPushNotifications());
@@ -59,7 +60,7 @@ export default function Home() {
                 }
             });
             // Register Call Screen handler
-            registerCallHandlers();
+            cleanupCallHandlers = registerCallHandlers();
             // Load keys from TPM
             const loaded = await loadKeypair();
             if (!loaded) {
@@ -79,6 +80,7 @@ export default function Home() {
         // returned function will be called on component unmount
         return () => {
             store.dispatch(destroyWebsocket());
+            cleanupCallHandlers?.();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -157,6 +159,10 @@ export default function Home() {
                 console.error('Failed to save missed call record:', err);
             }
         });
+        return () => {
+            RNNotificationCall.removeEventListener('answer');
+            RNNotificationCall.removeEventListener('endCall');
+        };
     }, [navigation]);
 
     return (

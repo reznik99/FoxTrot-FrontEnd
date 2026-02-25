@@ -1,6 +1,6 @@
 import { Buffer } from 'buffer';
 import QuickCrypto from 'react-native-quick-crypto';
-import { encrypt, decrypt } from '../crypto';
+import { encrypt, decrypt, encryptFile, decryptFile } from '../crypto';
 
 // Hardcoded test key (256-bit AES key)
 const TEST_KEY_BASE64 = '5ZFymSUme/8XA3T7f+FbGX7te8ri8N7iOQ5iHvyr/+A=';
@@ -145,6 +145,74 @@ describe('crypto.ts', () => {
 
                 await expect(decrypt(sessionKey, corruptedMessage)).rejects.toThrow();
             });
+        });
+    });
+
+    describe('encryptFile / decryptFile', () => {
+        it('should round-trip small binary data', async () => {
+            const original = Buffer.from('Hello, file encryption!');
+
+            const { encrypted, keyBase64, ivBase64 } = await encryptFile(original);
+            const decrypted = await decryptFile(encrypted, keyBase64, ivBase64);
+
+            expect(decrypted.toString()).toBe('Hello, file encryption!');
+        });
+
+        it('should round-trip a larger buffer (simulating an image)', async () => {
+            // 64KB of random data
+            const original = Buffer.from(QuickCrypto.getRandomValues(new Uint8Array(65536)));
+
+            const { encrypted, keyBase64, ivBase64 } = await encryptFile(original);
+            const decrypted = await decryptFile(encrypted, keyBase64, ivBase64);
+
+            expect(decrypted).toEqual(original);
+        });
+
+        it('should produce different ciphertexts for the same data (random key + IV)', async () => {
+            const data = Buffer.from('same data');
+
+            const result1 = await encryptFile(data);
+            const result2 = await encryptFile(data);
+
+            expect(result1.keyBase64).not.toBe(result2.keyBase64);
+            expect(result1.ivBase64).not.toBe(result2.ivBase64);
+        });
+
+        it('should return a 256-bit key and 96-bit IV as base64', async () => {
+            const data = Buffer.from('test');
+
+            const { keyBase64, ivBase64 } = await encryptFile(data);
+
+            expect(Buffer.from(keyBase64, 'base64').length).toBe(32); // 256 bits
+            expect(Buffer.from(ivBase64, 'base64').length).toBe(12); // 96 bits
+        });
+
+        it('should fail to decrypt with wrong key', async () => {
+            const data = Buffer.from('secret data');
+            const { encrypted, ivBase64 } = await encryptFile(data);
+
+            // Generate a different random key
+            const wrongKey = Buffer.from(QuickCrypto.getRandomValues(new Uint8Array(32))).toString('base64');
+
+            await expect(decryptFile(encrypted, wrongKey, ivBase64)).rejects.toThrow();
+        });
+
+        it('should fail to decrypt with wrong IV', async () => {
+            const data = Buffer.from('secret data');
+            const { encrypted, keyBase64 } = await encryptFile(data);
+
+            const wrongIv = Buffer.from(QuickCrypto.getRandomValues(new Uint8Array(12))).toString('base64');
+
+            await expect(decryptFile(encrypted, keyBase64, wrongIv)).rejects.toThrow();
+        });
+
+        it('should handle empty data', async () => {
+            const original = Buffer.alloc(0);
+
+            const { encrypted, keyBase64, ivBase64 } = await encryptFile(original);
+            const decrypted = await decryptFile(encrypted, keyBase64, ivBase64);
+
+            expect(decrypted.length).toBe(0);
         });
     });
 });

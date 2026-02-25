@@ -411,6 +411,7 @@ class Message extends PureComponent<MProps, MState> {
     };
 
     handleClick = async (item: message) => {
+        if (this.state.loading) return;
         try {
             this.setState({ loading: true });
             const msgObject = this.state.decryptedMessage;

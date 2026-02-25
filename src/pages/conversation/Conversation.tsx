@@ -8,7 +8,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { StackScreenProps } from '@react-navigation/stack';
 import Toast from 'react-native-toast-message';
 
-import FullScreenImage from '~/components/FullScreenImage';
+import FullScreenMedia from '~/components/FullScreenMedia';
 import AudioPlayer from '~/components/AudioPlayer';
 import Messaging from '~/components/Messaging';
 import { DB_MSG_PAGE_SIZE, PRIMARY, SECONDARY } from '~/global/variables';
@@ -23,6 +23,7 @@ import {
 } from '~/store/reducers/user';
 import { RootState, store } from '~/store/store';
 import { sendMessage } from '~/store/actions/user';
+import { downloadMedia } from '~/store/actions/media';
 import { dbGetMessages } from '~/global/database';
 import { HomeStackParamList } from '~/../App';
 
@@ -138,17 +139,22 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
         try {
             setLoading(true);
             const { didCancel, assets } = await launchImageLibrary({
-                mediaType: 'photo',
+                mediaType: 'mixed',
                 quality: 0.3,
                 maxWidth: 1600,
                 maxHeight: 1600,
             });
             if (didCancel || !assets?.length) return;
 
-            // Render Camera page pre-filled with selected image
-            props.navigation.navigate('CameraView', { data: { peer: peer, picturePath: assets[0].uri! } });
+            const asset = assets[0];
+            const isVideo = asset.type?.startsWith('video');
+
+            // Render Camera page pre-filled with selected media
+            props.navigation.navigate('CameraView', {
+                data: { peer: peer, mediaPath: asset.uri!, mediaType: isVideo ? 'video' : 'image' },
+            });
         } catch (err) {
-            console.error('Error sending gallery image:', err);
+            console.error('Error selecting gallery media:', err);
         } finally {
             setLoading(false);
         }
@@ -156,7 +162,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
 
     const handleCameraSelect = useCallback(async () => {
         // Render Camera page
-        props.navigation.navigate('CameraView', { data: { peer: peer, picturePath: '' } });
+        props.navigation.navigate('CameraView', { data: { peer: peer, mediaPath: '' } });
     }, [props.navigation, peer]);
 
     const renderListEmpty = useCallback(
@@ -241,7 +247,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                     onDismiss={() => setZoomMedia('')}
                     contentContainerStyle={{ width: '100%', height: '100%' }}
                 >
-                    {zoomMedia && <FullScreenImage media={zoomMedia} onDismiss={() => setZoomMedia('')} />}
+                    {zoomMedia && <FullScreenMedia media={zoomMedia} onDismiss={() => setZoomMedia('')} />}
                 </Modal>
             </Portal>
         </View>
@@ -250,8 +256,12 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
 
 type decryptedMessage = {
     type: string;
-    message: string;
+    message?: string;
     duration?: number;
+    objectKey?: string;
+    fileKey?: string;
+    fileIv?: string;
+    mimeType?: string;
 };
 type MProps = {
     item: message;
@@ -263,6 +273,7 @@ type MProps = {
 type MState = {
     loading: boolean;
     decryptedMessage?: decryptedMessage;
+    mediaUri?: string;
 };
 class Message extends PureComponent<MProps, MState> {
     constructor(props: MProps) {
@@ -293,7 +304,7 @@ class Message extends PureComponent<MProps, MState> {
             return;
         }
 
-        Clipboard.setString(this.state.decryptedMessage.message);
+        Clipboard.setString(this.state.decryptedMessage.message || '');
         ToastAndroid.show('Message Copied', ToastAndroid.SHORT);
     };
 
@@ -309,21 +320,55 @@ class Message extends PureComponent<MProps, MState> {
     };
 
     renderMessage = (item: decryptedMessage | undefined, _isSent: boolean) => {
-        if (!item || !item?.message) {
+        if (!item) {
             return;
         }
 
         switch (item.type) {
-            // TODO: Add VIDEO and GIF message types
             case 'IMG':
+                // Legacy inline base64 image
+                if (item.message) {
+                    return (
+                        <Image
+                            source={{ uri: `data:image/jpeg;base64,${item.message}` }}
+                            style={{ width: 200, height: 'auto', aspectRatio: 1.5 }}
+                            resizeMode="contain"
+                        />
+                    );
+                }
+                // S3-backed image
+                if (this.state.mediaUri) {
+                    return (
+                        <Image
+                            source={{ uri: this.state.mediaUri }}
+                            style={{ width: 200, height: 'auto', aspectRatio: 1.5 }}
+                            resizeMode="contain"
+                        />
+                    );
+                }
                 return (
-                    <Image
-                        source={{ uri: `data:image/jpeg;base64,${item.message}` }}
-                        style={{ width: 200, height: 'auto', aspectRatio: 1.5 }}
-                        resizeMode="contain"
-                    />
+                    <View style={{ width: 200, aspectRatio: 1.5, justifyContent: 'center', alignItems: 'center' }}>
+                        <Icon source="image" color="#aaa" size={40} />
+                        <Text style={styles.text}>Tap to load image</Text>
+                    </View>
+                );
+            case 'VIDEO':
+                if (this.state.mediaUri) {
+                    return (
+                        <View style={{ width: 200, aspectRatio: 1.5, justifyContent: 'center', alignItems: 'center' }}>
+                            <Icon source="play-circle" color="#fff" size={50} />
+                            <Text style={styles.text}>Tap to play video</Text>
+                        </View>
+                    );
+                }
+                return (
+                    <View style={{ width: 200, aspectRatio: 1.5, justifyContent: 'center', alignItems: 'center' }}>
+                        <Icon source="video" color="#aaa" size={40} />
+                        <Text style={styles.text}>Tap to load video</Text>
+                    </View>
                 );
             case 'MSG':
+                if (!item.message) return null;
                 const messageChunks = item.message.split(' ');
                 const linkIndex = messageChunks.findIndex(
                     chunk => chunk.startsWith('https://') || chunk.startsWith('http://'),
@@ -349,6 +394,7 @@ class Message extends PureComponent<MProps, MState> {
                     </Text>
                 );
             case 'AUDIO': {
+                if (!item.message) return null;
                 return (
                     <>
                         <Text style={styles.text}>
@@ -365,6 +411,7 @@ class Message extends PureComponent<MProps, MState> {
     };
 
     handleClick = async (item: message) => {
+        if (this.state.loading) return;
         try {
             this.setState({ loading: true });
             const msgObject = this.state.decryptedMessage;
@@ -386,11 +433,51 @@ class Message extends PureComponent<MProps, MState> {
             }
             // Message is decrypted so behaviour depends on content
             switch (msgObject?.type) {
-                case 'IMG': // Image is contained in message, then zoom in
-                    this.props.zoomMedia(this.state.decryptedMessage!.message);
+                case 'IMG':
+                    if (msgObject.message) {
+                        // Legacy inline base64 — zoom in
+                        this.props.zoomMedia(msgObject.message);
+                    } else if (msgObject.objectKey && msgObject.fileKey && msgObject.fileIv) {
+                        if (this.state.mediaUri) {
+                            // Already downloaded — zoom in
+                            this.props.zoomMedia(this.state.mediaUri);
+                        } else {
+                            // Download from S3, decrypt, and cache
+                            const uri = await store
+                                .dispatch(
+                                    downloadMedia({
+                                        objectKey: msgObject.objectKey,
+                                        keyBase64: msgObject.fileKey,
+                                        ivBase64: msgObject.fileIv,
+                                    }),
+                                )
+                                .unwrap();
+                            this.setState({ mediaUri: uri });
+                        }
+                    }
+                    break;
+                case 'VIDEO':
+                    if (msgObject.objectKey && msgObject.fileKey && msgObject.fileIv) {
+                        if (this.state.mediaUri) {
+                            // Already downloaded — open full screen
+                            this.props.zoomMedia(this.state.mediaUri);
+                        } else {
+                            // Download from S3, decrypt, and cache
+                            const uri = await store
+                                .dispatch(
+                                    downloadMedia({
+                                        objectKey: msgObject.objectKey,
+                                        keyBase64: msgObject.fileKey,
+                                        ivBase64: msgObject.fileIv,
+                                    }),
+                                )
+                                .unwrap();
+                            this.setState({ mediaUri: uri });
+                        }
+                    }
                     break;
                 case 'MSG': // If message contains URL open it in browser
-                    const messageChunks = this.state.decryptedMessage?.message?.split(' ') || [];
+                    const messageChunks = msgObject?.message?.split(' ') || [];
                     const link = messageChunks.find(chunk => chunk.startsWith('https://') || chunk.startsWith('http://'));
                     if (link) {
                         Linking.openURL(link);
@@ -422,10 +509,12 @@ class Message extends PureComponent<MProps, MState> {
             >
                 <View style={[styles.message]}>
                     {/* Loader */}
-                    <ActivityIndicator
-                        style={{ position: 'absolute', zIndex: 10 }}
-                        animating={this.state.loading && !this.state.decryptedMessage}
-                    />
+                    {this.state.loading && (
+                        <ActivityIndicator
+                            style={{ position: 'absolute', zIndex: 10, alignSelf: 'center', top: '40%' }}
+                            animating={true}
+                        />
+                    )}
                     {/* Message preview */}
                     {isEncrypted && (
                         <>

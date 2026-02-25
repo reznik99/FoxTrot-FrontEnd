@@ -110,6 +110,53 @@ export async function publicKeyFingerprint(peerPublic: string): Promise<string> 
         .reduce((prev, curr, i) => prev + curr + (i % 2 === 1 ? ' ' : ''), '');
 }
 
+export interface EncryptedFileResult {
+    encrypted: Buffer;
+    keyBase64: string;
+    ivBase64: string;
+}
+
+/** Encrypts raw file data with a random AES-256-GCM key. Returns the ciphertext and the key+IV needed to decrypt (to be sent inside the E2EE message). */
+export async function encryptFile(data: Buffer): Promise<EncryptedFileResult> {
+    const startTime = performance.now();
+
+    const keyRaw = QuickCrypto.getRandomValues(new Uint8Array(32));
+    const iv = QuickCrypto.getRandomValues(new Uint8Array(SaltLenGCM));
+
+    const key = await QuickCrypto.subtle.importKey('raw', keyRaw, SymmetricAlgorithm, false, ['encrypt']);
+
+    const encrypted = Buffer.from(await QuickCrypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, data));
+
+    console.debug('encryptFile took:', (performance.now() - startTime).toLocaleString(), 'ms', '| size:', data.byteLength);
+    return {
+        encrypted,
+        keyBase64: Buffer.from(keyRaw).toString('base64'),
+        ivBase64: Buffer.from(iv).toString('base64'),
+    };
+}
+
+/** Decrypts file data that was encrypted with encryptFile. Takes the ciphertext and the key+IV from the E2EE message. */
+export async function decryptFile(encrypted: Buffer, keyBase64: string, ivBase64: string): Promise<Buffer> {
+    const startTime = performance.now();
+
+    const key = await QuickCrypto.subtle.importKey('raw', Buffer.from(keyBase64, 'base64'), SymmetricAlgorithm, false, [
+        'decrypt',
+    ]);
+
+    const decrypted = Buffer.from(
+        await QuickCrypto.subtle.decrypt({ name: 'AES-GCM', iv: Buffer.from(ivBase64, 'base64') }, key, encrypted),
+    );
+
+    console.debug(
+        'decryptFile took:',
+        (performance.now() - startTime).toLocaleString(),
+        'ms',
+        '| size:',
+        encrypted.byteLength,
+    );
+    return decrypted;
+}
+
 /** Encrypts a given message using the supplied AES Session Key (GCM) (generated from *generateSessionKeyECDH*) and returns it as a Base64 string. */
 export async function encrypt(sessionKey: CryptoKey, message: string): Promise<string> {
     if (!sessionKey) {

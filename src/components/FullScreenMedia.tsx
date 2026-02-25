@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { StyleSheet, ToastAndroid, View } from 'react-native';
 import { Divider, IconButton, Menu } from 'react-native-paper';
 import { ImageZoom } from '@likashefqet/react-native-image-zoom';
+import Video from 'react-native-video';
 import RNFS from 'react-native-fs';
 
 import { DARKHEADER } from '~/global/variables';
@@ -13,8 +14,12 @@ interface IProps {
     onDismiss: () => void;
 }
 
-const FullScreenImage = (props: IProps) => {
+const FullScreenMedia = (props: IProps) => {
     const [showMenu, setShowMenu] = useState(false);
+
+    const isFileUri = props.media.startsWith('file://');
+    const isVideo = isFileUri && /\.(mp4|webm|mov)$/i.test(props.media);
+    const mediaUri = isFileUri ? props.media : `data:image/jpeg;base64,${props.media}`;
 
     const download = useCallback(async () => {
         const granted = await getWriteExtPermission();
@@ -22,24 +27,40 @@ const FullScreenImage = (props: IProps) => {
             return;
         }
 
-        const fullPath = RNFS.DownloadDirectoryPath + `/foxtrot-${Date.now()}.jpeg`;
-        await RNFS.writeFile(fullPath, props.media, 'base64');
+        const extension = isVideo ? 'mp4' : 'jpeg';
+        const fullPath = RNFS.DownloadDirectoryPath + `/foxtrot-${Date.now()}.${extension}`;
+
+        if (isFileUri) {
+            await RNFS.copyFile(props.media.replace('file://', ''), fullPath);
+        } else {
+            await RNFS.writeFile(fullPath, props.media, 'base64');
+        }
 
         setShowMenu(false);
-        ToastAndroid.show('Image saved to ' + fullPath, ToastAndroid.SHORT);
-    }, [props.media]);
+        ToastAndroid.show(`${isVideo ? 'Video' : 'Image'} saved to ${fullPath}`, ToastAndroid.SHORT);
+    }, [props.media, isFileUri, isVideo]);
 
     return (
         <View style={styles.container}>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-                <ImageZoom
-                    uri={`data:image/jpeg;base64,${props.media}`}
+            {isVideo ? (
+                <Video
+                    source={{ uri: props.media }}
+                    style={{ flex: 1 }}
                     resizeMode="contain"
-                    resizeMethod="auto"
-                    isDoubleTapEnabled={true}
-                    doubleTapScale={3}
+                    controls={true}
+                    paused={false}
                 />
-            </GestureHandlerRootView>
+            ) : (
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                    <ImageZoom
+                        uri={mediaUri}
+                        resizeMode="contain"
+                        resizeMethod="auto"
+                        isDoubleTapEnabled={true}
+                        doubleTapScale={3}
+                    />
+                </GestureHandlerRootView>
+            )}
             <View style={styles.surface}>
                 <IconButton icon="arrow-left-circle" size={25} onPress={props.onDismiss} />
                 <Menu
@@ -56,7 +77,7 @@ const FullScreenImage = (props: IProps) => {
     );
 };
 
-export default FullScreenImage;
+export default FullScreenMedia;
 
 const styles = StyleSheet.create({
     container: {

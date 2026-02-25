@@ -132,7 +132,7 @@ export type HomeStackParamList = {
     NewConversation: undefined;
     AddContact: undefined;
     Call: { data: { peer_user: UserData; video_enabled: boolean } };
-    CameraView: { data: { peer: UserData; picturePath: string } };
+    CameraView: { data: { peer: UserData; mediaPath: string; mediaType?: 'image' | 'video' } };
     Settings: undefined;
 };
 const HomeStack = createStackNavigator<HomeStackParamList>();

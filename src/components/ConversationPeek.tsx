@@ -30,6 +30,8 @@ function getMessagePreview(msg: message): MessagePreview {
                 return { text: parsed.message?.substring(0, 50) || '' };
             case 'IMG':
                 return { text: 'Image', icon: 'image', isMedia: true };
+            case 'VIDEO':
+                return { text: 'Video', icon: 'video', isMedia: true };
             case 'AUDIO':
                 return { text: 'Audio', icon: 'microphone', isMedia: true };
             default:

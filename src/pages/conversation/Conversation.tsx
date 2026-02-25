@@ -500,10 +500,12 @@ class Message extends PureComponent<MProps, MState> {
             >
                 <View style={[styles.message]}>
                     {/* Loader */}
-                    <ActivityIndicator
-                        style={{ position: 'absolute', zIndex: 10 }}
-                        animating={this.state.loading}
-                    />
+                    {this.state.loading && (
+                        <ActivityIndicator
+                            style={{ position: 'absolute', zIndex: 10, alignSelf: 'center', top: '40%' }}
+                            animating={true}
+                        />
+                    )}
                     {/* Message preview */}
                     {isEncrypted && (
                         <>

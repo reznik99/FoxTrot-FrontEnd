@@ -8,7 +8,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { StackScreenProps } from '@react-navigation/stack';
 import Toast from 'react-native-toast-message';
 
-import FullScreenImage from '~/components/FullScreenImage';
+import FullScreenMedia from '~/components/FullScreenMedia';
 import AudioPlayer from '~/components/AudioPlayer';
 import Messaging from '~/components/Messaging';
 import { DB_MSG_PAGE_SIZE, PRIMARY, SECONDARY } from '~/global/variables';
@@ -247,7 +247,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                     onDismiss={() => setZoomMedia('')}
                     contentContainerStyle={{ width: '100%', height: '100%' }}
                 >
-                    {zoomMedia && <FullScreenImage media={zoomMedia} onDismiss={() => setZoomMedia('')} />}
+                    {zoomMedia && <FullScreenMedia media={zoomMedia} onDismiss={() => setZoomMedia('')} />}
                 </Modal>
             </Portal>
         </View>
@@ -304,7 +304,7 @@ class Message extends PureComponent<MProps, MState> {
             return;
         }
 
-        Clipboard.setString(this.state.decryptedMessage.message);
+        Clipboard.setString(this.state.decryptedMessage.message || '');
         ToastAndroid.show('Message Copied', ToastAndroid.SHORT);
     };
 

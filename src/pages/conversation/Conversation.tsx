@@ -151,7 +151,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
 
             // Render Camera page pre-filled with selected media
             props.navigation.navigate('CameraView', {
-                data: { peer: peer, picturePath: asset.uri!, mediaType: isVideo ? 'video' : 'image' },
+                data: { peer: peer, mediaPath: asset.uri!, mediaType: isVideo ? 'video' : 'image' },
             });
         } catch (err) {
             console.error('Error selecting gallery media:', err);
@@ -162,7 +162,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
 
     const handleCameraSelect = useCallback(async () => {
         // Render Camera page
-        props.navigation.navigate('CameraView', { data: { peer: peer, picturePath: '' } });
+        props.navigation.navigate('CameraView', { data: { peer: peer, mediaPath: '' } });
     }, [props.navigation, peer]);
 
     const renderListEmpty = useCallback(
@@ -443,11 +443,15 @@ class Message extends PureComponent<MProps, MState> {
                             this.props.zoomMedia(this.state.mediaUri);
                         } else {
                             // Download from S3, decrypt, and cache
-                            const uri = await store.dispatch(downloadMedia({
-                                objectKey: msgObject.objectKey,
-                                keyBase64: msgObject.fileKey,
-                                ivBase64: msgObject.fileIv,
-                            })).unwrap();
+                            const uri = await store
+                                .dispatch(
+                                    downloadMedia({
+                                        objectKey: msgObject.objectKey,
+                                        keyBase64: msgObject.fileKey,
+                                        ivBase64: msgObject.fileIv,
+                                    }),
+                                )
+                                .unwrap();
                             this.setState({ mediaUri: uri });
                         }
                     }
@@ -459,11 +463,15 @@ class Message extends PureComponent<MProps, MState> {
                             this.props.zoomMedia(this.state.mediaUri);
                         } else {
                             // Download from S3, decrypt, and cache
-                            const uri = await store.dispatch(downloadMedia({
-                                objectKey: msgObject.objectKey,
-                                keyBase64: msgObject.fileKey,
-                                ivBase64: msgObject.fileIv,
-                            })).unwrap();
+                            const uri = await store
+                                .dispatch(
+                                    downloadMedia({
+                                        objectKey: msgObject.objectKey,
+                                        keyBase64: msgObject.fileKey,
+                                        ivBase64: msgObject.fileIv,
+                                    }),
+                                )
+                                .unwrap();
                             this.setState({ mediaUri: uri });
                         }
                     }

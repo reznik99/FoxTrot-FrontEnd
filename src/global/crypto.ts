@@ -123,13 +123,7 @@ export async function encryptFile(data: Buffer): Promise<EncryptedFileResult> {
     const keyRaw = QuickCrypto.getRandomValues(new Uint8Array(32));
     const iv = QuickCrypto.getRandomValues(new Uint8Array(SaltLenGCM));
 
-    const key = await QuickCrypto.subtle.importKey(
-        'raw',
-        keyRaw,
-        SymmetricAlgorithm,
-        false,
-        ['encrypt'],
-    );
+    const key = await QuickCrypto.subtle.importKey('raw', keyRaw, SymmetricAlgorithm, false, ['encrypt']);
 
     const encrypted = Buffer.from(await QuickCrypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, data));
 
@@ -145,21 +139,21 @@ export async function encryptFile(data: Buffer): Promise<EncryptedFileResult> {
 export async function decryptFile(encrypted: Buffer, keyBase64: string, ivBase64: string): Promise<Buffer> {
     const startTime = performance.now();
 
-    const key = await QuickCrypto.subtle.importKey(
-        'raw',
-        Buffer.from(keyBase64, 'base64'),
-        SymmetricAlgorithm,
-        false,
-        ['decrypt'],
+    const key = await QuickCrypto.subtle.importKey('raw', Buffer.from(keyBase64, 'base64'), SymmetricAlgorithm, false, [
+        'decrypt',
+    ]);
+
+    const decrypted = Buffer.from(
+        await QuickCrypto.subtle.decrypt({ name: 'AES-GCM', iv: Buffer.from(ivBase64, 'base64') }, key, encrypted),
     );
 
-    const decrypted = Buffer.from(await QuickCrypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: Buffer.from(ivBase64, 'base64') },
-        key,
-        encrypted,
-    ));
-
-    console.debug('decryptFile took:', (performance.now() - startTime).toLocaleString(), 'ms', '| size:', encrypted.byteLength);
+    console.debug(
+        'decryptFile took:',
+        (performance.now() - startTime).toLocaleString(),
+        'ms',
+        '| size:',
+        encrypted.byteLength,
+    );
     return decrypted;
 }
 

@@ -33,11 +33,7 @@ export const uploadMedia = createDefaultAsyncThunk<UploadResult, { filePath: str
         const { encrypted, keyBase64, ivBase64 } = await encryptFile(fileData);
 
         // Get pre-signed upload URL from backend
-        const { data } = await axios.post(
-            `${API_URL}/media/upload-url`,
-            { contentType },
-            axiosBearerConfig(state.token),
-        );
+        const { data } = await axios.post(`${API_URL}/media/upload-url`, { contentType }, axiosBearerConfig(state.token));
         const { uploadUrl, objectKey } = data;
 
         // Upload encrypted data directly to S3
@@ -58,11 +54,7 @@ export const downloadMedia = createDefaultAsyncThunk<string, { objectKey: string
         const state = thunkAPI.getState().userReducer;
 
         // Get pre-signed download URL from backend
-        const { data } = await axios.post(
-            `${API_URL}/media/download-url`,
-            { objectKey },
-            axiosBearerConfig(state.token),
-        );
+        const { data } = await axios.post(`${API_URL}/media/download-url`, { objectKey }, axiosBearerConfig(state.token));
         const { downloadUrl } = data;
 
         // Download encrypted data from S3

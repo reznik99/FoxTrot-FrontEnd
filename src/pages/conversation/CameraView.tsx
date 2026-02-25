@@ -9,7 +9,6 @@ import Video from 'react-native-video';
 import { Video as VideoCompressor } from 'react-native-compressor';
 import Toast from 'react-native-toast-message';
 import { useDispatch } from 'react-redux';
-import RNFS from 'react-native-fs';
 
 import { getCameraAndMicrophonePermissions } from '~/global/permissions';
 import { DARKHEADER, SECONDARY, SECONDARY_LITE } from '~/global/variables';
@@ -29,13 +28,13 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
     const format = useCameraFormat(device, Templates.Snapchat);
 
     const [hasPermission, setHasPermission] = useState(false);
-    const [picture, setPicture] = useState(props.route.params?.data?.picturePath || '');
+    const [media, setMedia] = useState(props.route.params?.data?.mediaPath || '');
     const [loading, setLoading] = useState(false);
     const mediaType = props.route.params?.data?.mediaType || 'image';
     const isVideo = mediaType === 'video';
 
     useEffect(() => {
-        if (props.route.params?.data?.picturePath) {
+        if (props.route.params?.data?.mediaPath) {
             return;
         }
         requestPermissions();
@@ -63,7 +62,7 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
     }, []);
 
     const reset = useCallback(() => {
-        setPicture('');
+        setMedia('');
         setInitialized(false);
         if (!hasPermission) {
             requestPermissions();
@@ -88,7 +87,7 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
         setLoading(true);
         try {
             const pic = await cameraRef.current.takePhoto({ enableAutoDistortionCorrection: true });
-            setPicture(`file://${pic.path}`);
+            setMedia(`file://${pic.path}`);
         } catch (err) {
             console.error('Error taking image:', err);
         } finally {
@@ -99,13 +98,13 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
     const send = useCallback(async () => {
         setLoading(true);
         try {
-            let filePath = picture;
+            let filePath = media;
             let contentType = 'image/jpeg';
 
             if (isVideo) {
                 // Compress video before upload
                 console.debug('Compressing video...');
-                filePath = await VideoCompressor.compress(picture, {
+                filePath = await VideoCompressor.compress(media, {
                     compressionMethod: 'auto',
                 });
                 contentType = 'video/mp4';
@@ -113,9 +112,7 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
             }
 
             // Upload encrypted file to S3
-            const { objectKey, keyBase64, ivBase64 } = await dispatch(
-                uploadMedia({ filePath, contentType }),
-            ).unwrap();
+            const { objectKey, keyBase64, ivBase64 } = await dispatch(uploadMedia({ filePath, contentType })).unwrap();
 
             // Build E2EE message with S3 metadata (no raw file data)
             const toSend = JSON.stringify({
@@ -142,29 +139,29 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
         } finally {
             setLoading(false);
         }
-    }, [picture, isVideo, props.navigation, props.route.params?.data?.peer, dispatch]);
+    }, [media, isVideo, props.navigation, props.route.params?.data?.peer, dispatch]);
 
     return (
         <View style={[styles.container, { paddingTop: edgeInsets.top, paddingBottom: edgeInsets.bottom }]}>
             {/* Loading screen */}
-            {!device && !picture && (
+            {!device && !media && (
                 <View style={styles.loaderContainer}>
                     <ActivityIndicator size="large" />
                 </View>
             )}
             {/* Permission error screen */}
-            {device && !picture && !hasPermission && (
+            {device && !media && !hasPermission && (
                 <View style={styles.loaderContainer}>
                     <Text variant="titleLarge">Permission to use camera denied</Text>
                 </View>
             )}
             {/* Media preview and actions */}
-            {picture && (
+            {media && (
                 <>
                     <View style={{ flex: 1, backgroundColor: DARKHEADER }}>
                         {isVideo ? (
                             <Video
-                                source={{ uri: picture }}
+                                source={{ uri: media }}
                                 style={{ width: '100%', height: '100%' }}
                                 resizeMode="contain"
                                 controls={true}
@@ -172,11 +169,7 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
                                 repeat={true}
                             />
                         ) : (
-                            <Image
-                                style={{ width: '100%', height: '100%' }}
-                                source={{ uri: picture }}
-                                resizeMode="cover"
-                            />
+                            <Image style={{ width: '100%', height: '100%' }} source={{ uri: media }} resizeMode="cover" />
                         )}
                     </View>
                     <View style={[styles.buttonContainer, { marginBottom: edgeInsets.bottom }]}>
@@ -203,7 +196,7 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
                 </>
             )}
             {/* Camera View and actions */}
-            {device && hasPermission && !picture && (
+            {device && hasPermission && !media && (
                 <>
                     <View style={{ flex: 1, backgroundColor: DARKHEADER }}>
                         <Camera

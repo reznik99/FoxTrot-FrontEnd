@@ -19,7 +19,7 @@ const FullScreenMedia = (props: IProps) => {
 
     const isFileUri = props.media.startsWith('file://');
     const isVideo = isFileUri && /\.(mp4|webm|mov)$/i.test(props.media);
-    const imageUri = isFileUri ? props.media : `data:image/jpeg;base64,${props.media}`;
+    const mediaUri = isFileUri ? props.media : `data:image/jpeg;base64,${props.media}`;
 
     const download = useCallback(async () => {
         const granted = await getWriteExtPermission();
@@ -53,7 +53,7 @@ const FullScreenMedia = (props: IProps) => {
             ) : (
                 <GestureHandlerRootView style={{ flex: 1 }}>
                     <ImageZoom
-                        uri={imageUri}
+                        uri={mediaUri}
                         resizeMode="contain"
                         resizeMethod="auto"
                         isDoubleTapEnabled={true}

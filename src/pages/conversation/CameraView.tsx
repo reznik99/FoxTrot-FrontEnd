@@ -6,8 +6,10 @@ import { StackScreenProps } from '@react-navigation/stack';
 import { View, Image, StyleSheet } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import Video from 'react-native-video';
-import { Video as VideoCompressor } from 'react-native-compressor';
+import { Image as ImageCompressor, Video as VideoCompressor } from 'react-native-compressor';
+import { createThumbnail } from 'react-native-create-thumbnail';
 import Toast from 'react-native-toast-message';
+import RNFS from 'react-native-fs';
 import { useDispatch } from 'react-redux';
 
 import { getCameraAndMicrophonePermissions } from '~/global/permissions';
@@ -95,6 +97,29 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
         }
     }, [cameraRef]);
 
+    const generateThumbnail = useCallback(async (sourcePath: string, isVideoFile: boolean): Promise<string> => {
+        let thumbPath: string;
+
+        if (isVideoFile) {
+            // Extract first frame from video
+            const { path } = await createThumbnail({ url: sourcePath, timeStamp: 0 });
+            thumbPath = path;
+        } else {
+            thumbPath = sourcePath;
+        }
+
+        // Compress to a tiny JPEG thumbnail
+        const compressedPath = await ImageCompressor.compress(thumbPath, {
+            maxWidth: 200,
+            quality: 0.3,
+            output: 'jpg',
+        });
+
+        // Read as base64
+        const base64 = await RNFS.readFile(compressedPath, 'base64');
+        return base64;
+    }, []);
+
     const send = useCallback(async () => {
         setLoading(true);
         try {
@@ -111,6 +136,14 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
                 console.debug('Video compressed:', filePath);
             }
 
+            // Generate thumbnail for inline preview
+            let thumbnail: string | undefined;
+            try {
+                thumbnail = await generateThumbnail(media, isVideo);
+            } catch (err) {
+                console.warn('Failed to generate thumbnail, sending without preview:', err);
+            }
+
             // Upload encrypted file to S3
             const { objectKey, keyBase64, ivBase64 } = await dispatch(uploadMedia({ filePath, contentType })).unwrap();
 
@@ -121,6 +154,7 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
                 fileKey: keyBase64,
                 fileIv: ivBase64,
                 mimeType: contentType,
+                ...(thumbnail && { thumbnail }),
             });
 
             const success = await dispatch(
@@ -139,7 +173,7 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
         } finally {
             setLoading(false);
         }
-    }, [media, isVideo, props.navigation, props.route.params?.data?.peer, dispatch]);
+    }, [media, isVideo, props.navigation, props.route.params?.data?.peer, dispatch, generateThumbnail]);
 
     return (
         <View style={[styles.container, { paddingTop: edgeInsets.top, paddingBottom: edgeInsets.bottom }]}>

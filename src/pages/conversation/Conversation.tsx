@@ -262,6 +262,7 @@ type decryptedMessage = {
     fileKey?: string;
     fileIv?: string;
     mimeType?: string;
+    thumbnail?: string;
 };
 type MProps = {
     item: message;
@@ -336,7 +337,7 @@ class Message extends PureComponent<MProps, MState> {
                         />
                     );
                 }
-                // S3-backed image
+                // S3-backed image — full-res already downloaded
                 if (this.state.mediaUri) {
                     return (
                         <Image
@@ -346,6 +347,23 @@ class Message extends PureComponent<MProps, MState> {
                         />
                     );
                 }
+                // S3-backed image — show thumbnail preview
+                if (item.thumbnail) {
+                    return (
+                        <View>
+                            <Image
+                                source={{ uri: `data:image/jpeg;base64,${item.thumbnail}` }}
+                                style={{ width: 200, height: 'auto', aspectRatio: 1.5 }}
+                                resizeMode="contain"
+                                blurRadius={1}
+                            />
+                            <View style={styles.mediaOverlay}>
+                                <Icon source="download" color="#fff" size={30} />
+                            </View>
+                        </View>
+                    );
+                }
+                // S3-backed image — no thumbnail (legacy S3 messages)
                 return (
                     <View style={{ width: 200, aspectRatio: 1.5, justifyContent: 'center', alignItems: 'center' }}>
                         <Icon source="image" color="#aaa" size={40} />
@@ -353,7 +371,22 @@ class Message extends PureComponent<MProps, MState> {
                     </View>
                 );
             case 'VIDEO':
+                // Video already downloaded — show thumbnail with play icon
                 if (this.state.mediaUri) {
+                    if (item.thumbnail) {
+                        return (
+                            <View>
+                                <Image
+                                    source={{ uri: `data:image/jpeg;base64,${item.thumbnail}` }}
+                                    style={{ width: 200, height: 'auto', aspectRatio: 1.5 }}
+                                    resizeMode="contain"
+                                />
+                                <View style={styles.mediaOverlay}>
+                                    <Icon source="play-circle" color="#fff" size={40} />
+                                </View>
+                            </View>
+                        );
+                    }
                     return (
                         <View style={{ width: 200, aspectRatio: 1.5, justifyContent: 'center', alignItems: 'center' }}>
                             <Icon source="play-circle" color="#fff" size={50} />
@@ -361,6 +394,23 @@ class Message extends PureComponent<MProps, MState> {
                         </View>
                     );
                 }
+                // Not yet downloaded — show thumbnail with download icon
+                if (item.thumbnail) {
+                    return (
+                        <View>
+                            <Image
+                                source={{ uri: `data:image/jpeg;base64,${item.thumbnail}` }}
+                                style={{ width: 200, height: 'auto', aspectRatio: 1.5 }}
+                                resizeMode="contain"
+                                blurRadius={1}
+                            />
+                            <View style={styles.mediaOverlay}>
+                                <Icon source="download" color="#fff" size={30} />
+                            </View>
+                        </View>
+                    );
+                }
+                // No thumbnail (legacy S3 messages)
                 return (
                     <View style={{ width: 200, aspectRatio: 1.5, justifyContent: 'center', alignItems: 'center' }}>
                         <Icon source="video" color="#aaa" size={40} />
@@ -587,6 +637,16 @@ const styles = StyleSheet.create({
         color: '#969393',
         alignContent: 'flex-end',
         fontSize: 13,
+    },
+    mediaOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.25)',
     },
     footer: {
         width: '100%',

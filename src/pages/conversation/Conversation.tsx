@@ -475,7 +475,7 @@ class Message extends PureComponent<MProps, MState> {
                             // Already downloaded — zoom in
                             this.props.zoomMedia(this.state.mediaUri);
                         } else {
-                            // Download from S3, decrypt, and cache
+                            // Download from S3, decrypt, cache, and open immediately
                             const uri = await store
                                 .dispatch(
                                     downloadMedia({
@@ -486,6 +486,7 @@ class Message extends PureComponent<MProps, MState> {
                                 )
                                 .unwrap();
                             this.setState({ mediaUri: uri });
+                            this.props.zoomMedia(uri);
                         }
                     }
                     break;
@@ -495,7 +496,7 @@ class Message extends PureComponent<MProps, MState> {
                             // Already downloaded — open full screen
                             this.props.zoomMedia(this.state.mediaUri);
                         } else {
-                            // Download from S3, decrypt, and cache
+                            // Download from S3, decrypt, cache, and open immediately
                             const uri = await store
                                 .dispatch(
                                     downloadMedia({
@@ -506,6 +507,7 @@ class Message extends PureComponent<MProps, MState> {
                                 )
                                 .unwrap();
                             this.setState({ mediaUri: uri });
+                            this.props.zoomMedia(uri);
                         }
                     }
                     break;

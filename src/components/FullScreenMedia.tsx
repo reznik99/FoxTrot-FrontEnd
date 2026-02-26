@@ -45,7 +45,7 @@ const FullScreenMedia = (props: IProps) => {
             {isVideo ? (
                 <Video
                     source={{ uri: props.media }}
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, paddingBottom: 50 }}
                     resizeMode="contain"
                     controls={true}
                     paused={false}

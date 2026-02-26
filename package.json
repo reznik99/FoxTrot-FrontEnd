@@ -1,6 +1,6 @@
 {
     "name": "foxtrot",
-    "version": "1.19.0",
+    "version": "1.19.1",
     "private": true,
     "scripts": {
         "android": "react-native run-android --no-packager && react-native start",
@@ -31,6 +31,7 @@
         "react": "19.1.0",
         "react-native": "0.80.0",
         "react-native-compressor": "^1.16.0",
+        "react-native-create-thumbnail": "^2.2.0",
         "react-native-elements": "~3.4.3",
         "react-native-fs": "~2.20.0",
         "react-native-full-screen-notification-incoming-call": "^1.1.0",

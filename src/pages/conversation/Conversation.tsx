@@ -262,6 +262,7 @@ type decryptedMessage = {
     fileKey?: string;
     fileIv?: string;
     mimeType?: string;
+    thumbnail?: string;
 };
 type MProps = {
     item: message;
@@ -325,7 +326,7 @@ class Message extends PureComponent<MProps, MState> {
         }
 
         switch (item.type) {
-            case 'IMG':
+            case 'IMG': {
                 // Legacy inline base64 image
                 if (item.message) {
                     return (
@@ -336,14 +337,27 @@ class Message extends PureComponent<MProps, MState> {
                         />
                     );
                 }
-                // S3-backed image
-                if (this.state.mediaUri) {
+                // S3-backed: use full-res if downloaded, otherwise thumbnail
+                const imgSource = this.state.mediaUri
+                    ? { uri: this.state.mediaUri }
+                    : item.thumbnail
+                    ? { uri: `data:image/jpeg;base64,${item.thumbnail}` }
+                    : null;
+                if (imgSource) {
                     return (
-                        <Image
-                            source={{ uri: this.state.mediaUri }}
-                            style={{ width: 200, height: 'auto', aspectRatio: 1.5 }}
-                            resizeMode="contain"
-                        />
+                        <View>
+                            <Image
+                                source={imgSource}
+                                style={{ width: 200, height: 'auto', aspectRatio: 1.5 }}
+                                resizeMode="contain"
+                                blurRadius={this.state.mediaUri ? 0 : 1}
+                            />
+                            {!this.state.mediaUri && (
+                                <View style={styles.mediaOverlay}>
+                                    <Icon source="download" color="#fff" size={30} />
+                                </View>
+                            )}
+                        </View>
                     );
                 }
                 return (
@@ -352,21 +366,40 @@ class Message extends PureComponent<MProps, MState> {
                         <Text style={styles.text}>Tap to load image</Text>
                     </View>
                 );
-            case 'VIDEO':
-                if (this.state.mediaUri) {
+            }
+            case 'VIDEO': {
+                const thumbUri = item.thumbnail ? `data:image/jpeg;base64,${item.thumbnail}` : null;
+                const downloaded = !!this.state.mediaUri;
+                if (thumbUri) {
                     return (
-                        <View style={{ width: 200, aspectRatio: 1.5, justifyContent: 'center', alignItems: 'center' }}>
-                            <Icon source="play-circle" color="#fff" size={50} />
-                            <Text style={styles.text}>Tap to play video</Text>
+                        <View>
+                            <Image
+                                source={{ uri: thumbUri }}
+                                style={{ width: 200, height: 'auto', aspectRatio: 1.5 }}
+                                resizeMode="contain"
+                                blurRadius={downloaded ? 0 : 1}
+                            />
+                            <View style={styles.mediaOverlay}>
+                                <Icon
+                                    source={downloaded ? 'play-circle' : 'download'}
+                                    color="#fff"
+                                    size={downloaded ? 40 : 30}
+                                />
+                            </View>
                         </View>
                     );
                 }
                 return (
                     <View style={{ width: 200, aspectRatio: 1.5, justifyContent: 'center', alignItems: 'center' }}>
-                        <Icon source="video" color="#aaa" size={40} />
-                        <Text style={styles.text}>Tap to load video</Text>
+                        <Icon
+                            source={downloaded ? 'play-circle' : 'video'}
+                            color={downloaded ? '#fff' : '#aaa'}
+                            size={downloaded ? 50 : 40}
+                        />
+                        <Text style={styles.text}>{downloaded ? 'Tap to play video' : 'Tap to load video'}</Text>
                     </View>
                 );
+            }
             case 'MSG':
                 if (!item.message) return null;
                 const messageChunks = item.message.split(' ');
@@ -442,7 +475,7 @@ class Message extends PureComponent<MProps, MState> {
                             // Already downloaded — zoom in
                             this.props.zoomMedia(this.state.mediaUri);
                         } else {
-                            // Download from S3, decrypt, and cache
+                            // Download from S3, decrypt, cache, and open immediately
                             const uri = await store
                                 .dispatch(
                                     downloadMedia({
@@ -453,6 +486,7 @@ class Message extends PureComponent<MProps, MState> {
                                 )
                                 .unwrap();
                             this.setState({ mediaUri: uri });
+                            this.props.zoomMedia(uri);
                         }
                     }
                     break;
@@ -462,7 +496,7 @@ class Message extends PureComponent<MProps, MState> {
                             // Already downloaded — open full screen
                             this.props.zoomMedia(this.state.mediaUri);
                         } else {
-                            // Download from S3, decrypt, and cache
+                            // Download from S3, decrypt, cache, and open immediately
                             const uri = await store
                                 .dispatch(
                                     downloadMedia({
@@ -473,6 +507,7 @@ class Message extends PureComponent<MProps, MState> {
                                 )
                                 .unwrap();
                             this.setState({ mediaUri: uri });
+                            this.props.zoomMedia(uri);
                         }
                     }
                     break;
@@ -587,6 +622,16 @@ const styles = StyleSheet.create({
         color: '#969393',
         alignContent: 'flex-end',
         fontSize: 13,
+    },
+    mediaOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.25)',
     },
     footer: {
         width: '100%',

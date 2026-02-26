@@ -154,7 +154,7 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
                 fileKey: keyBase64,
                 fileIv: ivBase64,
                 mimeType: contentType,
-                ...(thumbnail && { thumbnail }),
+                thumbnail,
             });
 
             const success = await dispatch(

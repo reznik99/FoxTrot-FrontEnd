@@ -53,6 +53,14 @@ export const downloadMedia = createDefaultAsyncThunk<string, { objectKey: string
     async ({ objectKey, keyBase64, ivBase64 }, thunkAPI) => {
         const state = thunkAPI.getState().userReducer;
 
+        // Check if already cached
+        const extension = objectKey.split('.').pop() || 'bin';
+        const fileName = `${objectKey.split('/').pop()?.split('.')[0] || Date.now()}.${extension}`;
+        const filePath = `${RNFS.CachesDirectoryPath}/${fileName}`;
+        if (await RNFS.exists(filePath)) {
+            return `file://${filePath}`;
+        }
+
         // Get pre-signed download URL from backend
         const { data } = await axios.post(`${API_URL}/media/download-url`, { objectKey }, axiosBearerConfig(state.token));
         const { downloadUrl } = data;
@@ -65,9 +73,6 @@ export const downloadMedia = createDefaultAsyncThunk<string, { objectKey: string
         const decrypted = await decryptFile(encryptedData, keyBase64, ivBase64);
 
         // Write decrypted file to cache dir
-        const extension = objectKey.split('.').pop() || 'bin';
-        const fileName = `${objectKey.split('/').pop()?.split('.')[0] || Date.now()}.${extension}`;
-        const filePath = `${RNFS.CachesDirectoryPath}/${fileName}`;
         await RNFS.writeFile(filePath, decrypted.toString('base64'), 'base64');
 
         return `file://${filePath}`;

@@ -26,7 +26,9 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
     const [initialized, setInitialized] = useState(false);
     const cameraRef = useRef<Camera>(null);
     const [cameraType, setCameraType] = useState<'front' | 'back'>('front');
-    const device = useCameraDevice(cameraType);
+    const frontDevice = useCameraDevice('front');
+    const backDevice = useCameraDevice('back');
+    const device = cameraType === 'front' ? frontDevice || backDevice : backDevice || frontDevice;
     const format = useCameraFormat(device, Templates.Snapchat);
 
     const [hasPermission, setHasPermission] = useState(false);

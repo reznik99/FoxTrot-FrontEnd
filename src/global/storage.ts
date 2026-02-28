@@ -91,6 +91,7 @@ export const StorageKeys = {
     USER_DATA: 'user_data',
     ALWAYS_RELAY_CALLS: 'always-relay-calls',
     SCREEN_SECURITY: 'screen-security',
+    AUTO_EVICT_CACHE: 'auto-evict-cache',
     CALL_ANSWERED_IN_BACKGROUND: 'call_answered_in_background',
 } as const;
 

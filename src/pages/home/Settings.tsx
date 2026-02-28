@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, ScrollView, Alert } from 'react-native';
-import { Button, Dialog, Portal, Chip, Text, Divider, useTheme } from 'react-native-paper';
+import { Button, Dialog, Portal, Chip, Text, Divider, Switch, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { pick, types } from '@react-native-documents/picker';
 import { StackScreenProps } from '@react-navigation/stack';
@@ -14,7 +14,7 @@ import { Buffer } from 'buffer';
 import { API_URL, DARKHEADER, KeychainOpts, SaltLenGCM, SaltLenPBKDF2 } from '~/global/variables';
 import { getReadExtPermission, getWriteExtPermission } from '~/global/permissions';
 import { deriveKeyFromPassword, exportKeypair } from '~/global/crypto';
-import { deleteFromStorage, getAllStorageKeys } from '~/global/storage';
+import { deleteFromStorage, getAllStorageKeys, readFromStorage, writeToStorage } from '~/global/storage';
 import globalStyle from '~/global/style';
 import { loadContacts, loadKeys } from '~/store/actions/user';
 import { logOut } from '~/store/actions/auth';
@@ -32,6 +32,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
     const [keys, setKeys] = useState<string[]>([]);
     const [hasIdentityKeys, setHasIdentityKeys] = useState(false);
     const [hasPassword, setHasPassword] = useState(false);
+    const [alwaysRelay, setAlwaysRelay] = useState(false);
     const [visibleDialog, setVisibleDialog] = useState('');
     const [encPassword, setEncPassword] = useState('');
 
@@ -39,6 +40,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
         const allKeys = await getAllStorageKeys();
         const sortedKeys = allKeys.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
         setKeys(sortedKeys);
+        readFromStorage('always-relay-calls').then(val => setAlwaysRelay(val === 'true'));
         Keychain.hasInternetCredentials({ server: API_URL, service: `${user_data.phone_no}-keys` })
             .then(_hasKeys => setHasIdentityKeys(Boolean(_hasKeys)))
             .catch(err => console.error('Error checking TPM for keys:', err));
@@ -239,6 +241,27 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                     >
                         Export Keys
                     </Button>
+                </View>
+
+                <Divider style={{ marginVertical: 15 }} />
+
+                <Text variant="titleMedium" style={{ marginBottom: 10 }}>
+                    Privacy
+                </Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flex: 1, marginRight: 10 }}>
+                        <Text variant="bodyLarge">Always Relay Calls</Text>
+                        <Text variant="bodySmall" style={{ color: '#999' }}>
+                            Route calls through relay server to hide your IP address. May reduce call quality.
+                        </Text>
+                    </View>
+                    <Switch
+                        value={alwaysRelay}
+                        onValueChange={val => {
+                            setAlwaysRelay(val);
+                            writeToStorage('always-relay-calls', String(val));
+                        }}
+                    />
                 </View>
 
                 <Divider style={{ marginVertical: 15 }} />

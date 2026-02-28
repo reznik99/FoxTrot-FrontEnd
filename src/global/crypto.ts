@@ -117,7 +117,7 @@ export interface EncryptedFileResult {
 }
 
 /** Encrypts raw file data with a random AES-256-GCM key. Returns the ciphertext and the key+IV needed to decrypt (to be sent inside the E2EE message). */
-export async function encryptFile(data: Buffer): Promise<EncryptedFileResult> {
+export async function encryptFile(data: BufferSource): Promise<EncryptedFileResult> {
     const startTime = performance.now();
 
     const keyRaw = QuickCrypto.getRandomValues(new Uint8Array(32));
@@ -136,7 +136,7 @@ export async function encryptFile(data: Buffer): Promise<EncryptedFileResult> {
 }
 
 /** Decrypts file data that was encrypted with encryptFile. Takes the ciphertext and the key+IV from the E2EE message. */
-export async function decryptFile(encrypted: Buffer, keyBase64: string, ivBase64: string): Promise<Buffer> {
+export async function decryptFile(encrypted: BufferSource, keyBase64: string, ivBase64: string): Promise<Buffer> {
     const startTime = performance.now();
 
     const key = await QuickCrypto.subtle.importKey('raw', Buffer.from(keyBase64, 'base64'), SymmetricAlgorithm, false, [

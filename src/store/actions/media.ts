@@ -25,19 +25,23 @@ export const uploadMedia = createDefaultAsyncThunk<UploadResult, { filePath: str
     async ({ filePath, contentType }, thunkAPI) => {
         const state = thunkAPI.getState().userReducer;
 
-        // Read file from disk
-        const fileBase64 = await RNFS.readFile(filePath, 'base64');
+        // Fetch presigned URL while reading + encrypting the file (independent operations)
+        const urlPromise = axios.post(`${API_URL}/media/upload-url`, { contentType }, axiosBearerConfig(state.token));
+
+        // Read file from disk and decode base64 → binary
+        let fileBase64: string | null = await RNFS.readFile(filePath, 'base64');
         const fileData = Buffer.from(fileBase64, 'base64');
+        fileBase64 = null; // Release base64 string for GC before encryption allocates
 
         // Encrypt with a random per-file key
         const { encrypted, keyBase64, ivBase64 } = await encryptFile(fileData);
 
-        // Get pre-signed upload URL from backend
-        const { data } = await axios.post(`${API_URL}/media/upload-url`, { contentType }, axiosBearerConfig(state.token));
+        // Await presigned URL (likely already resolved by now)
+        const { data } = await urlPromise;
         const { uploadUrl, objectKey } = data;
 
         // Upload encrypted data directly to S3
-        await axios.put(uploadUrl, Buffer.from(encrypted), {
+        await axios.put(uploadUrl, encrypted, {
             headers: { 'Content-Type': 'application/octet-stream' },
             maxBodyLength: Infinity,
             maxContentLength: Infinity,
@@ -72,10 +76,9 @@ export const downloadMedia = createDefaultAsyncThunk<string, { objectKey: string
 
         // Download encrypted data from S3
         const response = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
-        const encryptedData = Buffer.from(response.data);
 
-        // Decrypt
-        const decrypted = await decryptFile(encryptedData, keyBase64, ivBase64);
+        // Decrypt (response.data is already an ArrayBuffer, no need to copy into Buffer)
+        const decrypted = await decryptFile(response.data, keyBase64, ivBase64);
 
         // Write decrypted file to cache dir
         await RNFS.writeFile(filePath, decrypted.toString('base64'), 'base64');

@@ -138,16 +138,14 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
                 console.debug('Video compressed:', filePath);
             }
 
-            // Generate thumbnail for inline preview
-            let thumbnail: string | undefined;
-            try {
-                thumbnail = await generateThumbnail(media, isVideo);
-            } catch (err) {
+            // Generate thumbnail and upload encrypted file in parallel
+            const thumbnailPromise = generateThumbnail(media, isVideo).catch(err => {
                 console.warn('Failed to generate thumbnail, sending without preview:', err);
-            }
+                return undefined;
+            });
+            const uploadPromise = dispatch(uploadMedia({ filePath, contentType })).unwrap();
 
-            // Upload encrypted file to S3
-            const { objectKey, keyBase64, ivBase64 } = await dispatch(uploadMedia({ filePath, contentType })).unwrap();
+            const [thumbnail, { objectKey, keyBase64, ivBase64 }] = await Promise.all([thumbnailPromise, uploadPromise]);
 
             // Build E2EE message with S3 metadata (no raw file data)
             const toSend = JSON.stringify({
@@ -194,8 +192,18 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
             {/* Media preview and actions */}
             {media && (
                 <>
-                    <View style={{ flex: 1, backgroundColor: DARKHEADER }}>
-                        {isVideo ? (
+                    <View style={{ flex: 1, backgroundColor: DARKHEADER, justifyContent: 'center', alignItems: 'center' }}>
+                        {loading ? (
+                            <>
+                                <Image
+                                    style={{ width: '100%', height: '100%', position: 'absolute' }}
+                                    source={{ uri: media }}
+                                    resizeMode="contain"
+                                    blurRadius={3}
+                                />
+                                <ActivityIndicator size="large" />
+                            </>
+                        ) : isVideo ? (
                             <Video
                                 source={{ uri: media }}
                                 style={{ width: '100%', height: '100%' }}
@@ -203,9 +211,15 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
                                 controls={true}
                                 paused={false}
                                 repeat={true}
+                                bufferConfig={{
+                                    minBufferMs: 2000,
+                                    maxBufferMs: 5000,
+                                    bufferForPlaybackMs: 1000,
+                                    bufferForPlaybackAfterRebufferMs: 2000,
+                                }}
                             />
                         ) : (
-                            <Image style={{ width: '100%', height: '100%' }} source={{ uri: media }} resizeMode="cover" />
+                            <Image style={{ width: '100%', height: '100%' }} source={{ uri: media }} resizeMode="contain" />
                         )}
                     </View>
                     <View style={[styles.buttonContainer, { marginBottom: edgeInsets.bottom }]}>

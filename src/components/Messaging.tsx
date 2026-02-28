@@ -3,7 +3,6 @@ import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { ActivityIndicator, Icon, Text } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Sound, { AudioSet, AudioEncoderAndroidType } from 'react-native-nitro-sound';
-import RNFS from 'react-native-fs';
 
 import CustomKeyboardAvoidingView from '~/components/CustomKeyboardAvoidingView';
 import { getMicrophoneRecordingPermission, getReadExtPermission } from '~/global/permissions';
@@ -16,7 +15,7 @@ type IProps = {
     handleCameraSelect: () => Promise<void>;
     handleImageSelect: () => Promise<void>;
     handleSend: () => Promise<void>;
-    handleSendAudio: (data: string, duration: number) => Promise<void>;
+    handleSendAudio: (filePath: string, duration: number) => Promise<void>;
 };
 
 export default function Messaging(props: IProps) {
@@ -109,10 +108,7 @@ export default function Messaging(props: IProps) {
 
     const sendAudio = useCallback(async () => {
         try {
-            // Read sound file
-            const audioData = await RNFS.readFile(audioFilePath, 'base64');
-            console.debug('Size:', 4 * (audioData.length / 3), 'Bytes');
-            await props.handleSendAudio(audioData, audioRecordTime);
+            await props.handleSendAudio(audioFilePath, audioRecordTime);
             resetAudio();
         } catch (err) {
             console.error(err);

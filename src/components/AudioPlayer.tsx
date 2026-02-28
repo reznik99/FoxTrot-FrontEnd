@@ -7,7 +7,8 @@ import RNFS, { CachesDirectoryPath } from 'react-native-fs';
 import { DARKHEADER, PRIMARY } from '~/global/variables';
 
 type IProps = {
-    audioData: string;
+    audioData?: string;
+    audioUri?: string;
     audioDuration: number;
 };
 
@@ -15,11 +16,12 @@ export default function AudioPlayer(props: IProps) {
     const [audioPlaybackTime, setAudioPlaybackTime] = useState(0);
     const [playingAudio, setPlayingAudio] = useState(false);
     const audioFilePathRef = useRef('');
+    const isOwnedTempFile = useRef(false);
 
-    // Cleanup temp file on unmount
+    // Cleanup temp file on unmount (only for base64-written files we created)
     useEffect(() => {
         return () => {
-            if (audioFilePathRef.current) {
+            if (isOwnedTempFile.current && audioFilePathRef.current) {
                 RNFS.unlink(audioFilePathRef.current)
                     .then(() => console.debug('Cleaned up temp audio message file'))
                     .catch(err => console.error('audio message file cleanup err:', err));
@@ -29,11 +31,17 @@ export default function AudioPlayer(props: IProps) {
 
     const playAudio = useCallback(async () => {
         try {
-            // Lazy-load: write audio to cache on first play
             if (!audioFilePathRef.current) {
-                const filePath = CachesDirectoryPath + Date.now();
-                await RNFS.writeFile(filePath, props.audioData, 'base64');
-                audioFilePathRef.current = filePath;
+                if (props.audioUri) {
+                    // S3-backed: file already on disk (strip file:// prefix for player)
+                    audioFilePathRef.current = props.audioUri.replace('file://', '');
+                } else if (props.audioData) {
+                    // Legacy inline: write base64 to temp file
+                    const filePath = CachesDirectoryPath + Date.now();
+                    await RNFS.writeFile(filePath, props.audioData, 'base64');
+                    audioFilePathRef.current = filePath;
+                    isOwnedTempFile.current = true;
+                }
             }
 
             await Sound.setVolume(1.0);
@@ -42,9 +50,9 @@ export default function AudioPlayer(props: IProps) {
             Sound.addPlaybackEndListener(() => setPlayingAudio(false));
             setPlayingAudio(true);
         } catch (err) {
-            console.error(err); // Show error
+            console.error(err);
         }
-    }, [props.audioData]);
+    }, [props.audioUri, props.audioData]);
 
     const stopAudio = useCallback(async () => {
         try {

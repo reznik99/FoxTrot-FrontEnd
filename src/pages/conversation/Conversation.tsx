@@ -8,6 +8,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import RNFS from 'react-native-fs';
 import { StackScreenProps } from '@react-navigation/stack';
 import Toast from 'react-native-toast-message';
+import Sound from 'react-native-nitro-sound';
 
 import FullScreenMedia from '~/components/FullScreenMedia';
 import AudioPlayer from '~/components/AudioPlayer';
@@ -24,7 +25,7 @@ import {
 } from '~/store/reducers/user';
 import { RootState, store } from '~/store/store';
 import { sendMessage } from '~/store/actions/user';
-import { downloadMedia, getMediaCachePath } from '~/store/actions/media';
+import { downloadMedia, getMediaCachePath, uploadMedia } from '~/store/actions/media';
 import { dbGetMessages } from '~/global/database';
 import { HomeStackParamList } from '~/../App';
 
@@ -115,20 +116,27 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
     }, [inputMessage, peer]);
 
     const handleSendAudio = useCallback(
-        async (data: string, duration: number) => {
-            if (data.trim() === '') return;
+        async (filePath: string, duration: number) => {
+            if (!filePath.trim()) return;
 
             try {
                 setLoading(true);
 
+                const { objectKey, keyBase64, ivBase64 } = await store
+                    .dispatch(uploadMedia({ filePath, contentType: 'audio/mp4' }))
+                    .unwrap();
+
                 const toSend = JSON.stringify({
                     type: 'AUDIO',
-                    message: data,
+                    objectKey,
+                    fileKey: keyBase64,
+                    fileIv: ivBase64,
+                    mimeType: 'audio/mp4',
                     duration: duration,
                 });
                 await store.dispatch(sendMessage({ message: toSend, to_user: peer }));
             } catch (err) {
-                console.error('Error sending message:', err);
+                console.error('Error sending audio:', err);
             } finally {
                 setLoading(false);
             }
@@ -293,7 +301,7 @@ class Message extends PureComponent<MProps, MState> {
                 const parsed = JSON.parse(this.props.item.message);
                 this.setState({ decryptedMessage: parsed });
                 // Check if media is already cached on disk so we show the correct icon
-                if ((parsed.type === 'IMG' || parsed.type === 'VIDEO') && parsed.objectKey) {
+                if ((parsed.type === 'IMG' || parsed.type === 'VIDEO' || parsed.type === 'AUDIO') && parsed.objectKey) {
                     const cachePath = getMediaCachePath(parsed.objectKey);
                     if (await RNFS.exists(cachePath)) {
                         this.setState({ mediaUri: `file://${cachePath}` });
@@ -436,15 +444,25 @@ class Message extends PureComponent<MProps, MState> {
                     </Text>
                 );
             case 'AUDIO': {
-                if (!item.message) return null;
-                return (
-                    <>
-                        <Text style={styles.text}>
-                            Audio data: {Number(~~(4 * (item.message.length / 3))).toLocaleString()}Bytes
-                        </Text>
-                        <AudioPlayer audioData={item.message} audioDuration={item.duration || 10} />
-                    </>
-                );
+                // Legacy inline base64 audio
+                if (item.message) {
+                    return <AudioPlayer audioData={item.message} audioDuration={item.duration || 10} />;
+                }
+                // S3-backed audio
+                if (item.objectKey) {
+                    if (this.state.mediaUri) {
+                        return <AudioPlayer audioUri={this.state.mediaUri} audioDuration={item.duration || 10} />;
+                    }
+                    return (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 8 }}>
+                            <Icon source="download" color="#fff" size={24} />
+                            <Text style={styles.text}>
+                                Audio ({Sound.mmssss(Math.floor(item.duration || 0))})
+                            </Text>
+                        </View>
+                    );
+                }
+                return null;
             }
             default:
                 console.warn('Unrecognized message type:', item.type);
@@ -518,6 +536,20 @@ class Message extends PureComponent<MProps, MState> {
                             this.setState({ mediaUri: uri });
                             this.props.zoomMedia(uri);
                         }
+                    }
+                    break;
+                case 'AUDIO':
+                    if (msgObject.objectKey && msgObject.fileKey && msgObject.fileIv && !this.state.mediaUri) {
+                        const uri = await store
+                            .dispatch(
+                                downloadMedia({
+                                    objectKey: msgObject.objectKey,
+                                    keyBase64: msgObject.fileKey,
+                                    ivBase64: msgObject.fileIv,
+                                }),
+                            )
+                            .unwrap();
+                        this.setState({ mediaUri: uri });
                     }
                     break;
                 case 'MSG': // If message contains URL open it in browser

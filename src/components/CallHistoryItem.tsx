@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { Avatar, Icon } from 'react-native-paper';
+import { Avatar, Checkbox, Icon } from 'react-native-paper';
 
-import { humanTime } from '~/global/helper';
-import globalStyle from '~/global/style';
-import { DARKHEADER, SECONDARY_LITE } from '~/global/variables';
+import { DARKHEADER, PRIMARY, SECONDARY_LITE } from '~/global/variables';
 import { CallRecord } from '~/store/reducers/user';
 import { RootNavigation } from '~/store/actions/auth';
+import { humanTime } from '~/global/helper';
+import globalStyle from '~/global/style';
 
 function getDirectionIcon(record: CallRecord): { icon: string; color: string } {
     if (record.status === 'missed') {
@@ -32,13 +32,28 @@ function formatDuration(seconds: number): string {
 interface IProps {
     record: CallRecord;
     navigation: RootNavigation;
+    selectionMode: boolean;
+    selected: boolean;
+    onToggleSelect: (id: number) => void;
+    onLongPress: (id: number) => void;
 }
 
-export default function CallHistoryItem({ record, navigation }: IProps) {
+export default function CallHistoryItem({
+    record,
+    navigation,
+    selectionMode,
+    selected,
+    onToggleSelect,
+    onLongPress,
+}: IProps) {
     const { icon, color } = getDirectionIcon(record);
     const duration = formatDuration(record.duration);
 
     const onPress = () => {
+        if (selectionMode) {
+            onToggleSelect(record.id);
+            return;
+        }
         navigation.navigate('Conversation', {
             data: {
                 peer_user: {
@@ -53,7 +68,7 @@ export default function CallHistoryItem({ record, navigation }: IProps) {
     };
 
     return (
-        <TouchableOpacity style={styles.container} onPress={onPress}>
+        <TouchableOpacity style={styles.container} onPress={onPress} onLongPress={() => onLongPress(record.id)}>
             <Avatar.Image size={45} source={{ uri: record.peer_pic }} style={styles.avatar} />
             <View style={styles.info}>
                 <Text style={[globalStyle.textInfo, record.status === 'missed' && styles.missedText]}>
@@ -67,7 +82,15 @@ export default function CallHistoryItem({ record, navigation }: IProps) {
                     </Text>
                 </View>
             </View>
-            <Text style={styles.timestamp}>{humanTime(record.started_at)}</Text>
+            {selectionMode ? (
+                <Checkbox
+                    status={selected ? 'checked' : 'unchecked'}
+                    color={PRIMARY}
+                    onPress={() => onToggleSelect(record.id)}
+                />
+            ) : (
+                <Text style={styles.timestamp}>{humanTime(record.started_at)}</Text>
+            )}
         </TouchableOpacity>
     );
 }

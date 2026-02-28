@@ -113,6 +113,9 @@ export const userSlice = createSlice({
         LOAD_CONVERSATIONS: (state, action: PayloadAction<Map<string, Conversation>>) => {
             state.conversations = action.payload;
         },
+        DELETE_CONVERSATION: (state, action: PayloadAction<string>) => {
+            state.conversations.delete(action.payload);
+        },
         SYNC_FROM_STORAGE: (state, action: PayloadAction<{ user_data: UserData }>) => {
             state.user_data = action.payload.user_data;
         },
@@ -280,6 +283,7 @@ export const {
     ADD_CONTACT_SUCCESS,
     LOAD_CONTACTS,
     LOAD_CONVERSATIONS,
+    DELETE_CONVERSATION,
     SYNC_FROM_STORAGE,
     KEY_LOAD,
     TOKEN_VALID,

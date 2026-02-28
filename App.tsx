@@ -1,5 +1,4 @@
 import 'react-native-gesture-handler';
-import 'react-native-quick-base64';
 import React, { useState, useCallback } from 'react';
 import { StatusBar } from 'react-native';
 import { Provider } from 'react-redux';
@@ -19,9 +18,6 @@ import RNNotificationCall, { DeclinePayload } from 'react-native-full-screen-not
 import InCallManager from 'react-native-incall-manager';
 import PushNotification from 'react-native-push-notification';
 import QuickCrypto from 'react-native-quick-crypto';
-import { Buffer } from 'buffer';
-
-global.Buffer = global.Buffer || Buffer;
 
 // App
 import { store } from '~/store/store';

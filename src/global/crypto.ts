@@ -127,7 +127,7 @@ export async function encryptFile(data: Buffer): Promise<EncryptedFileResult> {
 
     const encrypted = Buffer.from(await QuickCrypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, data));
 
-    console.debug('encryptFile took:', (performance.now() - startTime).toLocaleString(), 'ms', '| size:', data.byteLength);
+    console.debug('Encrypt file took:', (performance.now() - startTime).toLocaleString(), 'ms', '| size:', data.byteLength);
     return {
         encrypted,
         keyBase64: Buffer.from(keyRaw).toString('base64'),
@@ -148,7 +148,7 @@ export async function decryptFile(encrypted: Buffer, keyBase64: string, ivBase64
     );
 
     console.debug(
-        'decryptFile took:',
+        'Decrypt file took:',
         (performance.now() - startTime).toLocaleString(),
         'ms',
         '| size:',

@@ -26,11 +26,14 @@ export default function Drawer(props: DrawerContentComponentProps) {
 
     useEffect(() => {
         DeviceInfo.getDeviceName().then(setDeviceName);
+    }, []);
+
+    useEffect(() => {
         RNFS.readDir(RNFS.CachesDirectoryPath).then(files => {
             const totalBytes = files.reduce((sum, file) => sum + (file.size || 0), 0);
             setCacheSize(formatBytes(totalBytes));
         });
-    }, []);
+    }, [props.state]);
 
     const copySecurityCode = useCallback(() => {
         setShowSecurityCode(false);

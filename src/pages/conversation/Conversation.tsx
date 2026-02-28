@@ -446,12 +446,12 @@ class Message extends PureComponent<MProps, MState> {
             case 'AUDIO': {
                 // Legacy inline base64 audio
                 if (item.message) {
-                    return <AudioPlayer audioData={item.message} audioDuration={item.duration || 10} />;
+                    return <AudioPlayer messageId={this.props.item.id} audioData={item.message} audioDuration={item.duration || 10} />;
                 }
                 // S3-backed audio
                 if (item.objectKey) {
                     if (this.state.mediaUri) {
-                        return <AudioPlayer audioUri={this.state.mediaUri} audioDuration={item.duration || 10} />;
+                        return <AudioPlayer messageId={this.props.item.id} audioUri={this.state.mediaUri} audioDuration={item.duration || 10} />;
                     }
                     return (
                         <View style={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 8 }}>

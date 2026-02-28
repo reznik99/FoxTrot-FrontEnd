@@ -4,6 +4,8 @@ import Toast from 'react-native-toast-message';
 import { getMessaging, getToken, registerDeviceForRemoteMessages } from '@react-native-firebase/messaging'; // Push Notifications
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
+import { evictMediaCache } from '~/store/actions/media';
+
 import {
     Conversation,
     message,
@@ -117,6 +119,11 @@ export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, th
 
         // Initialize database
         await getDb();
+
+        // Evict stale media cache in background (fire-and-forget) if enabled
+        readFromStorage(StorageKeys.AUTO_EVICT_CACHE).then(val => {
+            if (val !== 'false') evictMediaCache();
+        });
 
         // Check last time we hit the API for messages
         const cachedLastChecked = (await readFromStorage(`messages-${state.user_data.id}-last-checked`)) || '0';

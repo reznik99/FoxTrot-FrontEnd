@@ -35,6 +35,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
     const [hasPassword, setHasPassword] = useState(false);
     const [alwaysRelay, setAlwaysRelay] = useState(false);
     const [screenSecurity, setScreenSecurity] = useState(false);
+    const [autoEvict, setAutoEvict] = useState(true);
     const [visibleDialog, setVisibleDialog] = useState('');
     const [encPassword, setEncPassword] = useState('');
 
@@ -44,6 +45,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
         setKeys(sortedKeys);
         readFromStorage(StorageKeys.ALWAYS_RELAY_CALLS).then(val => setAlwaysRelay(val === 'true'));
         readFromStorage(StorageKeys.SCREEN_SECURITY).then(val => setScreenSecurity(val === 'true'));
+        readFromStorage(StorageKeys.AUTO_EVICT_CACHE).then(val => setAutoEvict(val !== 'false'));
         Keychain.hasInternetCredentials({ server: API_URL, service: `${user_data.phone_no}-keys` })
             .then(_hasKeys => setHasIdentityKeys(Boolean(_hasKeys)))
             .catch(err => console.error('Error checking TPM for keys:', err));
@@ -305,6 +307,28 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                 <Text variant="titleSmall" style={{ marginBottom: 10, color: PRIMARY }}>
                     Storage
                 </Text>
+                <View
+                    style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 15,
+                    }}
+                >
+                    <View style={{ flex: 1, marginRight: 10 }}>
+                        <Text variant="bodyLarge">Auto-Evict Media Cache</Text>
+                        <Text variant="bodySmall" style={{ color: '#999' }}>
+                            Automatically delete oldest cached media when cache exceeds 500 MB on app start.
+                        </Text>
+                    </View>
+                    <Switch
+                        value={autoEvict}
+                        onValueChange={val => {
+                            setAutoEvict(val);
+                            writeToStorage(StorageKeys.AUTO_EVICT_CACHE, String(val));
+                        }}
+                    />
+                </View>
                 <View style={{ marginBottom: 10 }}>
                     <Text variant="bodyLarge">App Data</Text>
                     <Text variant="bodySmall" style={{ color: '#999', marginBottom: 10 }}>

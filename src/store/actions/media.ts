@@ -5,6 +5,7 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 
 import { API_URL } from '~/global/variables';
 import { encryptFile, decryptFile } from '~/global/crypto';
+import { formatBytes } from '~/global/helper';
 import { AppDispatch, RootState } from '~/store/store';
 
 const createDefaultAsyncThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: AppDispatch }>();
@@ -50,6 +51,32 @@ export const uploadMedia = createDefaultAsyncThunk<UploadResult, { filePath: str
         return { objectKey, keyBase64, ivBase64 };
     },
 );
+
+const CACHE_MAX_BYTES = 500 * 1024 * 1024; // 500 MB
+
+/** Deletes oldest cached files until total size is under CACHE_MAX_BYTES. Fire-and-forget on app start. */
+export async function evictMediaCache(): Promise<void> {
+    try {
+        const files = await RNFS.readDir(RNFS.CachesDirectoryPath);
+        const totalBytes = files.reduce((sum, f) => sum + (f.size || 0), 0);
+        if (totalBytes <= CACHE_MAX_BYTES) return;
+
+        // Sort oldest first by mtime
+        files.sort((a, b) => (a.mtime?.getTime() ?? 0) - (b.mtime?.getTime() ?? 0));
+
+        let freed = 0;
+        const target = totalBytes - CACHE_MAX_BYTES;
+        for (const file of files) {
+            if (freed >= target) break;
+            if (!file.isFile()) continue;
+            await RNFS.unlink(file.path);
+            freed += file.size || 0;
+        }
+        console.debug(`Media cache eviction: freed ${formatBytes(freed)}`);
+    } catch (err) {
+        console.error('Media cache eviction failed:', err);
+    }
+}
 
 /** Returns the local cache file path for a given S3 object key. */
 export function getMediaCachePath(objectKey: string): string {

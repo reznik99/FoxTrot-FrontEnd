@@ -25,6 +25,9 @@ export const uploadMedia = createDefaultAsyncThunk<UploadResult, { filePath: str
     async ({ filePath, contentType }, thunkAPI) => {
         const state = thunkAPI.getState().userReducer;
 
+        // Fetch presigned URL while reading + encrypting the file (independent operations)
+        const urlPromise = axios.post(`${API_URL}/media/upload-url`, { contentType }, axiosBearerConfig(state.token));
+
         // Read file from disk and decode base64 → binary
         let fileBase64: string | null = await RNFS.readFile(filePath, 'base64');
         const fileData = Buffer.from(fileBase64, 'base64');
@@ -33,8 +36,8 @@ export const uploadMedia = createDefaultAsyncThunk<UploadResult, { filePath: str
         // Encrypt with a random per-file key
         const { encrypted, keyBase64, ivBase64 } = await encryptFile(fileData);
 
-        // Get pre-signed upload URL from backend
-        const { data } = await axios.post(`${API_URL}/media/upload-url`, { contentType }, axiosBearerConfig(state.token));
+        // Await presigned URL (likely already resolved by now)
+        const { data } = await urlPromise;
         const { uploadUrl, objectKey } = data;
 
         // Upload encrypted data directly to S3

@@ -13,14 +13,14 @@ class FlagSecureModule(reactContext: ReactApplicationContext) : ReactContextBase
     @ReactMethod
     fun enable() {
         UiThreadUtil.runOnUiThread {
-            currentActivity?.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            reactApplicationContext.currentActivity?.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
     }
 
     @ReactMethod
     fun disable() {
         UiThreadUtil.runOnUiThread {
-            currentActivity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            reactApplicationContext.currentActivity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
     }
 }

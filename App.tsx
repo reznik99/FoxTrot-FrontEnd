@@ -2,7 +2,7 @@ import 'react-native-gesture-handler';
 import { Buffer } from 'buffer';
 global.Buffer = global.Buffer || Buffer;
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { Provider } from 'react-redux';
 import { Provider as PaperProvider, MD3DarkTheme, Icon } from 'react-native-paper';
@@ -40,10 +40,11 @@ import { PRIMARY, SECONDARY, SECONDARY_LITE, ACCENT, DARKHEADER, VibratePattern 
 import Drawer from '~/components/Drawer';
 import HeaderConversation from '~/components/HeaderConversation';
 import { UserData } from '~/store/reducers/user';
-import { deleteFromStorage, writeToStorage } from '~/global/storage';
+import { deleteFromStorage, readFromStorage, writeToStorage } from '~/global/storage';
 import { getDb, dbSaveCallRecord, dbGetUnseenCallCount } from '~/global/database';
 import { getAvatar } from '~/global/helper';
 import { SocketMessage } from '~/store/actions/websocket';
+import { FlagSecure } from '~/global/native';
 
 const defaultHeaderOptions: StackNavigationOptions & DrawerNavigationOptions = {
     headerStyle: {
@@ -277,6 +278,14 @@ setBackgroundMessageHandler(messaging, async remoteMessage => {
 });
 
 export default function App() {
+    useEffect(() => {
+        readFromStorage('screen-security').then(val => {
+            if (val === 'true') {
+                FlagSecure.enable();
+            }
+        });
+    }, []);
+
     return (
         <Provider store={store}>
             <PaperProvider theme={darkTheme}>

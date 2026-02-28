@@ -20,6 +20,7 @@ import {
     getRTCConfiguration,
 } from '~/global/webrtc';
 import { DARKHEADER } from '~/global/variables';
+import { readFromStorage } from '~/global/storage';
 import { dbSaveCallRecord } from '~/global/database';
 import { resetCallState, SocketData } from '~/store/actions/websocket';
 import { UserData } from '~/store/reducers/user';
@@ -179,7 +180,8 @@ class Call extends React.Component<Props, State> {
             const newStream = await mediaDevices.getUserMedia({ video: true, audio: true });
 
             console.debug('startStream - RTCPeerConnection Init');
-            const newConnection = new RTCPeerConnection(getRTCConfiguration(this.props.turnServerCreds));
+            const alwaysRelay = (await readFromStorage('always-relay-calls')) === 'true';
+            const newConnection = new RTCPeerConnection(getRTCConfiguration(this.props.turnServerCreds, alwaysRelay));
 
             // Event handlers
             newConnection.addEventListener('error', this.onWebrtcError);

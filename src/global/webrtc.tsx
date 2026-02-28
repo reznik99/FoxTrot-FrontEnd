@@ -98,33 +98,26 @@ export const getIconForConnType = (connType: 'host' | 'srflx' | 'prflx' | 'relay
     }
 };
 
-export const getRTCConfiguration = (turnCredentials: TURNCredentials): RTCConfiguration => {
-    if (!turnCredentials.credential) {
-        return {
-            iceTransportPolicy: 'all',
-            iceCandidatePoolSize: 0,
-            iceServers: [
-                // STUN peer-to-peer
-                { urls: 'stun:turn.francescogorini.com:3478' },
-                { urls: 'stun:stun.l.google.com:19302' },
-            ],
-        };
-    }
-    const username = turnCredentials.username;
-    const credential = turnCredentials.credential;
-    return {
-        iceTransportPolicy: 'all',
-        iceCandidatePoolSize: 0,
-        iceServers: [
-            // STUN peer-to-peer
-            { urls: 'stun:turn.francescogorini.com:3478' },
-            { urls: 'stun:stun.l.google.com:19302' },
+export const getRTCConfiguration = (turnCredentials: TURNCredentials, relayOnly = false): RTCConfiguration => {
+    const iceServers: RTCConfiguration['iceServers'] = [
+        // STUN peer-to-peer
+        { urls: 'stun:turn.francescogorini.com:3478' },
+        { urls: 'stun:stun.l.google.com:19302' },
+    ];
+    if (turnCredentials.credential) {
+        const { username, credential } = turnCredentials;
+        iceServers.push(
             // TURN over UDP (fastest)
             { urls: ['turn:turn.francescogorini.com:3478?transport=udp'], username, credential },
             // TURN over TCP (fallback for UDP-restricted networks)
             { urls: ['turn:turn.francescogorini.com:3478?transport=tcp'], username, credential },
             // TURN over TLS (best for strict firewalls/proxies)
             { urls: ['turns:turn.francescogorini.com:5349?transport=tcp'], username, credential },
-        ],
+        );
+    }
+    return {
+        iceTransportPolicy: relayOnly && turnCredentials.credential ? 'relay' : 'all',
+        iceCandidatePoolSize: 0,
+        iceServers,
     };
 };

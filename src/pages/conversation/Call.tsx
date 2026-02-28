@@ -417,12 +417,16 @@ class Call extends React.Component<Props, State> {
         const localCandidate = reports.find(
             rp => rp.type === 'local-candidate' && rp.id === candidatePair?.localCandidateId,
         ) as LocalCandidate | undefined;
+        const remoteCandidate = reports.find(
+            rp => rp.type === 'remote-candidate' && rp.id === candidatePair?.remoteCandidateId,
+        ) as LocalCandidate | undefined;
 
         if (!candidatePair || !localCandidate) {
             return console.log('[WebRTC] Failed to load reports');
         }
+        const isRelayed = localCandidate.candidateType === 'relay' || remoteCandidate?.candidateType === 'relay';
         this.setState({
-            connectionInfo: { localCandidate, candidatePair },
+            connectionInfo: { localCandidate, candidatePair, isRelayed },
         });
     };
 
@@ -450,7 +454,8 @@ class Call extends React.Component<Props, State> {
     };
 
     renderCallInfo = () => {
-        const localCandidate = this.state.connectionInfo?.localCandidate;
+        const info = this.state.connectionInfo;
+        const localCandidate = info?.localCandidate;
         return (
             this.state.stream && (
                 <View>
@@ -458,8 +463,8 @@ class Call extends React.Component<Props, State> {
                         {this.calculateCallTime()} : {localCandidate?.protocol}({localCandidate?.networkType})
                     </Text>
                     <Text>
-                        Connection : {localCandidate?.candidateType}{' '}
-                        {getIconForConnType(localCandidate?.candidateType || '')}
+                        Connection : {info?.isRelayed ? 'relay' : localCandidate?.candidateType}{' '}
+                        {getIconForConnType(info?.isRelayed ? 'relay' : localCandidate?.candidateType || '')}
                     </Text>
                     <Text>Ping : {this.state.callDelay}ms</Text>
                 </View>
@@ -593,6 +598,7 @@ interface State {
         | {
               localCandidate: LocalCandidate;
               candidatePair: CandidatePair;
+              isRelayed: boolean;
           }
         | undefined;
     callTime: number;

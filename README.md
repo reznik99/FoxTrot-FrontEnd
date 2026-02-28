@@ -12,7 +12,7 @@ Backend repo: [FoxTrot-Back-End](https://github.com/reznik99/FoxTrot-Back-End)
 
 ## Features
 
-- **Encrypted messaging** — Send text, photos, and voice messages. Everything is encrypted before it leaves your device.
+- **Encrypted messaging** — Send text, photos, videos, and voice messages. Everything is encrypted before it leaves your device. Media files are encrypted with per-file AES-256-GCM keys and stored on S3 — the server only ever sees ciphertext.
 - **Audio & video calls** — Peer-to-peer calls that connect directly between devices when possible, with relay fallback.
 - **Biometric unlock** — Log in with your fingerprint or device passcode.
 - **Push notifications** — Get notified of new messages and incoming calls, with a full-screen call UI.
@@ -27,7 +27,11 @@ All encryption happens on-device. The server only stores and relays ciphertext.
 Each user generates an ECDH P-384 keypair on signup. The public key is uploaded to the server. When you open a conversation, a shared AES-256 session key is derived from your private key and the contact's public key via ECDH key agreement.
 
 ### Message Encryption
-Messages (including any attached media) are encrypted with **AES-256-GCM** using a random 12-byte IV per message. Each conversation has its own session key. Messages are stored encrypted at rest and decrypted on-demand when you tap them.
+Text messages are encrypted with **AES-256-GCM** using a random 12-byte IV per message. Each conversation has its own session key derived via ECDH.
+
+Media files (images, videos, audio) are each encrypted with a **random per-file AES-256-GCM key** before being uploaded to S3 via presigned URLs. The file key and IV are embedded in the E2EE message payload, so only the intended recipient can decrypt the media. A low-resolution thumbnail is included inline for instant preview before the full file is downloaded.
+
+Messages are stored encrypted at rest and decrypted on-demand when you open them.
 
 ### Local Storage
 - **SQLite** database encrypted with SQLCipher (AES-256-CBC + HMAC-SHA512). Encryption key stored in device Keychain.
@@ -50,6 +54,7 @@ Identity keys can be exported encrypted with a password-derived key (PBKDF2, 100
 | Database | [op-sqlite](https://github.com/OP-Engineering/op-sqlite) with SQLCipher |
 | Storage | [react-native-mmkv](https://github.com/mrousavy/react-native-mmkv) (encrypted) |
 | Camera | [react-native-vision-camera](https://github.com/mrousavy/react-native-vision-camera) |
+| Video | [react-native-video](https://github.com/TheWidlarzGroup/react-native-video), [react-native-compressor](https://github.com/numandev1/react-native-compressor) |
 | Audio | [react-native-nitro-sound](https://github.com/hyochan/react-native-nitro-sound) |
 | Networking | [Axios](https://github.com/axios/axios), WebSocket, [WebRTC](https://github.com/react-native-webrtc/react-native-webrtc) |
 | Notifications | [Firebase Cloud Messaging](https://rnfirebase.io/messaging/usage) |
@@ -72,7 +77,6 @@ npm run android
 Requires Node >= 20.
 
 ## TODO
-- [ ] Video messages
 - [ ] GIF support
 - [ ] Group messaging
 

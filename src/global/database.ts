@@ -285,6 +285,12 @@ export function dbGetConversations(): Array<{ other_user: UserData; messageCount
     }));
 }
 
+export function dbDeleteConversation(peerPhone: string): void {
+    const database = requireDb();
+    database.executeSync('DELETE FROM messages WHERE conversation_id = ?', [peerPhone]);
+    database.executeSync('DELETE FROM conversations WHERE id = ?', [peerPhone]);
+}
+
 export function dbGetConversation(peerPhone: string): { other_user: UserData; messages: message[] } | null {
     const database = requireDb();
 

@@ -1,13 +1,14 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
-import { Avatar, Badge, Button, Icon } from 'react-native-paper';
+import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Avatar, Badge, Button, Dialog, Icon, Portal, Text } from 'react-native-paper';
 import { useSelector, useDispatch } from 'react-redux';
 
 import { humanTime, milliseconds, millisecondsSince } from '~/global/helper';
 import globalStyle from '~/global/style';
 import { addContact } from '~/store/actions/user';
+import { dbDeleteConversation } from '~/global/database';
 import { DARKHEADER, PRIMARY, SECONDARY_LITE } from '~/global/variables';
-import { Conversation, message } from '~/store/reducers/user';
+import { Conversation, DELETE_CONVERSATION, message } from '~/store/reducers/user';
 import { AppDispatch, RootState } from '~/store/store';
 import { RootNavigation } from '~/store/actions/auth';
 
@@ -53,6 +54,7 @@ export default function ConversationPeek(props: IProps) {
     const user_phone_no = useSelector((state: RootState) => state.userReducer.user_data?.phone_no);
     const contacts = useSelector((state: RootState) => state.userReducer.contacts);
     const [loading, setLoading] = useState<string | undefined>(undefined);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
     const { data, navigation } = props;
     const lastMessage = data.messages[0] ?? {};
@@ -65,6 +67,12 @@ export default function ConversationPeek(props: IProps) {
         }
         return { peer: contact, isRequest: false };
     }, [contacts, data.other_user]);
+
+    const onConfirmDelete = useCallback(() => {
+        setShowDeleteDialog(false);
+        dbDeleteConversation(data.other_user.phone_no);
+        dispatch(DELETE_CONVERSATION(data.other_user.phone_no));
+    }, [data.other_user.phone_no, dispatch]);
 
     const acceptMessageRequest = async () => {
         setLoading('accept');
@@ -97,6 +105,7 @@ export default function ConversationPeek(props: IProps) {
                 onPress={() => {
                     navigation.navigate('Conversation', { data: { peer_user: data.other_user } });
                 }}
+                onLongPress={() => setShowDeleteDialog(true)}
             >
                 <View style={{ display: 'flex', flexDirection: 'row' }}>
                     {renderStatus()}
@@ -163,6 +172,34 @@ export default function ConversationPeek(props: IProps) {
                     </Button>
                 </View>
             )}
+            <Portal>
+                <Dialog visible={showDeleteDialog} onDismiss={() => setShowDeleteDialog(false)}>
+                    <Dialog.Icon icon="delete-alert" />
+                    <Dialog.Title style={{ textAlign: 'center' }}>Delete Conversation</Dialog.Title>
+                    <Dialog.Content>
+                        <Text style={{ textAlign: 'center' }}>
+                            Delete conversation with {peer.phone_no}? All messages will be removed.
+                        </Text>
+                    </Dialog.Content>
+                    <Dialog.Actions style={{ justifyContent: 'space-evenly' }}>
+                        <Button
+                            mode="contained-tonal"
+                            onPress={() => setShowDeleteDialog(false)}
+                            style={{ paddingHorizontal: 15 }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            mode="contained"
+                            buttonColor="#e53935"
+                            onPress={onConfirmDelete}
+                            style={{ paddingHorizontal: 15 }}
+                        >
+                            Delete
+                        </Button>
+                    </Dialog.Actions>
+                </Dialog>
+            </Portal>
         </>
     );
 }

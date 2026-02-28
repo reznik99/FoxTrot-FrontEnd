@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { FlashList } from '@shopify/flash-list';
 import Clipboard from '@react-native-clipboard/clipboard';
+import RNFS from 'react-native-fs';
 import { StackScreenProps } from '@react-navigation/stack';
 import Toast from 'react-native-toast-message';
 
@@ -23,7 +24,7 @@ import {
 } from '~/store/reducers/user';
 import { RootState, store } from '~/store/store';
 import { sendMessage } from '~/store/actions/user';
-import { downloadMedia } from '~/store/actions/media';
+import { downloadMedia, getMediaCachePath } from '~/store/actions/media';
 import { dbGetMessages } from '~/global/database';
 import { HomeStackParamList } from '~/../App';
 
@@ -285,11 +286,19 @@ class Message extends PureComponent<MProps, MState> {
         };
     }
 
-    componentDidMount() {
+    async componentDidMount() {
         // If message was previously decrypted, parse the content
         if (this.props.item.is_decrypted) {
             try {
-                this.setState({ decryptedMessage: JSON.parse(this.props.item.message) });
+                const parsed = JSON.parse(this.props.item.message);
+                this.setState({ decryptedMessage: parsed });
+                // Check if media is already cached on disk so we show the correct icon
+                if ((parsed.type === 'IMG' || parsed.type === 'VIDEO') && parsed.objectKey) {
+                    const cachePath = getMediaCachePath(parsed.objectKey);
+                    if (await RNFS.exists(cachePath)) {
+                        this.setState({ mediaUri: `file://${cachePath}` });
+                    }
+                }
             } catch (err) {
                 // Parse error, treat as plain text
                 this.setState({ decryptedMessage: { type: 'MSG', message: this.props.item.message } });

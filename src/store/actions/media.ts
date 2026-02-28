@@ -47,6 +47,13 @@ export const uploadMedia = createDefaultAsyncThunk<UploadResult, { filePath: str
     },
 );
 
+/** Returns the local cache file path for a given S3 object key. */
+export function getMediaCachePath(objectKey: string): string {
+    const extension = objectKey.split('.').pop() || 'bin';
+    const fileName = `${objectKey.split('/').pop()?.split('.')[0] || Date.now()}.${extension}`;
+    return `${RNFS.CachesDirectoryPath}/${fileName}`;
+}
+
 /** Downloads encrypted media from S3 and decrypts it. Returns a local file:// URI pointing to the decrypted file. */
 export const downloadMedia = createDefaultAsyncThunk<string, { objectKey: string; keyBase64: string; ivBase64: string }>(
     'downloadMedia',
@@ -54,9 +61,7 @@ export const downloadMedia = createDefaultAsyncThunk<string, { objectKey: string
         const state = thunkAPI.getState().userReducer;
 
         // Check if already cached
-        const extension = objectKey.split('.').pop() || 'bin';
-        const fileName = `${objectKey.split('/').pop()?.split('.')[0] || Date.now()}.${extension}`;
-        const filePath = `${RNFS.CachesDirectoryPath}/${fileName}`;
+        const filePath = getMediaCachePath(objectKey);
         if (await RNFS.exists(filePath)) {
             return `file://${filePath}`;
         }

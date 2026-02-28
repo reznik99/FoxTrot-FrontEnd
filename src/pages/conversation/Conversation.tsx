@@ -34,13 +34,9 @@ const todaysDate = new Date().toLocaleDateString();
 export default function Conversation(props: StackScreenProps<HomeStackParamList, 'Conversation'>) {
     const { peer_user } = props.route.params.data;
 
-    const fallbackConversation = useMemo(
-        () => ({ messages: [] as message[], other_user: peer_user }),
-        [peer_user],
-    );
+    const fallbackConversation = useMemo(() => ({ messages: [] as message[], other_user: peer_user }), [peer_user]);
     const conversation =
-        useSelector((state: RootState) => state.userReducer.conversations.get(peer_user.phone_no)) ??
-        fallbackConversation;
+        useSelector((state: RootState) => state.userReducer.conversations.get(peer_user.phone_no)) ?? fallbackConversation;
     const user_data = useSelector((state: RootState) => state.userReducer.user_data);
     const peer =
         useSelector((state: RootState) =>

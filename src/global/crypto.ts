@@ -241,7 +241,7 @@ async function decryptLegacyCBC(sessionKey: CryptoKey, encryptedMessage: string)
     return decryptedChunks.map(chunk => Buffer.from(chunk).toString()).join('');
 }
 
-enum ProtocolVersion {
+export enum ProtocolVersion {
     LEGACY_CBC_CHUNKED = 0,
     GCM_V1 = 1,
     GCM_RATCHET_V2 = 2, // TODO
@@ -259,7 +259,7 @@ function parseProtocolVersion(n: number): ProtocolVersion {
 }
 
 /** Extracts versioning from message, if not present it analyzes the message structure to figure out message version. */
-function extractVersioningFromMessage(encryptedMessage: string): [ProtocolVersion, string] {
+export function extractVersioningFromMessage(encryptedMessage: string): [ProtocolVersion, string] {
     let separators = 0;
     let indexFirstSeparator = -1;
     for (let i = 0; i < encryptedMessage.length; i++) {

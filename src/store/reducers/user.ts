@@ -272,9 +272,7 @@ export const userSlice = createSlice({
         WEBSOCKET_ERROR: (state, action: PayloadAction<string>) => {
             state.socketErr = action.payload;
         },
-        LOGOUT: _state => {
-            _state = initialState;
-        },
+        LOGOUT: () => initialState,
     },
 });
 

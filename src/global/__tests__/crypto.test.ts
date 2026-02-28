@@ -1,6 +1,6 @@
 import { Buffer } from 'buffer';
 import QuickCrypto from 'react-native-quick-crypto';
-import { encrypt, decrypt, encryptFile, decryptFile } from '../crypto';
+import { encrypt, decrypt, encryptFile, decryptFile, extractVersioningFromMessage, ProtocolVersion } from '../crypto';
 
 // Hardcoded test key (256-bit AES key)
 const TEST_KEY_BASE64 = '5ZFymSUme/8XA3T7f+FbGX7te8ri8N7iOQ5iHvyr/+A=';
@@ -145,6 +145,62 @@ describe('crypto.ts', () => {
 
                 await expect(decrypt(sessionKey, corruptedMessage)).rejects.toThrow();
             });
+        });
+    });
+
+    describe('extractVersioningFromMessage', () => {
+        it('should parse versioned GCM message (version:iv:ciphertext)', () => {
+            // "1" base64-encoded = "MQ=="
+            const [version, remainder] = extractVersioningFromMessage('MQ==:ivdata:ciphertext');
+            expect(version).toBe(ProtocolVersion.GCM_V1);
+            expect(remainder).toBe('ivdata:ciphertext');
+        });
+
+        it('should parse versioned legacy CBC message (version:iv:ciphertext)', () => {
+            // "0" base64-encoded = "MA=="
+            const [version, remainder] = extractVersioningFromMessage('MA==:ivdata:ciphertext');
+            expect(version).toBe(ProtocolVersion.LEGACY_CBC_CHUNKED);
+            expect(remainder).toBe('ivdata:ciphertext');
+        });
+
+        it('should detect unversioned GCM by 12-byte IV (iv:ciphertext)', () => {
+            // 12 bytes of zeros as base64 = "AAAAAAAAAAAAAAAA"
+            const iv12 = Buffer.alloc(12).toString('base64');
+            const msg = `${iv12}:ciphertext`;
+            const [version, remainder] = extractVersioningFromMessage(msg);
+            expect(version).toBe(ProtocolVersion.GCM_V1);
+            expect(remainder).toBe(msg); // returns full message (no version stripped)
+        });
+
+        it('should detect unversioned CBC by 16-byte IV (iv:ciphertext)', () => {
+            // 16 bytes of zeros as base64 = "AAAAAAAAAAAAAAAAAAAAAA=="
+            const iv16 = Buffer.alloc(16).toString('base64');
+            const msg = `${iv16}:ciphertext`;
+            const [version, remainder] = extractVersioningFromMessage(msg);
+            expect(version).toBe(ProtocolVersion.LEGACY_CBC_CHUNKED);
+            expect(remainder).toBe(msg);
+        });
+
+        it('should detect chunked CBC (iv:ct:iv:ct:...)', () => {
+            const iv16 = Buffer.alloc(16).toString('base64');
+            const msg = `${iv16}:ct1:${iv16}:ct2:${iv16}:ct3`;
+            const [version, remainder] = extractVersioningFromMessage(msg);
+            expect(version).toBe(ProtocolVersion.LEGACY_CBC_CHUNKED);
+            expect(remainder).toBe(msg);
+        });
+
+        it('should throw on message with no separator', () => {
+            expect(() => extractVersioningFromMessage('noseparator')).toThrow('Failed to find ":" separator');
+        });
+
+        it('should throw on non-numeric version prefix', () => {
+            // "abc" base64-encoded = "YWJj"
+            expect(() => extractVersioningFromMessage('YWJj:iv:ct')).toThrow('Failed to extract version from message');
+        });
+
+        it('should throw on unknown version number', () => {
+            // "99" base64-encoded = "OTk="
+            expect(() => extractVersioningFromMessage('OTk=:iv:ct')).toThrow('Unknown protocol version: 99');
         });
     });
 

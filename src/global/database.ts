@@ -364,3 +364,10 @@ export function dbClearCallHistory(): void {
     const database = requireDb();
     database.executeSync('DELETE FROM calls');
 }
+
+export function dbDeleteCalls(ids: number[]): void {
+    if (ids.length === 0) return;
+    const database = requireDb();
+    const placeholders = ids.map(() => '?').join(',');
+    database.executeSync(`DELETE FROM calls WHERE id IN (${placeholders})`, ids);
+}

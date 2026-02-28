@@ -1,4 +1,7 @@
 import 'react-native-gesture-handler';
+import { Buffer } from 'buffer';
+global.Buffer = global.Buffer || Buffer;
+
 import React, { useState, useCallback } from 'react';
 import { StatusBar } from 'react-native';
 import { Provider } from 'react-redux';

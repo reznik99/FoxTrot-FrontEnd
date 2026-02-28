@@ -138,16 +138,14 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
                 console.debug('Video compressed:', filePath);
             }
 
-            // Generate thumbnail for inline preview
-            let thumbnail: string | undefined;
-            try {
-                thumbnail = await generateThumbnail(media, isVideo);
-            } catch (err) {
+            // Generate thumbnail and upload encrypted file in parallel
+            const thumbnailPromise = generateThumbnail(media, isVideo).catch(err => {
                 console.warn('Failed to generate thumbnail, sending without preview:', err);
-            }
+                return undefined;
+            });
+            const uploadPromise = dispatch(uploadMedia({ filePath, contentType })).unwrap();
 
-            // Upload encrypted file to S3
-            const { objectKey, keyBase64, ivBase64 } = await dispatch(uploadMedia({ filePath, contentType })).unwrap();
+            const [thumbnail, { objectKey, keyBase64, ivBase64 }] = await Promise.all([thumbnailPromise, uploadPromise]);
 
             // Build E2EE message with S3 metadata (no raw file data)
             const toSend = JSON.stringify({

@@ -196,7 +196,15 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
                 <>
                     <View style={{ flex: 1, backgroundColor: DARKHEADER, justifyContent: 'center', alignItems: 'center' }}>
                         {loading ? (
-                            <ActivityIndicator size="large" />
+                            <>
+                                <Image
+                                    style={{ width: '100%', height: '100%', position: 'absolute' }}
+                                    source={{ uri: media }}
+                                    resizeMode="contain"
+                                    blurRadius={3}
+                                />
+                                <ActivityIndicator size="large" />
+                            </>
                         ) : isVideo ? (
                             <Video
                                 source={{ uri: media }}
@@ -213,7 +221,7 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
                                 }}
                             />
                         ) : (
-                            <Image style={{ width: '100%', height: '100%' }} source={{ uri: media }} resizeMode="cover" />
+                            <Image style={{ width: '100%', height: '100%' }} source={{ uri: media }} resizeMode="contain" />
                         )}
                     </View>
                     <View style={[styles.buttonContainer, { marginBottom: edgeInsets.bottom }]}>

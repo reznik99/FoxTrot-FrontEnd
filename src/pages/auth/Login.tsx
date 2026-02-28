@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { View, ScrollView, Keyboard, Alert } from 'react-native';
 import { ActivityIndicator, TextInput, Button, Text, IconButton } from 'react-native-paper';
 import * as Keychain from 'react-native-keychain';
-import SplashScreen from 'react-native-splash-screen';
+import BootSplash from 'react-native-bootsplash';
 import { StackScreenProps } from '@react-navigation/stack';
 
 import { validateToken, syncFromStorage } from '~/store/actions/user';
@@ -33,7 +33,7 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
 
     useEffect(() => {
         // Hide app splashscreen
-        SplashScreen.hide();
+        BootSplash.hide({ fade: true });
         // Auto-fill username field from signup page
         if (user_data?.phone_no) {
             setUsername(user_data?.phone_no);

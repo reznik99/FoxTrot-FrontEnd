@@ -11,10 +11,11 @@ import Toast from 'react-native-toast-message';
 import RNFS from 'react-native-fs';
 import { Buffer } from 'buffer';
 
-import { API_URL, DARKHEADER, KeychainOpts, SaltLenGCM, SaltLenPBKDF2 } from '~/global/variables';
+import { API_URL, DARKHEADER, KeychainOpts, PRIMARY, SaltLenGCM, SaltLenPBKDF2 } from '~/global/variables';
 import { getReadExtPermission, getWriteExtPermission } from '~/global/permissions';
 import { deriveKeyFromPassword, exportKeypair } from '~/global/crypto';
 import { deleteFromStorage, getAllStorageKeys, readFromStorage, writeToStorage } from '~/global/storage';
+import { FlagSecure } from '~/global/native';
 import globalStyle from '~/global/style';
 import { loadContacts, loadKeys } from '~/store/actions/user';
 import { logOut } from '~/store/actions/auth';
@@ -33,6 +34,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
     const [hasIdentityKeys, setHasIdentityKeys] = useState(false);
     const [hasPassword, setHasPassword] = useState(false);
     const [alwaysRelay, setAlwaysRelay] = useState(false);
+    const [screenSecurity, setScreenSecurity] = useState(false);
     const [visibleDialog, setVisibleDialog] = useState('');
     const [encPassword, setEncPassword] = useState('');
 
@@ -41,6 +43,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
         const sortedKeys = allKeys.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
         setKeys(sortedKeys);
         readFromStorage('always-relay-calls').then(val => setAlwaysRelay(val === 'true'));
+        readFromStorage('screen-security').then(val => setScreenSecurity(val === 'true'));
         Keychain.hasInternetCredentials({ server: API_URL, service: `${user_data.phone_no}-keys` })
             .then(_hasKeys => setHasIdentityKeys(Boolean(_hasKeys)))
             .catch(err => console.error('Error checking TPM for keys:', err));
@@ -220,32 +223,38 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
 
     return (
         <View style={globalStyle.wrapper}>
-            <ScrollView style={{ paddingHorizontal: 40, paddingTop: 15, paddingBottom: 15 + insets.bottom }}>
-                <Text variant="titleMedium" style={{ marginBottom: 10 }}>
-                    User Identity Keys
+            <ScrollView contentContainerStyle={{ padding: 30, paddingBottom: 30 + insets.bottom }}>
+                <Text variant="titleSmall" style={{ marginBottom: 10, color: PRIMARY }}>
+                    Security
                 </Text>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Button
-                        mode="contained"
-                        icon="upload-circle"
-                        onPress={() => setVisibleDialog('import')}
-                        loading={visibleDialog === 'import'}
-                    >
-                        Import Keys
-                    </Button>
-                    <Button
-                        mode="contained"
-                        icon="download-circle"
-                        onPress={() => setVisibleDialog('export')}
-                        loading={visibleDialog === 'export'}
-                    >
-                        Export Keys
-                    </Button>
+                <View style={{ marginBottom: 10 }}>
+                    <Text variant="bodyLarge">Identity Keys</Text>
+                    <Text variant="bodySmall" style={{ color: '#999', marginBottom: 10 }}>
+                        Your cryptographic identity. Export to back up, import to restore on a new device.
+                    </Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Button
+                            mode="contained"
+                            icon="upload-circle"
+                            onPress={() => setVisibleDialog('import')}
+                            loading={visibleDialog === 'import'}
+                        >
+                            Import Keys
+                        </Button>
+                        <Button
+                            mode="contained"
+                            icon="download-circle"
+                            onPress={() => setVisibleDialog('export')}
+                            loading={visibleDialog === 'export'}
+                        >
+                            Export Keys
+                        </Button>
+                    </View>
                 </View>
 
                 <Divider style={{ marginVertical: 15 }} />
 
-                <Text variant="titleMedium" style={{ marginBottom: 10 }}>
+                <Text variant="titleSmall" style={{ marginBottom: 10, color: PRIMARY }}>
                     Privacy
                 </Text>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -263,15 +272,46 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                         }}
                     />
                 </View>
+                <View
+                    style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginTop: 15,
+                    }}
+                >
+                    <View style={{ flex: 1, marginRight: 10 }}>
+                        <Text variant="bodyLarge">Screen Security</Text>
+                        <Text variant="bodySmall" style={{ color: '#999' }}>
+                            Prevent screenshots and screen recording. Hides app content in recent apps.
+                        </Text>
+                    </View>
+                    <Switch
+                        value={screenSecurity}
+                        onValueChange={val => {
+                            setScreenSecurity(val);
+                            writeToStorage('screen-security', String(val));
+                            if (val) {
+                                FlagSecure.enable();
+                            } else {
+                                FlagSecure.disable();
+                            }
+                        }}
+                    />
+                </View>
 
                 <Divider style={{ marginVertical: 15 }} />
 
-                <Text variant="titleMedium" style={{ marginBottom: 10 }}>
-                    User Data
+                <Text variant="titleSmall" style={{ marginBottom: 10, color: PRIMARY }}>
+                    Storage
                 </Text>
-                <View style={{ marginBottom: insets.bottom, gap: 5 }}>
-                    <Text>Click entry to delete:</Text>
-                    <View>
+                <View style={{ marginBottom: 10 }}>
+                    <Text variant="bodyLarge">App Data</Text>
+                    <Text variant="bodySmall" style={{ color: '#999', marginBottom: 10 }}>
+                        Locally stored data including credentials, keys, and cached values. Tap X to remove individual
+                        entries.
+                    </Text>
+                    <View style={{ gap: 5 }}>
                         {/* KeyChain values */}
                         {hasIdentityKeys && (
                             <Chip selected icon="key" style={{ backgroundColor: DARKHEADER }}>
@@ -296,12 +336,17 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                             </Chip>
                         ))}
                     </View>
+                </View>
+                <View>
+                    <Text variant="bodyLarge">Factory Reset</Text>
+                    <Text variant="bodySmall" style={{ color: '#999', marginBottom: 10 }}>
+                        Erase all local data including messages, keys, and credentials. This cannot be undone.
+                    </Text>
                     <Button
                         mode="contained"
                         icon="alert-circle"
                         buttonColor={theme.colors.errorContainer}
                         textColor={theme.colors.error}
-                        style={{ marginTop: 10 }}
                         onPress={() => setVisibleDialog('reset')}
                         loading={visibleDialog === 'reset'}
                     >

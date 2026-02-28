@@ -32,6 +32,7 @@
         "react-native": "^0.80.3",
         "react-native-compressor": "^1.16.0",
         "react-native-create-thumbnail": "^2.2.0",
+        "react-native-device-info": "^15.0.2",
         "react-native-elements": "~3.4.3",
         "react-native-fs": "~2.20.0",
         "react-native-full-screen-notification-incoming-call": "^1.1.0",

@@ -42,7 +42,7 @@ export default function AudioPlayer(props: IProps) {
         } catch (err) {
             console.error(err);
         }
-    }, [props.audioUri, props.audioData]);
+    }, [props.audioUri, props.audioData, props.messageId]);
 
     const stopAudio = useCallback(async () => {
         try {

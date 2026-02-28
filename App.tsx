@@ -7,23 +7,32 @@ import { StatusBar } from 'react-native';
 import { Provider } from 'react-redux';
 import { Provider as PaperProvider, MD3DarkTheme, Icon } from 'react-native-paper';
 import { NavigationContainer, DarkTheme as NavDarkTheme, RouteProp } from '@react-navigation/native';
+import { createDrawerNavigator, DrawerContentComponentProps, DrawerNavigationOptions } from '@react-navigation/drawer';
+import RNNotificationCall, { DeclinePayload } from 'react-native-full-screen-notification-incoming-call';
+import { getMessaging, setBackgroundMessageHandler } from '@react-native-firebase/messaging';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import PushNotification from 'react-native-push-notification';
+import InCallManager from 'react-native-incall-manager';
+import QuickCrypto from 'react-native-quick-crypto';
+import Toast from 'react-native-toast-message';
 import {
     createStackNavigator,
     CardStyleInterpolators,
     StackNavigationOptions,
     StackHeaderProps,
 } from '@react-navigation/stack';
-import { createDrawerNavigator, DrawerContentComponentProps, DrawerNavigationOptions } from '@react-navigation/drawer';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import Toast from 'react-native-toast-message';
-import { getMessaging, setBackgroundMessageHandler } from '@react-native-firebase/messaging'; // Push Notifications
-import RNNotificationCall, { DeclinePayload } from 'react-native-full-screen-notification-incoming-call';
-import InCallManager from 'react-native-incall-manager';
-import PushNotification from 'react-native-push-notification';
-import QuickCrypto from 'react-native-quick-crypto';
 
 // App
+import { PRIMARY, SECONDARY, SECONDARY_LITE, ACCENT, DARKHEADER, VibratePattern } from '~/global/variables';
+import { deleteFromStorage, readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
+import { getDb, dbSaveCallRecord, dbGetUnseenCallCount } from '~/global/database';
+import { getAvatar } from '~/global/helper';
+import { FlagSecure } from '~/global/native';
+import { SocketMessage } from '~/store/actions/websocket';
+import { UserData } from '~/store/reducers/user';
 import { store } from '~/store/store';
+import HeaderConversation from '~/components/HeaderConversation';
+import Drawer from '~/components/Drawer';
 import {
     Login,
     Signup,
@@ -36,15 +45,6 @@ import {
     Settings,
     CallHistory,
 } from './src';
-import { PRIMARY, SECONDARY, SECONDARY_LITE, ACCENT, DARKHEADER, VibratePattern } from '~/global/variables';
-import Drawer from '~/components/Drawer';
-import HeaderConversation from '~/components/HeaderConversation';
-import { UserData } from '~/store/reducers/user';
-import { deleteFromStorage, readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
-import { getDb, dbSaveCallRecord, dbGetUnseenCallCount } from '~/global/database';
-import { getAvatar } from '~/global/helper';
-import { SocketMessage } from '~/store/actions/websocket';
-import { FlagSecure } from '~/global/native';
 
 const defaultHeaderOptions: StackNavigationOptions & DrawerNavigationOptions = {
     headerStyle: {

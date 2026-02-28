@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { View, ScrollView } from 'react-native';
-import { Divider, Button, Dialog, Icon, Portal, Text } from 'react-native-paper';
+import { Divider, Button, Dialog, FAB, Icon, Portal, Text } from 'react-native-paper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import CallHistoryItem from '~/components/CallHistoryItem';
 import { dbGetCallHistory, dbClearCallHistory, dbMarkAllCallsSeen } from '~/global/database';
@@ -11,6 +12,7 @@ import globalStyle from '~/global/style';
 
 export default function CallHistory() {
     const navigation = useNavigation<any>();
+    const insets = useSafeAreaInsets();
     const [records, setRecords] = useState<CallRecord[]>([]);
     const loadHistory = useCallback(() => {
         try {
@@ -23,8 +25,10 @@ export default function CallHistory() {
 
     useFocusEffect(
         useCallback(() => {
-            loadHistory();
-            dbMarkAllCallsSeen();
+            requestAnimationFrame(() => {
+                loadHistory();
+                dbMarkAllCallsSeen();
+            });
         }, [loadHistory]),
     );
 
@@ -44,22 +48,12 @@ export default function CallHistory() {
         <View style={globalStyle.wrapper}>
             <ScrollView>
                 {records.length > 0 ? (
-                    <>
-                        {records.map((record, index) => (
-                            <View key={record.id ?? index}>
-                                <CallHistoryItem record={record} navigation={navigation} />
-                                <Divider />
-                            </View>
-                        ))}
-                        <Button
-                            mode="text"
-                            textColor="#e53935"
-                            onPress={() => setShowClearDialog(true)}
-                            style={{ marginVertical: 20 }}
-                        >
-                            Clear Call History
-                        </Button>
-                    </>
+                    records.map((record, index) => (
+                        <View key={record.id ?? index}>
+                            <CallHistoryItem record={record} navigation={navigation} />
+                            <Divider />
+                        </View>
+                    ))
                 ) : (
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 }}>
                         <Icon source="phone-off" size={48} color={SECONDARY_LITE} />
@@ -67,6 +61,15 @@ export default function CallHistory() {
                     </View>
                 )}
             </ScrollView>
+            {records.length > 0 && (
+                <FAB
+                    icon="delete-outline"
+                    color="#fff"
+                    style={[globalStyle.fab, { backgroundColor: '#e53935', marginBottom: globalStyle.fab.margin + insets.bottom }]}
+                    onPress={() => setShowClearDialog(true)}
+                    size="small"
+                />
+            )}
             <Portal>
                 <Dialog visible={showClearDialog} onDismiss={() => setShowClearDialog(false)}>
                     <Dialog.Icon icon="delete-alert" />

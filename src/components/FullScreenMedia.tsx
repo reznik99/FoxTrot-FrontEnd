@@ -49,6 +49,12 @@ const FullScreenMedia = (props: IProps) => {
                     resizeMode="contain"
                     controls={true}
                     paused={false}
+                    bufferConfig={{
+                        minBufferMs: 2000,
+                        maxBufferMs: 5000,
+                        bufferForPlaybackMs: 1000,
+                        bufferForPlaybackAfterRebufferMs: 2000,
+                    }}
                 />
             ) : (
                 <GestureHandlerRootView style={{ flex: 1 }}>

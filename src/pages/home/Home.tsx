@@ -20,7 +20,7 @@ import { initializeWebsocket, destroyWebsocket, SocketMessage } from '~/store/ac
 import { Conversation, UserData } from '~/store/reducers/user';
 import { setupInterceptors, RootNavigation } from '~/store/actions/auth';
 import { RootState, store } from '~/store/store';
-import { popFromStorage } from '~/global/storage';
+import { popFromStorage, StorageKeys } from '~/global/storage';
 import { dbSaveCallRecord } from '~/global/database';
 import { PRIMARY } from '~/global/variables';
 import globalStyle from '~/global/style';
@@ -48,7 +48,7 @@ export default function Home() {
             // [background] Get TURN credentials for proxying calls if peer-to-peer ICE fails
             store.dispatch(getTURNServerCreds()).then(async () => {
                 // Check if user answered a call in the background
-                const callerRaw = await popFromStorage('call_answered_in_background');
+                const callerRaw = await popFromStorage(StorageKeys.CALL_ANSWERED_IN_BACKGROUND);
                 if (callerRaw) {
                     const data = JSON.parse(callerRaw || '{}') as { caller: UserData; data: SocketMessage };
                     navigation.navigate('Call', {

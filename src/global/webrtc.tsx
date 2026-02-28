@@ -8,7 +8,7 @@ export interface WebRTCMessage {
 }
 export interface LocalCandidate {
     timestamp: number;
-    type: 'local-candidate';
+    type: 'local-candidate' | 'remote-candidate';
     id: string;
     transportId: string;
 

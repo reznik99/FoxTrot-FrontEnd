@@ -14,7 +14,7 @@ import { Buffer } from 'buffer';
 import { API_URL, DARKHEADER, KeychainOpts, PRIMARY, SaltLenGCM, SaltLenPBKDF2 } from '~/global/variables';
 import { getReadExtPermission, getWriteExtPermission } from '~/global/permissions';
 import { deriveKeyFromPassword, exportKeypair } from '~/global/crypto';
-import { deleteFromStorage, getAllStorageKeys, readFromStorage, writeToStorage } from '~/global/storage';
+import { deleteFromStorage, getAllStorageKeys, readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { FlagSecure } from '~/global/native';
 import globalStyle from '~/global/style';
 import { loadContacts, loadKeys } from '~/store/actions/user';
@@ -42,8 +42,8 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
         const allKeys = await getAllStorageKeys();
         const sortedKeys = allKeys.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
         setKeys(sortedKeys);
-        readFromStorage('always-relay-calls').then(val => setAlwaysRelay(val === 'true'));
-        readFromStorage('screen-security').then(val => setScreenSecurity(val === 'true'));
+        readFromStorage(StorageKeys.ALWAYS_RELAY_CALLS).then(val => setAlwaysRelay(val === 'true'));
+        readFromStorage(StorageKeys.SCREEN_SECURITY).then(val => setScreenSecurity(val === 'true'));
         Keychain.hasInternetCredentials({ server: API_URL, service: `${user_data.phone_no}-keys` })
             .then(_hasKeys => setHasIdentityKeys(Boolean(_hasKeys)))
             .catch(err => console.error('Error checking TPM for keys:', err));
@@ -268,7 +268,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                         value={alwaysRelay}
                         onValueChange={val => {
                             setAlwaysRelay(val);
-                            writeToStorage('always-relay-calls', String(val));
+                            writeToStorage(StorageKeys.ALWAYS_RELAY_CALLS, String(val));
                         }}
                     />
                 </View>
@@ -290,7 +290,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                         value={screenSecurity}
                         onValueChange={val => {
                             setScreenSecurity(val);
-                            writeToStorage('screen-security', String(val));
+                            writeToStorage(StorageKeys.SCREEN_SECURITY, String(val));
                             if (val) {
                                 FlagSecure.enable();
                             } else {

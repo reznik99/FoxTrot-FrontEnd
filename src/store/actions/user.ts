@@ -20,7 +20,7 @@ import {
     TURN_CREDS,
 } from '~/store/reducers/user';
 import { importKeypair, exportKeypair, generateSessionKeyECDH, encrypt, generateIdentityKeypair } from '~/global/crypto';
-import { readFromStorage, writeToStorage } from '~/global/storage';
+import { readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { getPushNotificationPermission } from '~/global/permissions';
 import { getDb, dbGetConversations, dbGetConversation, dbSaveMessage, dbSaveConversation } from '~/global/database';
 import { API_URL, KeypairAlgorithm } from '~/global/variables';
@@ -360,7 +360,7 @@ export const syncFromStorage = createDefaultAsyncThunk('syncFromStorage', async 
 
         console.debug('Loading user from local storage');
         // TODO: Load existing contacts from async storage
-        const user_data = await readFromStorage('user_data');
+        const user_data = await readFromStorage(StorageKeys.USER_DATA);
         if (!user_data) {
             return undefined;
         }

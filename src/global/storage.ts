@@ -86,6 +86,14 @@ async function getStorage(): Promise<MMKV> {
     return storageInitPromise;
 }
 
+/** Keys used across the app for MMKV storage. Use these instead of raw strings. */
+export const StorageKeys = {
+    USER_DATA: 'user_data',
+    ALWAYS_RELAY_CALLS: 'always-relay-calls',
+    SCREEN_SECURITY: 'screen-security',
+    CALL_ANSWERED_IN_BACKGROUND: 'call_answered_in_background',
+} as const;
+
 export async function writeToStorage(key: string, value: string): Promise<void> {
     const s = await getStorage();
     s.set(key, value);

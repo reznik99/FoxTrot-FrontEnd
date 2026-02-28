@@ -6,7 +6,7 @@ import { Alert } from 'react-native';
 
 import { API_URL, KeychainOpts } from '~/global/variables';
 import { getAvatar } from '~/global/helper';
-import { deleteFromStorage, writeToStorage } from '~/global/storage';
+import { deleteFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { LOGGED_IN, LOGIN_ERROR_MSG, LOGOUT, SET_LOADING, SIGNED_UP, SIGNUP_ERROR_MSG } from '../reducers/user';
 import { AuthStackParamList, HomeStackParamList, RootDrawerParamList } from '~/../App';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -28,7 +28,7 @@ export const logIn = createAsyncThunk('logIn', async ({ username, password }: lo
         console.debug('Saving user in storage');
         // Save user_data in phone storage
         const user_data = { pic: getAvatar(res.data.user_data?.id), ...res.data.user_data };
-        writeToStorage('user_data', JSON.stringify(user_data));
+        writeToStorage(StorageKeys.USER_DATA, JSON.stringify(user_data));
 
         // Save password and JWT auth token in secure storage
         const secrets = {
@@ -79,7 +79,7 @@ export const signUp = createAsyncThunk(
                 password: password,
             });
             // Save data in phone storage
-            writeToStorage('user_data', JSON.stringify(response.data?.user_data || { phone_no: username }));
+            writeToStorage(StorageKeys.USER_DATA, JSON.stringify(response.data?.user_data || { phone_no: username }));
             thunkAPI.dispatch(SIGNED_UP(response.data?.user_data || { phone_no: username }));
 
             Toast.show({
@@ -109,7 +109,7 @@ export const logOut = createAsyncThunk('logOut', async ({ navigation }: { naviga
     // Clear redux state
     thunkAPI.dispatch(LOGOUT(undefined));
     // Clear storage
-    await deleteFromStorage('user_data');
+    await deleteFromStorage(StorageKeys.USER_DATA);
 
     navigation.replace('Login', { data: { loggedOut: true, errorMsg: '' } });
 });

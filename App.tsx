@@ -40,7 +40,7 @@ import { PRIMARY, SECONDARY, SECONDARY_LITE, ACCENT, DARKHEADER, VibratePattern 
 import Drawer from '~/components/Drawer';
 import HeaderConversation from '~/components/HeaderConversation';
 import { UserData } from '~/store/reducers/user';
-import { deleteFromStorage, readFromStorage, writeToStorage } from '~/global/storage';
+import { deleteFromStorage, readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { getDb, dbSaveCallRecord, dbGetUnseenCallCount } from '~/global/database';
 import { getAvatar } from '~/global/helper';
 import { SocketMessage } from '~/store/actions/websocket';
@@ -212,7 +212,7 @@ setBackgroundMessageHandler(messaging, async remoteMessage => {
             return;
         }
         // Write caller info to special storage key that is checked after app login
-        await writeToStorage('call_answered_in_background', info.payload);
+        await writeToStorage(StorageKeys.CALL_ANSWERED_IN_BACKGROUND, info.payload);
         // User will be opening app and authenticating after this...
     });
     RNNotificationCall.addEventListener('endCall', async info => {
@@ -257,7 +257,7 @@ setBackgroundMessageHandler(messaging, async remoteMessage => {
             console.error('Failed to save missed call record to db:', err);
         }
         // Delete storage info about caller so they don't get routed to call screen on next app open
-        await deleteFromStorage('call_answered_in_background');
+        await deleteFromStorage(StorageKeys.CALL_ANSWERED_IN_BACKGROUND);
     });
     InCallManager.startRingtone('_DEFAULT_', VibratePattern, '', 20);
 
@@ -279,7 +279,7 @@ setBackgroundMessageHandler(messaging, async remoteMessage => {
 
 export default function App() {
     useEffect(() => {
-        readFromStorage('screen-security').then(val => {
+        readFromStorage(StorageKeys.SCREEN_SECURITY).then(val => {
             if (val === 'true') {
                 FlagSecure.enable();
             }

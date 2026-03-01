@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Modal, View, ScrollView, StyleSheet, ToastAndroid } from 'react-native';
 import { Button, Text } from 'react-native-paper';
 import Clipboard from '@react-native-clipboard/clipboard';
@@ -31,12 +31,14 @@ export default function ErrorPortal() {
     const [visible, setVisible] = useState(false);
     const [title, setTitle] = useState('Error');
     const [logs, setLogs] = useState<LogEntry[]>([]);
+    const scrollRef = useRef<ScrollView>(null);
 
     useEffect(() => {
         registerPortalCallback((portalTitle?: string) => {
             setTitle(portalTitle || 'Error');
             setLogs(getEntries());
             setVisible(true);
+            setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100);
         });
         return () => registerPortalCallback(null);
     }, []);
@@ -64,7 +66,7 @@ export default function ErrorPortal() {
                         </Text>
                     </View>
 
-                    <ScrollView style={styles.logContainer} contentContainerStyle={styles.logContent}>
+                    <ScrollView ref={scrollRef} style={styles.logContainer} contentContainerStyle={styles.logContent}>
                         {logs.length === 0 ? (
                             <Text style={styles.emptyText}>No logs captured</Text>
                         ) : (

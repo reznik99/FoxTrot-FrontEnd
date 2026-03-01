@@ -219,7 +219,7 @@ function handleNetInfoChange(state: NetInfoState, dispatch: AppDispatch, getStat
 // --- WebSocket event handlers ---
 
 function handleSocketOpen(dispatch: AppDispatch) {
-    logger.debug('Socket to server opened successfully');
+    logger.debug('[WebSocket]  opened successfully');
     mgr.intentionalClose = false;
     mgr.reconnectAttempt = 0;
     dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'connected' });
@@ -234,7 +234,7 @@ function handleSocketOpen(dispatch: AppDispatch) {
 }
 
 function handleSocketClose(dispatch: AppDispatch) {
-    logger.debug('WebSocket closed');
+    logger.debug('[WebSocket] closed');
     dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: null });
 
     if (mgr.intentionalClose) {
@@ -249,7 +249,7 @@ function handleSocketClose(dispatch: AppDispatch) {
 
 function handleSocketError(err: any, dispatch: AppDispatch) {
     const message = err?.message || err?.type || 'Connection error';
-    logger.error('WebSocket error:', message);
+    logger.error('[WebSocket] error:', message);
     dispatch({ type: 'user/WEBSOCKET_ERROR', payload: message });
 }
 
@@ -271,7 +271,7 @@ function handleSocketMessage(data: any, dispatch: AppDispatch, getState: GetStat
                 });
                 break;
             case 'CALL_OFFER':
-                logger.debug('Websocket CALL_OFFER Recieved', parsedData.data?.sender);
+                logger.debug('[Websocket] CALL_OFFER Recieved', parsedData.data?.sender);
 
                 const userState = getState().userReducer;
                 let caller = userState.contacts.find(con => con.phone_no === parsedData.data.sender);
@@ -307,17 +307,17 @@ function handleSocketMessage(data: any, dispatch: AppDispatch, getState: GetStat
                 });
                 break;
             case 'CALL_ANSWER':
-                logger.debug('Websocket CALL_ANSWER Recieved', parsedData.data?.sender);
+                logger.debug('[Websocket] CALL_ANSWER Recieved', parsedData.data?.sender);
                 dispatch({ type: 'user/RECV_CALL_ANSWER', payload: parsedData.data?.answer });
                 break;
             case 'CALL_ICE_CANDIDATE':
-                logger.debug('Websocket RECV_CALL_ICE_CANDIDATE Recieved', parsedData.data?.sender);
+                logger.debug('[Websocket] RECV_CALL_ICE_CANDIDATE Recieved', parsedData.data?.sender);
                 dispatch({ type: 'user/RECV_CALL_ICE_CANDIDATE', payload: parsedData.data?.candidate });
                 break;
             default:
-                logger.debug('Websocket RECV unknown command from', parsedData.data?.sender, parsedData.cmd);
+                logger.debug('[Websocket] RECV unknown command from', parsedData.data?.sender, parsedData.cmd);
         }
     } catch (err: any) {
-        logger.error('Websocket RECV error:', err);
+        logger.error('[Websocket] RECV error:', err);
     }
 }

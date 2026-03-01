@@ -16,7 +16,7 @@ import {
     registerPushNotifications,
     getTURNServerCreds,
 } from '~/store/actions/user';
-import { initializeWebsocket, destroyWebsocket, SocketMessage } from '~/store/actions/websocket';
+import { startWebsocketManager, SocketMessage } from '~/store/actions/websocket';
 import { Conversation, UserData } from '~/store/reducers/user';
 import { setupInterceptors, RootNavigation } from '~/store/actions/auth';
 import { RootState, store } from '~/store/store';
@@ -28,7 +28,9 @@ import globalStyle from '~/global/style';
 export default function Home() {
     const navigation = useNavigation<RootNavigation>();
     const insets = useSafeAreaInsets();
-    const { conversations, loading, refreshing, socketErr } = useSelector((state: RootState) => state.userReducer);
+    const { conversations, loading, refreshing, socketStatus, socketErr } = useSelector(
+        (state: RootState) => state.userReducer,
+    );
     const [loadingMsg, setLoadingMsg] = useState('');
     const convos: Array<Conversation> = useMemo(() => {
         return [...conversations.values()].sort((a, b) => {
@@ -43,8 +45,6 @@ export default function Home() {
         const initLoad = async () => {
             // [background] Register device for push notifications
             store.dispatch(registerPushNotifications());
-            // Start websocket connection to server
-            await configureWebsocket();
             // [background] Get TURN credentials for proxying calls if peer-to-peer ICE fails
             store.dispatch(getTURNServerCreds()).then(async () => {
                 // Check if user answered a call in the background
@@ -79,7 +79,6 @@ export default function Home() {
         initLoad();
         // returned function will be called on component unmount
         return () => {
-            store.dispatch(destroyWebsocket());
             cleanupCallHandlers?.();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -119,11 +118,6 @@ export default function Home() {
         }
         return success;
     }, [navigation]);
-
-    const configureWebsocket = useCallback(async () => {
-        setLoadingMsg('Initializing websocket...');
-        await store.dispatch(initializeWebsocket());
-    }, []);
 
     const registerCallHandlers = useCallback(() => {
         RNNotificationCall.addEventListener('answer', info => {
@@ -167,19 +161,24 @@ export default function Home() {
 
     return (
         <View style={globalStyle.wrapper}>
-            <Snackbar
-                visible={!!socketErr}
-                style={{ zIndex: 100 }}
-                onDismiss={() => {}}
-                action={{
-                    label: 'Reconnect',
-                    onPress: () => {
-                        configureWebsocket().finally(() => setLoadingMsg(''));
-                    },
-                }}
-            >
-                Connection to servers lost! Please try again later
-            </Snackbar>
+            {socketStatus === 'reconnecting' && (
+                <Snackbar visible={true} style={{ zIndex: 100 }} onDismiss={() => {}}>
+                    Reconnecting to server...
+                </Snackbar>
+            )}
+            {socketStatus === 'disconnected' && !!socketErr && (
+                <Snackbar
+                    visible={true}
+                    style={{ zIndex: 100 }}
+                    onDismiss={() => {}}
+                    action={{
+                        label: 'Reconnect',
+                        onPress: () => store.dispatch(startWebsocketManager()),
+                    }}
+                >
+                    Connection to servers lost! Please try again later
+                </Snackbar>
+            )}
             {loading || loadingMsg ? (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <Text style={[globalStyle.errorMsg, { color: 'white', marginBottom: 10 }]}>{loadingMsg}</Text>

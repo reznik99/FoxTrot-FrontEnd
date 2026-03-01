@@ -1,3 +1,5 @@
+import { AppState, NativeEventSubscription } from 'react-native';
+import NetInfo, { NetInfoSubscription, NetInfoState } from '@react-native-community/netinfo';
 import { VibratePattern, WEBSOCKET_URL } from '~/global/variables';
 import PushNotification from 'react-native-push-notification';
 import InCallManager from 'react-native-incall-manager';
@@ -28,73 +30,76 @@ export interface SocketMessage {
     type?: 'video' | 'audio';
 }
 
-export function initializeWebsocket() {
+const MAX_RECONNECT_ATTEMPTS = 10;
+const BASE_DELAY_MS = 1000;
+const MAX_DELAY_MS = 30_000;
+
+// Module-level state (not Redux — timers, flags, subscriptions)
+const mgr = {
+    intentionalClose: false,
+    reconnectAttempt: 0,
+    reconnectTimer: null as ReturnType<typeof setTimeout> | null,
+    appStateSub: null as NativeEventSubscription | null,
+    netInfoSub: null as NetInfoSubscription | null,
+    lastNetConnected: null as boolean | null,
+};
+
+// --- Helpers ---
+
+function isSocketDead(getState: GetState): boolean {
+    const sock = getState().userReducer.socketConn;
+    return !sock || sock.readyState === WebSocket.CLOSED || sock.readyState === WebSocket.CLOSING;
+}
+
+function clearReconnectTimer() {
+    if (mgr.reconnectTimer) {
+        clearTimeout(mgr.reconnectTimer);
+        mgr.reconnectTimer = null;
+    }
+}
+
+function reconnectNow(dispatch: AppDispatch) {
+    mgr.reconnectAttempt = 0;
+    clearReconnectTimer();
+    dispatch(connectWebsocket());
+}
+
+// --- Public API ---
+
+export function startWebsocketManager() {
     return async (dispatch: AppDispatch, getState: GetState) => {
-        try {
-            dispatch({ type: 'user/SET_LOADING', payload: true });
+        await dispatch(connectWebsocket());
 
-            const state = getState().userReducer;
-            if (!state.token) {
-                throw new Error('Token is not present. Re-auth required');
-            }
+        mgr.appStateSub?.remove();
+        mgr.appStateSub = AppState.addEventListener('change', nextState => {
+            handleAppStateChange(nextState, dispatch, getState);
+        });
 
-            // Already opened so return early
-            if (state.socketConn) {
-                state.socketConn.close();
-            }
-
-            // Enstablish websocket
-            const socketConn = new WebSocket(`${WEBSOCKET_URL}?token=${state.token}`);
-            socketConn.onopen = () => {
-                console.debug('Socket to server opened succesfully');
-                PushNotification.createChannel(
-                    {
-                        channelId: 'Messages',
-                        channelName: 'Notifications for incoming messages',
-                        channelDescription: 'Notifications for incoming messages',
-                    },
-                    () => {},
-                );
-            };
-            socketConn.onclose = () => {
-                console.debug('Websocket connection has been closed gracefully');
-            };
-            socketConn.onerror = (err: any) => {
-                console.error('Websocket err:', err);
-                Toast.show({
-                    type: 'error',
-                    text1: 'Connection to Servers Lost! Please restart FoxTrot',
-                    text2: err.message || err,
-                    visibilityTime: 5000,
-                });
-                dispatch({ type: 'user/WEBSOCKET_ERROR', payload: err });
-            };
-            socketConn.onmessage = event => {
-                handleSocketMessage(event.data, dispatch, getState);
-            };
-            dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: socketConn });
-        } catch (err) {
-            console.error('Error establishing websocket:', err);
-        } finally {
-            dispatch({ type: 'user/SET_LOADING', payload: false });
-        }
+        mgr.netInfoSub?.();
+        mgr.netInfoSub = NetInfo.addEventListener(state => {
+            handleNetInfoChange(state, dispatch, getState);
+        });
     };
 }
 
-export function destroyWebsocket() {
+export function stopWebsocketManager() {
     return async (dispatch: AppDispatch, getState: GetState) => {
-        try {
-            const state = getState().userReducer;
+        clearReconnectTimer();
 
-            // Close existing socket
-            if (state.socketConn) {
-                state.socketConn.close();
-            }
+        mgr.appStateSub?.remove();
+        mgr.appStateSub = null;
+        mgr.netInfoSub?.();
+        mgr.netInfoSub = null;
+        mgr.lastNetConnected = null;
+        mgr.reconnectAttempt = 0;
 
-            dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: null });
-        } catch (err) {
-            console.warn('Error destroying websocket: ', err);
+        mgr.intentionalClose = true;
+        const { socketConn } = getState().userReducer;
+        if (socketConn && socketConn.readyState !== WebSocket.CLOSED) {
+            socketConn.close();
         }
+        dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: null });
+        dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
     };
 }
 
@@ -108,6 +113,143 @@ export function resetCallState() {
             console.warn('Error resetCallState: ', err);
         }
     };
+}
+
+// --- connect & reconnect ---
+
+function connectWebsocket() {
+    return async (dispatch: AppDispatch, getState: GetState) => {
+        try {
+            const { token, socketConn } = getState().userReducer;
+            if (!token) {
+                throw new Error('Token is not present. Re-auth required');
+            }
+
+            // Close existing socket without triggering reconnect
+            if (socketConn && socketConn.readyState !== WebSocket.CLOSED) {
+                mgr.intentionalClose = true;
+                socketConn.close();
+            }
+
+            dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'connecting' });
+            const ws = new WebSocket(`${WEBSOCKET_URL}?token=${token}`);
+            ws.onopen = () => handleSocketOpen(dispatch);
+            ws.onclose = () => handleSocketClose(dispatch);
+            ws.onerror = (err: any) => handleSocketError(err, dispatch);
+            ws.onmessage = event => handleSocketMessage(event.data, dispatch, getState);
+            dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: ws });
+        } catch (err) {
+            console.error('Error establishing websocket:', err);
+            dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'reconnecting' });
+            scheduleReconnect(dispatch);
+        }
+    };
+}
+
+async function scheduleReconnect(dispatch: AppDispatch) {
+    clearReconnectTimer();
+
+    if (mgr.reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
+        console.warn('Max reconnect attempts reached');
+        dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
+        dispatch({ type: 'user/WEBSOCKET_ERROR', payload: 'Unable to reconnect. Please check your connection.' });
+        Toast.show({
+            type: 'error',
+            text1: 'Connection Lost',
+            text2: 'Unable to reconnect after multiple attempts.',
+            visibilityTime: 5000,
+        });
+        return;
+    }
+
+    // No point retrying without internet — NetInfo listener will reconnect when network returns
+    const netState = await NetInfo.fetch();
+    if (!netState.isConnected) {
+        console.debug('No network, waiting for connectivity');
+        return;
+    }
+
+    const delay = Math.min(BASE_DELAY_MS * Math.pow(2, mgr.reconnectAttempt), MAX_DELAY_MS);
+    const jitter = delay * 0.2 * (Math.random() * 2 - 1);
+    const finalDelay = Math.round(delay + jitter);
+
+    console.debug(`Reconnect ${mgr.reconnectAttempt + 1}/${MAX_RECONNECT_ATTEMPTS} in ${finalDelay}ms`);
+    mgr.reconnectAttempt++;
+
+    mgr.reconnectTimer = setTimeout(() => {
+        mgr.reconnectTimer = null;
+        dispatch(connectWebsocket());
+    }, finalDelay);
+}
+
+// --- AppState & NetInfo handlers ---
+
+function handleAppStateChange(nextState: string, dispatch: AppDispatch, getState: GetState) {
+    if (nextState === 'background') {
+        console.debug('App backgrounded, closing socket');
+        const { socketConn } = getState().userReducer;
+        if (socketConn && socketConn.readyState === WebSocket.OPEN) {
+            mgr.intentionalClose = true;
+            socketConn.close();
+        }
+    } else if (nextState === 'active') {
+        if (isSocketDead(getState)) {
+            console.debug('App foregrounded, reconnecting');
+            reconnectNow(dispatch);
+        }
+    }
+}
+
+function handleNetInfoChange(state: NetInfoState, dispatch: AppDispatch, getState: GetState) {
+    const wasConnected = mgr.lastNetConnected;
+    mgr.lastNetConnected = state.isConnected;
+
+    if (!state.isConnected) {
+        clearReconnectTimer();
+        return;
+    }
+
+    if (wasConnected === false && isSocketDead(getState)) {
+        console.debug('Network restored, reconnecting WebSocket');
+        reconnectNow(dispatch);
+    }
+}
+
+// --- WebSocket event handlers ---
+
+function handleSocketOpen(dispatch: AppDispatch) {
+    console.debug('Socket to server opened successfully');
+    mgr.intentionalClose = false;
+    mgr.reconnectAttempt = 0;
+    dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'connected' });
+    PushNotification.createChannel(
+        {
+            channelId: 'Messages',
+            channelName: 'Notifications for incoming messages',
+            channelDescription: 'Notifications for incoming messages',
+        },
+        () => {},
+    );
+}
+
+function handleSocketClose(dispatch: AppDispatch) {
+    console.debug('WebSocket closed');
+    dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: null });
+
+    if (mgr.intentionalClose) {
+        mgr.intentionalClose = false;
+        dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
+        return;
+    }
+
+    dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'reconnecting' });
+    scheduleReconnect(dispatch);
+}
+
+function handleSocketError(err: any, dispatch: AppDispatch) {
+    const message = err?.message || err?.type || 'Connection error';
+    console.error('WebSocket error:', message);
+    dispatch({ type: 'user/WEBSOCKET_ERROR', payload: message });
 }
 
 function handleSocketMessage(data: any, dispatch: AppDispatch, getState: GetState) {
@@ -130,8 +272,8 @@ function handleSocketMessage(data: any, dispatch: AppDispatch, getState: GetStat
             case 'CALL_OFFER':
                 console.debug('Websocket CALL_OFFER Recieved', parsedData.data?.sender);
 
-                const state = getState().userReducer;
-                let caller = state.contacts.find(con => con.phone_no === parsedData.data.sender);
+                const userState = getState().userReducer;
+                let caller = userState.contacts.find(con => con.phone_no === parsedData.data.sender);
                 if (!caller) {
                     caller = {
                         id: parsedData.data.sender_id,

@@ -1,6 +1,6 @@
 {
     "name": "foxtrot",
-    "version": "1.19.6",
+    "version": "1.19.7",
     "private": true,
     "scripts": {
         "android": "react-native run-android --no-packager && react-native start",
@@ -16,6 +16,7 @@
         "@likashefqet/react-native-image-zoom": "^4.3.0",
         "@op-engineering/op-sqlite": "^15.2.5",
         "@react-native-clipboard/clipboard": "~1.16.3",
+        "@react-native-community/netinfo": "^12.0.1",
         "@react-native-documents/picker": "~11.0.4",
         "@react-native-firebase/app": "~23.8.6",
         "@react-native-firebase/messaging": "~23.8.6",

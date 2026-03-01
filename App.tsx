@@ -28,9 +28,10 @@ import { deleteFromStorage, readFromStorage, StorageKeys, writeToStorage } from 
 import { getDb, dbSaveCallRecord, dbGetUnseenCallCount } from '~/global/database';
 import { getAvatar } from '~/global/helper';
 import { FlagSecure } from '~/global/native';
-import { SocketMessage } from '~/store/actions/websocket';
+import { SocketMessage, startWebsocketManager, stopWebsocketManager } from '~/store/actions/websocket';
 import { UserData } from '~/store/reducers/user';
 import { store } from '~/store/store';
+import ConnectionIndicator from '~/components/ConnectionIndicator';
 import HeaderConversation from '~/components/HeaderConversation';
 import Drawer from '~/components/Drawer';
 import {
@@ -116,11 +117,17 @@ const HomeTabs = () => {
 export type RootDrawerParamList = {
     FoxTrot: undefined;
 };
+const renderConnectionIndicator = () => <ConnectionIndicator />;
+
 const AppNavigator = createDrawerNavigator<RootDrawerParamList>();
 const AppDrawer = () => {
     return (
         <AppNavigator.Navigator screenOptions={{ swipeEdgeWidth: 200 }} drawerContent={renderDrawerContent}>
-            <AppNavigator.Screen name="FoxTrot" component={HomeTabs} options={defaultHeaderOptions} />
+            <AppNavigator.Screen
+                name="FoxTrot"
+                component={HomeTabs}
+                options={{ ...defaultHeaderOptions, headerRight: renderConnectionIndicator }}
+            />
         </AppNavigator.Navigator>
     );
 };
@@ -137,6 +144,13 @@ export type HomeStackParamList = {
 };
 const HomeStack = createStackNavigator<HomeStackParamList>();
 const HomeNavigator = () => {
+    useEffect(() => {
+        store.dispatch(startWebsocketManager());
+        return () => {
+            store.dispatch(stopWebsocketManager());
+        };
+    }, []);
+
     return (
         <HomeStack.Navigator initialRouteName="Home" screenOptions={{ ...defaultHeaderOptions, ...animationDefaults }}>
             <HomeStack.Screen name="Home" component={AppDrawer} options={{ headerShown: false }} />

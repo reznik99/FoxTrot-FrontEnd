@@ -2,6 +2,9 @@ import 'react-native-gesture-handler';
 import { Buffer } from 'buffer';
 global.Buffer = global.Buffer || Buffer;
 
+import { installConsoleInterceptors } from '~/global/logger';
+installConsoleInterceptors();
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { Provider } from 'react-redux';
@@ -32,6 +35,8 @@ import { SocketMessage, startWebsocketManager, stopWebsocketManager } from '~/st
 import { UserData } from '~/store/reducers/user';
 import { store } from '~/store/store';
 import ConnectionIndicator from '~/components/ConnectionIndicator';
+import ErrorBoundary from '~/components/ErrorBoundary';
+import ErrorPortal from '~/components/ErrorPortal';
 import HeaderConversation from '~/components/HeaderConversation';
 import Drawer from '~/components/Drawer';
 import {
@@ -298,13 +303,24 @@ export default function App() {
                 FlagSecure.enable();
             }
         });
+
+        const defaultHandler = ErrorUtils.getGlobalHandler();
+        ErrorUtils.setGlobalHandler((error, isFatal) => {
+            const { logger, showErrorPortal } = require('~/global/logger');
+            logger.error(`Unhandled ${isFatal ? 'fatal ' : ''}error:`, error?.message, error?.stack);
+            showErrorPortal('Unhandled Error');
+            defaultHandler(error, isFatal);
+        });
     }, []);
 
     return (
         <Provider store={store}>
             <PaperProvider theme={darkTheme}>
                 <StatusBar backgroundColor={DARKHEADER} barStyle="light-content" />
-                <AuthNavigator />
+                <ErrorBoundary>
+                    <AuthNavigator />
+                </ErrorBoundary>
+                <ErrorPortal />
                 <Toast />
             </PaperProvider>
         </Provider>

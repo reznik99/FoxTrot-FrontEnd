@@ -12,6 +12,8 @@ import RNFS from 'react-native-fs';
 import { Buffer } from 'buffer';
 
 import { API_URL, DARKHEADER, KeychainOpts, PRIMARY, SaltLenGCM, SaltLenPBKDF2 } from '~/global/variables';
+import { showErrorPortal } from '~/global/logger';
+import DeviceInfo from 'react-native-device-info';
 import { getReadExtPermission, getWriteExtPermission } from '~/global/permissions';
 import { deriveKeyFromPassword, exportKeypair } from '~/global/crypto';
 import { deleteFromStorage, getAllStorageKeys, readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
@@ -376,6 +378,27 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                     >
                         Factory Reset App
                     </Button>
+                </View>
+
+                <Divider style={{ marginVertical: 15 }} />
+
+                <Text variant="titleSmall" style={{ marginBottom: 10, color: PRIMARY }}>
+                    Diagnostics
+                </Text>
+                <View style={{ marginBottom: 10 }}>
+                    <Text variant="bodyLarge">App Logs</Text>
+                    <Text variant="bodySmall" style={{ color: '#999', marginBottom: 10 }}>
+                        View recent application logs for troubleshooting. Logs are stored in memory and cleared on app
+                        restart.
+                    </Text>
+                    <Button mode="contained-tonal" icon="text-box-search" onPress={() => showErrorPortal('Diagnostics')}>
+                        View Logs
+                    </Button>
+                </View>
+                <View>
+                    <Text variant="bodySmall" style={{ color: '#666' }}>
+                        v{DeviceInfo.getVersion()} ({DeviceInfo.getBuildNumber()})
+                    </Text>
                 </View>
 
                 <Divider style={{ marginVertical: 15 }} />

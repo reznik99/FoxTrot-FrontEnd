@@ -1,10 +1,6 @@
 import 'react-native-gesture-handler';
 import { Buffer } from 'buffer';
 global.Buffer = global.Buffer || Buffer;
-
-import { logger, installConsoleInterceptors, showErrorPortal } from '~/global/logger';
-installConsoleInterceptors();
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { Provider } from 'react-redux';
@@ -29,6 +25,7 @@ import {
 import { PRIMARY, SECONDARY, SECONDARY_LITE, ACCENT, DARKHEADER, VibratePattern } from '~/global/variables';
 import { deleteFromStorage, readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { getDb, dbSaveCallRecord, dbGetUnseenCallCount } from '~/global/database';
+import { logger, showErrorPortal } from '~/global/logger';
 import { getAvatar } from '~/global/helper';
 import { FlagSecure } from '~/global/native';
 import { SocketMessage, startWebsocketManager, stopWebsocketManager } from '~/store/actions/websocket';

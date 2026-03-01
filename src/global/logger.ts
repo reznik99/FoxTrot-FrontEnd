@@ -1,9 +1,6 @@
 import DeviceInfo from 'react-native-device-info';
 
-// --- Types ---
-
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-
 export interface LogEntry {
     timestamp: number;
     level: LogLevel;
@@ -38,8 +35,6 @@ export function clearEntries() {
     count = 0;
 }
 
-// --- Format args to string ---
-
 function formatArgs(args: any[]): string {
     return args
         .map(arg => {
@@ -58,58 +53,27 @@ function formatArgs(args: any[]): string {
         .join(' ');
 }
 
-// --- Store original console methods ---
-
-const originalConsole = {
-    debug: console.debug.bind(console),
-    log: console.log.bind(console),
-    warn: console.warn.bind(console),
-    error: console.error.bind(console),
-};
-
-// --- Logger API ---
-
 export const logger = {
     debug(...args: any[]) {
         addEntry('debug', formatArgs(args));
-        originalConsole.debug(...args);
+        console.debug(...args);
     },
     info(...args: any[]) {
         addEntry('info', formatArgs(args));
-        originalConsole.log(...args);
+        console.log(...args);
     },
     warn(...args: any[]) {
         addEntry('warn', formatArgs(args));
-        originalConsole.warn(...args);
+        console.warn(...args);
     },
     error(...args: any[]) {
         addEntry('error', formatArgs(args));
-        originalConsole.error(...args);
+        console.error(...args);
     },
 };
 
-// --- Console Interception (third-party errors) ---
-
-let interceptorsInstalled = false;
-
-export function installConsoleInterceptors() {
-    if (interceptorsInstalled) return;
-    interceptorsInstalled = true;
-
-    console.warn = (...args: any[]) => {
-        addEntry('warn', formatArgs(args));
-        originalConsole.warn(...args);
-    };
-    console.error = (...args: any[]) => {
-        addEntry('error', formatArgs(args));
-        originalConsole.error(...args);
-    };
-}
-
 // --- Portal trigger ---
-
 let _showPortal: ((title?: string) => void) | null = null;
-
 export function registerPortalCallback(cb: typeof _showPortal) {
     _showPortal = cb;
 }
@@ -119,7 +83,6 @@ export function showErrorPortal(title?: string) {
 }
 
 // --- Formatted export for clipboard ---
-
 export function getFormattedLogs(): string {
     const entries = getEntries();
     const version = DeviceInfo.getVersion();

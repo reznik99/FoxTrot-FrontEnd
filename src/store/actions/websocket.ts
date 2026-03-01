@@ -134,8 +134,10 @@ function connectWebsocket() {
 
             dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'connecting' });
             const ws = new WebSocket(`${WEBSOCKET_URL}?token=${token}`);
+            
+            const socketId: number = (ws as any)._socketId;
             ws.onopen = () => handleSocketOpen(dispatch);
-            ws.onclose = () => handleSocketClose(dispatch);
+            ws.onclose = () => handleSocketClose(dispatch, getState, socketId);
             ws.onerror = (err: any) => handleSocketError(err, dispatch);
             ws.onmessage = event => handleSocketMessage(event.data, dispatch, getState);
             dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: ws });
@@ -187,8 +189,12 @@ async function scheduleReconnect(dispatch: AppDispatch) {
 
 function handleAppStateChange(nextState: string, dispatch: AppDispatch, getState: GetState) {
     if (nextState === 'background') {
+        const { socketConn, callOffer, callAnswer } = getState().userReducer;
+        if (callOffer || callAnswer) {
+            logger.debug('App backgrounded, keeping socket open for active call');
+            return;
+        }
         logger.debug('App backgrounded, closing socket');
-        const { socketConn } = getState().userReducer;
         if (socketConn && socketConn.readyState === WebSocket.OPEN) {
             mgr.intentionalClose = true;
             socketConn.close();
@@ -219,7 +225,7 @@ function handleNetInfoChange(state: NetInfoState, dispatch: AppDispatch, getStat
 // --- WebSocket event handlers ---
 
 function handleSocketOpen(dispatch: AppDispatch) {
-    logger.debug('[WebSocket]  opened successfully');
+    logger.debug('[WebSocket] opened successfully');
     mgr.intentionalClose = false;
     mgr.reconnectAttempt = 0;
     dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'connected' });
@@ -233,7 +239,13 @@ function handleSocketOpen(dispatch: AppDispatch) {
     );
 }
 
-function handleSocketClose(dispatch: AppDispatch) {
+function handleSocketClose(dispatch: AppDispatch, getState: GetState, closedSocketId: number) {
+    const currentSocket = getState().userReducer.socketConn;
+    if (currentSocket && (currentSocket as any)._socketId !== closedSocketId) {
+        logger.debug('[WebSocket] stale close event, ignoring');
+        return;
+    }
+
     logger.debug('[WebSocket] closed');
     dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: null });
 

@@ -28,7 +28,7 @@ import { deleteFromStorage, readFromStorage, StorageKeys, writeToStorage } from 
 import { getDb, dbSaveCallRecord, dbGetUnseenCallCount } from '~/global/database';
 import { getAvatar } from '~/global/helper';
 import { FlagSecure } from '~/global/native';
-import { SocketMessage } from '~/store/actions/websocket';
+import { SocketMessage, startWebsocketManager, stopWebsocketManager } from '~/store/actions/websocket';
 import { UserData } from '~/store/reducers/user';
 import { store } from '~/store/store';
 import HeaderConversation from '~/components/HeaderConversation';
@@ -137,6 +137,13 @@ export type HomeStackParamList = {
 };
 const HomeStack = createStackNavigator<HomeStackParamList>();
 const HomeNavigator = () => {
+    useEffect(() => {
+        store.dispatch(startWebsocketManager());
+        return () => {
+            store.dispatch(stopWebsocketManager());
+        };
+    }, []);
+
     return (
         <HomeStack.Navigator initialRouteName="Home" screenOptions={{ ...defaultHeaderOptions, ...animationDefaults }}>
             <HomeStack.Screen name="Home" component={AppDrawer} options={{ headerShown: false }} />

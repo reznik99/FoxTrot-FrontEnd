@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, ScrollView, RefreshControl, Text, Alert } from 'react-native';
+import { View, FlatList, RefreshControl, Text } from 'react-native';
 import { Divider, FAB, ActivityIndicator, Snackbar, Icon } from 'react-native-paper';
 import RNNotificationCall from 'react-native-full-screen-notification-incoming-call';
 import InCallManager from 'react-native-incall-manager';
@@ -8,21 +8,14 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ConversationPeek from '~/components/ConversationPeek';
-import {
-    loadMessages,
-    loadContacts,
-    generateAndSyncKeys,
-    loadKeys,
-    registerPushNotifications,
-    getTURNServerCreds,
-} from '~/store/actions/user';
+import { loadMessages, loadContacts, loadKeys, registerPushNotifications, getTURNServerCreds } from '~/store/actions/user';
 import { startWebsocketManager, SocketMessage } from '~/store/actions/websocket';
 import { Conversation, UserData } from '~/store/reducers/user';
 import { setupInterceptors, RootNavigation } from '~/store/actions/auth';
 import { RootState, store } from '~/store/store';
 import { popFromStorage, StorageKeys } from '~/global/storage';
 import { dbSaveCallRecord } from '~/global/database';
-import { PRIMARY } from '~/global/variables';
+import { PRIMARY, SECONDARY_LITE } from '~/global/variables';
 import { logger } from '~/global/logger';
 import globalStyle from '~/global/style';
 
@@ -62,14 +55,12 @@ export default function Home() {
             });
             // Register Call Screen handler
             cleanupCallHandlers = registerCallHandlers();
-            // Load keys from TPM
+            // Load keys from TPM — if none exist, redirect to key setup
             const loaded = await loadKeypair();
             if (!loaded) {
-                const generated = await generateKeypair();
-                if (!generated) {
-                    setLoadingMsg('');
-                    return;
-                }
+                setLoadingMsg('');
+                navigation.replace('KeySetup');
+                return;
             }
             // Load new messages from backend and old messages from storage
             await loadMessagesAndContacts();
@@ -95,30 +86,6 @@ export default function Home() {
         const loadedKeys = await store.dispatch(loadKeys()).unwrap();
         return loadedKeys;
     }, []);
-
-    const generateKeypair = useCallback(async () => {
-        setLoadingMsg('Generating cryptographic keys...');
-        const success = await store.dispatch(generateAndSyncKeys()).unwrap();
-        if (!success) {
-            Alert.alert(
-                'Failed to generate keys',
-                'This account might have already logged into another device. Keys must be imported in the settings page.',
-                [
-                    {
-                        text: 'Logout',
-                        onPress: () => {
-                            navigation.navigate('Login', { data: { loggedOut: true, errorMsg: '' } });
-                        },
-                    },
-                    {
-                        text: 'OK',
-                        onPress: () => {},
-                    },
-                ],
-            );
-        }
-        return success;
-    }, [navigation]);
 
     const registerCallHandlers = useCallback(() => {
         RNNotificationCall.addEventListener('answer', info => {
@@ -187,7 +154,11 @@ export default function Home() {
                 </View>
             ) : (
                 <>
-                    <ScrollView
+                    <FlatList
+                        data={convos}
+                        keyExtractor={(item, index) => item.other_user.phone_no || String(index)}
+                        renderItem={({ item }) => <ConversationPeek data={item} navigation={navigation} />}
+                        ItemSeparatorComponent={Divider}
                         refreshControl={
                             <RefreshControl
                                 refreshing={refreshing}
@@ -196,20 +167,15 @@ export default function Home() {
                                 }}
                             />
                         }
-                    >
-                        {convos?.length ? (
-                            convos.map((convo, index) => (
-                                <View key={index}>
-                                    <ConversationPeek data={convo} navigation={navigation} />
-                                    <Divider />
-                                </View>
-                            ))
-                        ) : (
-                            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                                <Text style={[globalStyle.errorMsg, { color: '#fff' }]}>No Conversations.</Text>
+                        ListEmptyComponent={
+                            <View style={{ alignItems: 'center', marginTop: 80 }}>
+                                <Icon source="message-text-outline" size={64} color={SECONDARY_LITE} />
+                                <Text style={{ color: SECONDARY_LITE, fontSize: 16, marginTop: 12 }}>
+                                    No conversations yet
+                                </Text>
                             </View>
-                        )}
-                    </ScrollView>
+                        }
+                    />
 
                     <FAB
                         color="#fff"

@@ -3,11 +3,11 @@ import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Avatar, Badge, Button, Dialog, Icon, Portal, Text } from 'react-native-paper';
 import { useSelector, useDispatch } from 'react-redux';
 
-import { humanTime, milliseconds, millisecondsSince } from '~/global/helper';
+import { humanTime, onlineStatus } from '~/global/helper';
 import globalStyle from '~/global/style';
 import { addContact } from '~/store/actions/user';
 import { dbDeleteConversation } from '~/global/database';
-import { DARKHEADER, PRIMARY, SECONDARY_LITE } from '~/global/variables';
+import { DARKHEADER, SECONDARY_LITE } from '~/global/variables';
 import { Conversation, DELETE_CONVERSATION, message } from '~/store/reducers/user';
 import { AppDispatch, RootState } from '~/store/store';
 import { RootNavigation } from '~/store/actions/auth';
@@ -20,8 +20,7 @@ interface MessagePreview {
 
 function getMessagePreview(msg: message): MessagePreview {
     if (!msg.is_decrypted) {
-        // Still encrypted, show truncated base64
-        return { text: msg.message?.substring(0, 50) || '' };
+        return { text: 'Encrypted message', icon: 'shield-lock' };
     }
 
     try {
@@ -87,15 +86,7 @@ export default function ConversationPeek(props: IProps) {
         );
     };
 
-    const renderStatus = useCallback(() => {
-        if (peer.online) {
-            return <Badge size={10} style={{ backgroundColor: '#039111ff' }} />;
-        } else if (millisecondsSince(new Date(peer.last_seen)) < milliseconds.hour) {
-            return <Badge size={10} style={{ backgroundColor: PRIMARY }} />;
-        } else {
-            return <Badge size={10} style={{ backgroundColor: SECONDARY_LITE }} />;
-        }
-    }, [peer]);
+    const status = onlineStatus(peer);
 
     const boldIfUnseen = isNew ? styles.unseenMessage : null;
     return (
@@ -108,7 +99,7 @@ export default function ConversationPeek(props: IProps) {
                 onLongPress={() => setShowDeleteDialog(true)}
             >
                 <View style={{ display: 'flex', flexDirection: 'row' }}>
-                    {renderStatus()}
+                    <Badge size={10} style={{ backgroundColor: status.color }} />
                     <Avatar.Image size={55} source={{ uri: peer.pic }} style={styles.profilePicContainer} />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -131,7 +122,11 @@ export default function ConversationPeek(props: IProps) {
                                 </View>
                             );
                         }
-                        return <Text style={[globalStyle.textInfo, boldIfUnseen]}>{preview.text}</Text>;
+                        return (
+                            <Text style={[globalStyle.textInfo, boldIfUnseen, { color: SECONDARY_LITE }]} numberOfLines={1}>
+                                {preview.text}
+                            </Text>
+                        );
                     })()}
                 </View>
                 <View
@@ -143,7 +138,7 @@ export default function ConversationPeek(props: IProps) {
                         marginHorizontal: 5,
                     }}
                 >
-                    <Text style={[globalStyle.textInfo, boldIfUnseen]}> {humanTime(lastMessage.sent_at)} </Text>
+                    <Text style={[globalStyle.textInfo, boldIfUnseen]}>{humanTime(lastMessage.sent_at)}</Text>
                 </View>
             </TouchableOpacity>
             {isRequest && (

@@ -134,7 +134,7 @@ function connectWebsocket() {
 
             dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'connecting' });
             const ws = new WebSocket(`${WEBSOCKET_URL}?token=${token}`);
-            
+
             const socketId: number = (ws as any)._socketId;
             ws.onopen = () => handleSocketOpen(dispatch);
             ws.onclose = () => handleSocketClose(dispatch, getState, socketId);

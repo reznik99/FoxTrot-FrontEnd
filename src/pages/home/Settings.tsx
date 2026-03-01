@@ -1,34 +1,24 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, ScrollView, Alert } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { Button, Dialog, Portal, Chip, Text, Divider, Switch, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { pick, types } from '@react-native-documents/picker';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useDispatch, useSelector } from 'react-redux';
 import * as Keychain from 'react-native-keychain';
-import QuickCrypto from 'react-native-quick-crypto';
-import Toast from 'react-native-toast-message';
-import RNFS from 'react-native-fs';
-import { Buffer } from 'buffer';
 
-import { API_URL, DARKHEADER, KeychainOpts, PRIMARY, SaltLenGCM, SaltLenPBKDF2 } from '~/global/variables';
+import { API_URL, DARKHEADER, KeychainOpts, PRIMARY } from '~/global/variables';
 import { logger, showErrorPortal } from '~/global/logger';
 import DeviceInfo from 'react-native-device-info';
-import { getReadExtPermission, getWriteExtPermission } from '~/global/permissions';
-import { deriveKeyFromPassword, exportKeypair } from '~/global/crypto';
 import { deleteFromStorage, getAllStorageKeys, readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { FlagSecure } from '~/global/native';
 import globalStyle from '~/global/style';
-import { loadContacts, loadKeys } from '~/store/actions/user';
 import { logOut } from '~/store/actions/auth';
 import { AppDispatch, RootState } from '~/store/store';
 import { HomeStackParamList } from '~/../App';
-import PasswordInput from '~/components/PasswordInput';
 
 export default function Settings(props: StackScreenProps<HomeStackParamList, 'Settings'>) {
     const dispatch = useDispatch<AppDispatch>();
     const user_data = useSelector((state: RootState) => state.userReducer.user_data);
-    const keypair = useSelector((state: RootState) => state.userReducer.keys);
     const theme = useTheme();
     const insets = useSafeAreaInsets();
 
@@ -39,7 +29,6 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
     const [screenSecurity, setScreenSecurity] = useState(false);
     const [autoEvict, setAutoEvict] = useState(true);
     const [visibleDialog, setVisibleDialog] = useState('');
-    const [encPassword, setEncPassword] = useState('');
 
     const loadAllDeviceData = useCallback(async () => {
         const allKeys = await getAllStorageKeys();
@@ -77,12 +66,12 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
         setVisibleDialog('');
         // Delete everything from the device
         const allKeys = await getAllStorageKeys();
-        await Promise.all(allKeys.map(key => deleteFromStorage(key)));
-        Promise.all([
+        await Promise.all([
+            ...allKeys.map(key => deleteFromStorage(key)),
             Keychain.resetInternetCredentials({ server: API_URL, service: `${user_data?.phone_no}-keys` }),
             Keychain.resetGenericPassword({ server: API_URL, service: `${user_data?.phone_no}-credentials` }),
-            dispatch(logOut({ navigation: props.navigation as any })),
         ]);
+        dispatch(logOut({ navigation: props.navigation as any }));
     }, [user_data, props.navigation, dispatch]);
 
     const resetValue = useCallback(
@@ -93,138 +82,6 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
         [keys],
     );
 
-    const importKeys = async () => {
-        if (!encPassword?.trim()) {
-            return;
-        }
-
-        try {
-            const hasPermission = await getReadExtPermission();
-            if (!hasPermission) {
-                throw new Error('Permission to read from external storage denied');
-            }
-            // Read encrypted key file
-            logger.debug('Reading Encrypted keypair file...');
-            const [fileSelected] = await pick({ type: types.plainText, mode: 'open' });
-            if (!fileSelected.uri) {
-                throw new Error('Failed to pick file:' + fileSelected.error || 'unknown');
-            }
-
-            const file = await RNFS.readFile(fileSelected.uri);
-
-            // Parse PBKDF2 no. of iterations, salt, IV and Ciphertext and re-generate encryption key
-            logger.debug('Deriving key encryption key from password...');
-            const [_, iter, salt, iv, ciphertext] = file.split('\n');
-            const derivedKEK = await deriveKeyFromPassword(encPassword, Buffer.from(salt, 'base64'), parseInt(iter, 10));
-
-            // Decrypt Keypair
-            logger.debug('Decrypting keypair file...');
-            let Ikeys = new ArrayBuffer();
-            try {
-                Ikeys = await QuickCrypto.subtle.decrypt(
-                    { name: 'AES-GCM', iv: Buffer.from(iv, 'base64') },
-                    derivedKEK,
-                    Buffer.from(ciphertext, 'base64'),
-                );
-            } catch (err) {
-                logger.error('Decryption error: Invalid password or corrupted file:', err);
-                throw new Error('Decryption error: Invalid password or corrupted file');
-            }
-
-            // Store on device
-            logger.debug('Saving keys into TPM...');
-            await Keychain.setInternetCredentials(API_URL, `${user_data.phone_no}-keys`, Buffer.from(Ikeys).toString(), {
-                storage: Keychain.STORAGE_TYPE.AES_GCM_NO_AUTH,
-                server: API_URL,
-                service: `${user_data.phone_no}-keys`,
-            });
-
-            // Load into redux store
-            logger.debug('Loading keys into App...');
-            const success = await dispatch(loadKeys()).unwrap();
-            if (!success) {
-                throw new Error('Failed to load imported keys into app');
-            }
-
-            // TODO: Validate that public key locally matches public key on Key Server.
-
-            // Reload contacts to re-generate per-conversation encryption keys (ECDH)
-            logger.debug('Regenerating Conversation encryption keys...');
-            await dispatch(loadContacts({ atomic: true }));
-
-            Toast.show({
-                type: 'success',
-                text1: 'Succesfully imported Keys',
-                text2: 'Messaging and Decryption can now be performed',
-                visibilityTime: 6000,
-            });
-        } catch (err: any) {
-            logger.error('Error importing user keys:', err);
-            Alert.alert('Failed to import keys', err.message ?? err.toString(), [{ text: 'OK', onPress: () => {} }]);
-        } finally {
-            setVisibleDialog('');
-            setEncPassword('');
-            loadAllDeviceData();
-        }
-    };
-
-    const exportKeys = async () => {
-        if (!encPassword?.trim() || !keypair) {
-            return;
-        }
-
-        try {
-            const IKeys = await exportKeypair(keypair);
-            const iter = 100000;
-            const salt = QuickCrypto.getRandomValues(new Uint8Array(SaltLenPBKDF2));
-            const derivedKEK = await deriveKeyFromPassword(encPassword, salt, iter);
-
-            // Encrypt Keypair
-            const iv = QuickCrypto.getRandomValues(new Uint8Array(SaltLenGCM));
-            const encryptedIKeys = await QuickCrypto.subtle.encrypt(
-                { name: 'AES-GCM', iv: iv },
-                derivedKEK,
-                Buffer.from(JSON.stringify(IKeys)),
-            );
-
-            // Store PBKDF2 no. of iterations, salt, IV and Ciphertext
-            const file =
-                'Foxtrot encrypted keys' +
-                '\n' +
-                iter +
-                '\n' +
-                Buffer.from(salt).toString('base64') +
-                '\n' +
-                Buffer.from(iv).toString('base64') +
-                '\n' +
-                Buffer.from(encryptedIKeys).toString('base64');
-            logger.debug('File: \n', file);
-
-            const hasPermission = await getWriteExtPermission();
-            if (!hasPermission) {
-                logger.error('Permission to write to external storage denied');
-                return;
-            }
-
-            const fullPath = RNFS.DownloadDirectoryPath + `/${user_data.phone_no}-keys-${Date.now()}.txt`;
-            // Delete file first, RNFS bug causes malformed writes if overwriting: https://github.com/itinance/react-native-fs/issues/700
-            await RNFS.writeFile(fullPath, file);
-
-            Toast.show({
-                type: 'success',
-                text1: 'Succesfully exported Keys',
-                text2: `Saved the encrypted keys to ${fullPath}`,
-                visibilityTime: 6000,
-            });
-        } catch (err: any) {
-            logger.error('Error exporting user keys:', err);
-            Alert.alert('Failed to export keys', err.message ?? err.toString(), [{ text: 'OK', onPress: () => {} }]);
-        } finally {
-            setVisibleDialog('');
-            setEncPassword('');
-        }
-    };
-
     return (
         <View style={globalStyle.wrapper}>
             <ScrollView contentContainerStyle={{ padding: 30, paddingBottom: 30 + insets.bottom }}>
@@ -234,26 +91,11 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                 <View style={{ marginBottom: 10 }}>
                     <Text variant="bodyLarge">Identity Keys</Text>
                     <Text variant="bodySmall" style={{ color: '#999', marginBottom: 10 }}>
-                        Your cryptographic identity. Export to back up, import to restore on a new device.
+                        Your cryptographic identity. Generate, import, or export your encryption keys.
                     </Text>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Button
-                            mode="contained"
-                            icon="upload-circle"
-                            onPress={() => setVisibleDialog('import')}
-                            loading={visibleDialog === 'import'}
-                        >
-                            Import Keys
-                        </Button>
-                        <Button
-                            mode="contained"
-                            icon="download-circle"
-                            onPress={() => setVisibleDialog('export')}
-                            loading={visibleDialog === 'export'}
-                        >
-                            Export Keys
-                        </Button>
-                    </View>
+                    <Button mode="contained" icon="key" onPress={() => props.navigation.navigate('KeySetup')}>
+                        Manage Keys
+                    </Button>
                 </View>
 
                 <Divider style={{ marginVertical: 15 }} />
@@ -307,6 +149,26 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                 <Divider style={{ marginVertical: 15 }} />
 
                 <Text variant="titleSmall" style={{ marginBottom: 10, color: PRIMARY }}>
+                    Diagnostics
+                </Text>
+                <View style={{ marginBottom: 10 }}>
+                    <Text variant="bodyLarge">
+                        App Logs{'  '}
+                        <Text variant="bodySmall" style={{ color: '#666' }}>
+                            v{DeviceInfo.getVersion()} ({DeviceInfo.getBuildNumber()})
+                        </Text>
+                    </Text>
+                    <Text variant="bodySmall" style={{ color: '#999', marginBottom: 10 }}>
+                        View recent application logs for troubleshooting. Logs are stored in memory and cleared on app
+                        restart.
+                    </Text>
+                    <Button mode="contained-tonal" icon="text-box-search" onPress={() => showErrorPortal('Diagnostics')}>
+                        View Logs
+                    </Button>
+                </View>
+                <Divider style={{ marginVertical: 15 }} />
+
+                <Text variant="titleSmall" style={{ marginBottom: 10, color: PRIMARY }}>
                     Storage
                 </Text>
                 <View
@@ -340,12 +202,34 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                     <View style={{ gap: 5 }}>
                         {/* KeyChain values */}
                         {hasIdentityKeys && (
-                            <Chip selected icon="key" style={{ backgroundColor: DARKHEADER }}>
+                            <Chip
+                                selected
+                                icon="key"
+                                style={{ backgroundColor: DARKHEADER }}
+                                closeIcon="close"
+                                onClose={() => {
+                                    Keychain.resetInternetCredentials({
+                                        server: API_URL,
+                                        service: `${user_data.phone_no}-keys`,
+                                    }).then(() => setHasIdentityKeys(false));
+                                }}
+                            >
                                 {user_data?.phone_no}-keys
                             </Chip>
                         )}
                         {hasPassword && (
-                            <Chip selected icon="account-key" style={{ backgroundColor: DARKHEADER }}>
+                            <Chip
+                                selected
+                                icon="account-key"
+                                style={{ backgroundColor: DARKHEADER }}
+                                closeIcon="close"
+                                onClose={() => {
+                                    Keychain.resetGenericPassword({
+                                        server: API_URL,
+                                        service: `${user_data.phone_no}-credentials`,
+                                    }).then(() => setHasPassword(false));
+                                }}
+                            >
                                 {user_data?.phone_no}-credentials
                             </Chip>
                         )}
@@ -381,27 +265,6 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                 </View>
 
                 <Divider style={{ marginVertical: 15 }} />
-
-                <Text variant="titleSmall" style={{ marginBottom: 10, color: PRIMARY }}>
-                    Diagnostics
-                </Text>
-                <View style={{ marginBottom: 10 }}>
-                    <Text variant="bodyLarge">
-                        App Logs{'  '}
-                        <Text variant="bodySmall" style={{ color: '#666' }}>
-                            v{DeviceInfo.getVersion()} ({DeviceInfo.getBuildNumber()})
-                        </Text>
-                    </Text>
-                    <Text variant="bodySmall" style={{ color: '#999', marginBottom: 10 }}>
-                        View recent application logs for troubleshooting. Logs are stored in memory and cleared on app
-                        restart.
-                    </Text>
-                    <Button mode="contained-tonal" icon="text-box-search" onPress={() => showErrorPortal('Diagnostics')}>
-                        View Logs
-                    </Button>
-                </View>
-
-                <Divider style={{ marginVertical: 15 }} />
             </ScrollView>
 
             <Portal>
@@ -418,57 +281,6 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                         </Button>
                         <Button mode="contained" icon="delete" onPress={resetApp}>
                             Clear Data
-                        </Button>
-                    </Dialog.Actions>
-                </Dialog>
-
-                <Dialog visible={visibleDialog === 'import'} onDismiss={() => setVisibleDialog('')}>
-                    <Dialog.Icon icon="file-import" />
-                    <Dialog.Title style={{ textAlign: 'center' }}>Import Identity Keys</Dialog.Title>
-                    <Dialog.Content>
-                        <Text style={globalStyle.dialogText}>
-                            File selection will be prompted after decryption password is provided
-                        </Text>
-                        <PasswordInput
-                            label="Keypair decryption password"
-                            autoCapitalize="none"
-                            onChangeText={setEncPassword}
-                            value={encPassword}
-                        />
-                    </Dialog.Content>
-                    <Dialog.Actions style={globalStyle.spaceBetween}>
-                        <Button mode="contained-tonal" onPress={() => setVisibleDialog('')}>
-                            Cancel
-                        </Button>
-                        <Button mode="contained" onPress={importKeys} icon="upload" disabled={!encPassword?.trim()}>
-                            Import
-                        </Button>
-                    </Dialog.Actions>
-                </Dialog>
-
-                <Dialog visible={visibleDialog === 'export'} onDismiss={() => setVisibleDialog('')}>
-                    <Dialog.Icon icon="file-export" />
-                    <Dialog.Title style={{ textAlign: 'center' }}>Export Identity Keys</Dialog.Title>
-                    <Dialog.Content>
-                        <Text style={globalStyle.dialogText}>A weak password can result in account takeover!</Text>
-                        <PasswordInput
-                            label="Keypair encryption password"
-                            autoCapitalize="none"
-                            onChangeText={setEncPassword}
-                            value={encPassword}
-                        />
-                    </Dialog.Content>
-                    <Dialog.Actions style={globalStyle.spaceBetween}>
-                        <Button mode="contained-tonal" onPress={() => setVisibleDialog('')}>
-                            Cancel
-                        </Button>
-                        <Button
-                            mode="contained"
-                            onPress={exportKeys}
-                            icon="download"
-                            disabled={!encPassword?.trim() || !keypair}
-                        >
-                            Export
                         </Button>
                     </Dialog.Actions>
                 </Dialog>

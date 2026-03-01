@@ -1,4 +1,4 @@
-import React, { PureComponent, useState, useCallback, useEffect, useMemo } from 'react';
+import React, { PureComponent, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, Text, Pressable, View, Linking, ToastAndroid, Image, Vibration } from 'react-native';
 import { ActivityIndicator, Icon, Modal, Portal } from 'react-native-paper';
 import { useSelector } from 'react-redux';
@@ -36,9 +36,9 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
     const { peer_user } = props.route.params.data;
 
     const fallbackConversation = useMemo(() => ({ messages: [] as message[], other_user: peer_user }), [peer_user]);
+    const user_data = useSelector((state: RootState) => state.userReducer.user_data);
     const conversation =
         useSelector((state: RootState) => state.userReducer.conversations.get(peer_user.phone_no)) ?? fallbackConversation;
-    const user_data = useSelector((state: RootState) => state.userReducer.user_data);
     const peer =
         useSelector((state: RootState) =>
             state.userReducer.contacts.find(contact => String(contact.id) === String(peer_user.id)),
@@ -47,9 +47,12 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
     const [loading, setLoading] = useState(false);
     const [inputMessage, setInputMessage] = useState('');
     const [zoomMedia, setZoomMedia] = useState('');
-    const [offset, setOffset] = useState(DB_MSG_PAGE_SIZE);
     const [hasMore, setHasMore] = useState(conversation.messages.length >= DB_MSG_PAGE_SIZE);
-    const [loadingMore, setLoadingMore] = useState(false);
+    const paginationRef = useRef({
+        loading: false,
+        hasMore: conversation.messages.length >= DB_MSG_PAGE_SIZE,
+        offset: conversation.messages.length,
+    });
 
     // Mark unseen decrypted received messages as seen
     useEffect(() => {
@@ -66,36 +69,36 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
         return [...conversation.messages].reverse();
     }, [conversation.messages]);
 
-    const loadMoreMessages = useCallback(async () => {
-        if (loadingMore || !hasMore) return;
+    const loadMoreMessages = useCallback(() => {
+        const pg = paginationRef.current;
+        if (pg.loading || !pg.hasMore) return;
 
-        setLoadingMore(true);
+        pg.loading = true;
         Vibration.vibrate();
         try {
-            // Load previous messages
-            const olderMessages = dbGetMessages(peer.phone_no, DB_MSG_PAGE_SIZE, offset);
+            const olderMessages = dbGetMessages(peer.phone_no, DB_MSG_PAGE_SIZE, pg.offset);
             if (olderMessages.length === 0) {
+                pg.hasMore = false;
                 setHasMore(false);
                 return;
             }
-            // Save in redux
             store.dispatch(
                 APPEND_OLDER_MESSAGES({
                     conversationId: peer.phone_no,
                     messages: olderMessages,
                 }),
             );
-            // Update state
-            setOffset(prev => prev + olderMessages.length);
+            pg.offset += olderMessages.length;
             if (olderMessages.length < DB_MSG_PAGE_SIZE) {
+                pg.hasMore = false;
                 setHasMore(false);
             }
         } catch (err) {
             logger.error('Error loading more messages:', err);
         } finally {
-            setLoadingMore(false);
+            pg.loading = false;
         }
-    }, [loadingMore, hasMore, offset, peer.phone_no]);
+    }, [peer.phone_no]);
 
     const handleSend = useCallback(async () => {
         if (inputMessage.trim() === '') return;
@@ -177,36 +180,28 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
 
     const renderListEmpty = useCallback(
         () => (
-            <View>
-                <Text style={[styles.message, styles.system]}> No messages </Text>
+            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+                <Icon source="message-text-outline" size={40} color="#969393" />
+                <Text style={{ color: '#969393', marginTop: 8 }}>No messages yet</Text>
             </View>
         ),
         [],
     );
 
     const renderListHeader = useCallback(() => {
-        if (loadingMore) {
-            return (
-                <View style={styles.footer}>
-                    <ActivityIndicator size="small" color="#77f777" />
-                </View>
-            );
-        }
-        if (hasMore) {
-            return (
-                <View style={styles.footer}>
-                    <Text style={{ color: '#969393' }}>Scroll up to load more</Text>
-                </View>
-            );
-        }
-        return null;
-    }, [loadingMore, hasMore]);
+        if (!hasMore) return null;
+        return (
+            <View style={styles.footer}>
+                <Text style={{ color: '#969393' }}>Scroll up to load more</Text>
+            </View>
+        );
+    }, [hasMore]);
 
     const renderListFooter = useCallback(
         () => (
             <View style={styles.footer}>
-                <Icon source="lock" color="#77f777" size={20} />
-                <Text style={{ color: 'white' }}> Click a message to decrypt it</Text>
+                <Icon source="shield-lock" color={PRIMARY} size={20} />
+                <Text style={{ color: 'white' }}> Messages are end-to-end encrypted</Text>
             </View>
         ),
         [],
@@ -602,26 +597,17 @@ class Message extends PureComponent<MProps, MState> {
                             animating={true}
                         />
                     )}
-                    {/* Message preview */}
+                    {/* Encrypted placeholder */}
                     {isEncrypted && (
-                        <>
-                            <Text selectable style={styles.text}>
-                                {item.message?.length < 200
-                                    ? item.message
-                                    : item.message?.substring(0, 197).padEnd(200, '...')}
-                            </Text>
-                            <View style={{ position: 'absolute', zIndex: 10, left: '50%', top: '50%' }}>
-                                <Icon source="lock" color="#00ff00" size={25} />
-                            </View>
-                        </>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 }}>
+                            <Icon source="shield-lock" color={PRIMARY} size={18} />
+                            <Text style={{ color: '#ccc', fontSize: 13 }}>Tap to decrypt</Text>
+                        </View>
                     )}
                     {/* Message */}
                     {this.renderMessage(this.state.decryptedMessage, isSent)}
                     {/* Footers of message */}
-                    <View style={{ flexDirection: 'row', alignSelf: 'stretch', justifyContent: 'space-between' }}>
-                        {isEncrypted && (
-                            <Text style={[styles.messageTime, { alignSelf: 'flex-start' }]}> Message Encrypted </Text>
-                        )}
+                    <View style={{ flexDirection: 'row', alignSelf: 'stretch', justifyContent: 'flex-end' }}>
                         <Text style={styles.messageTime}>
                             {sent_at.toLocaleDateString() === todaysDate
                                 ? sent_at.toLocaleTimeString()

@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View, ScrollView, BackHandler } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, SectionList, BackHandler, StyleSheet } from 'react-native';
 import { Divider, Button, Dialog, FAB, Icon, Portal, Text } from 'react-native-paper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,9 +7,39 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CallHistoryItem from '~/components/CallHistoryItem';
 import { dbGetCallHistory, dbClearCallHistory, dbDeleteCalls, dbMarkAllCallsSeen } from '~/global/database';
 import { CallRecord } from '~/store/reducers/user';
-import { SECONDARY_LITE } from '~/global/variables';
+import { DARKHEADER, SECONDARY_LITE } from '~/global/variables';
+import { milliseconds } from '~/global/helper';
 import { logger } from '~/global/logger';
 import globalStyle from '~/global/style';
+
+function groupByDay(records: CallRecord[]): { title: string; data: CallRecord[] }[] {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const yesterdayStart = todayStart - milliseconds.day;
+
+    const groups: Map<string, CallRecord[]> = new Map();
+
+    for (const record of records) {
+        const ts = new Date(record.started_at).getTime();
+        let label: string;
+        if (ts >= todayStart) {
+            label = 'Today';
+        } else if (ts >= yesterdayStart) {
+            label = 'Yesterday';
+        } else {
+            label = 'Older';
+        }
+        const group = groups.get(label);
+        if (group) {
+            group.push(record);
+        } else {
+            groups.set(label, [record]);
+        }
+    }
+
+    // Map preserves insertion order; records are already sorted DESC so order is Today → Yesterday → Older
+    return Array.from(groups, ([title, data]) => ({ title, data }));
+}
 
 export default function CallHistory() {
     const navigation = useNavigation<any>();
@@ -37,6 +67,8 @@ export default function CallHistory() {
             logger.error('Failed to load call history:', err);
         }
     }, []);
+
+    const sections = useMemo(() => groupByDay(records), [records]);
 
     useFocusEffect(
         useCallback(() => {
@@ -106,28 +138,28 @@ export default function CallHistory() {
 
     return (
         <View style={globalStyle.wrapper}>
-            <ScrollView>
-                {records.length > 0 ? (
-                    records.map((record, index) => (
-                        <View key={record.id ?? index}>
-                            <CallHistoryItem
-                                record={record}
-                                navigation={navigation}
-                                selectionMode={selectionMode}
-                                selected={selectedIds.has(record.id)}
-                                onToggleSelect={onToggleSelect}
-                                onLongPress={onLongPress}
-                            />
-                            <Divider />
-                        </View>
-                    ))
-                ) : (
+            <SectionList
+                sections={sections}
+                keyExtractor={(item, index) => String(item.id ?? index)}
+                renderItem={({ item }) => (
+                    <CallHistoryItem
+                        record={item}
+                        navigation={navigation}
+                        selectionMode={selectionMode}
+                        selected={selectedIds.has(item.id)}
+                        onToggleSelect={onToggleSelect}
+                        onLongPress={onLongPress}
+                    />
+                )}
+                renderSectionHeader={({ section: { title } }) => <Text style={localStyles.sectionHeader}>{title}</Text>}
+                ItemSeparatorComponent={Divider}
+                ListEmptyComponent={
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 }}>
                         <Icon source="phone-off" size={48} color={SECONDARY_LITE} />
                         <Text style={[globalStyle.errorMsg, { color: '#fff' }]}>No calls yet.</Text>
                     </View>
-                )}
-            </ScrollView>
+                }
+            />
             <FAB
                 icon="delete-outline"
                 color="#fff"
@@ -169,3 +201,14 @@ export default function CallHistory() {
         </View>
     );
 }
+
+const localStyles = StyleSheet.create({
+    sectionHeader: {
+        color: SECONDARY_LITE,
+        fontSize: 13,
+        fontWeight: '600',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        backgroundColor: DARKHEADER,
+    },
+});

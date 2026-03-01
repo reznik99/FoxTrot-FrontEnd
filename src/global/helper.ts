@@ -1,3 +1,5 @@
+import { PRIMARY, SECONDARY_LITE } from '~/global/variables';
+
 export const milliseconds = {
     second: 1_000,
     minute: 60 * 1_000,
@@ -34,6 +36,18 @@ export function formatBytes(bytes: number): string {
     if (mb < 1024) return mb.toFixed(1) + ' MB';
     const gb = mb / 1024;
     return gb.toFixed(1) + ' GB';
+}
+
+export function onlineStatus(peer: { online?: boolean; last_seen?: number }): {
+    color: string;
+    label: string;
+} {
+    if (peer.online) {
+        return { color: '#039111ff', label: 'Online' };
+    } else if (peer.last_seen && Date.now() - peer.last_seen < milliseconds.hour) {
+        return { color: PRIMARY, label: 'Recently active' };
+    }
+    return { color: SECONDARY_LITE, label: 'Offline' };
 }
 
 export function getAvatar(identifier: string | number) {

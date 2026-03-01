@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { View, ScrollView, Keyboard, Alert } from 'react-native';
+import { View, ScrollView, Keyboard, Alert, Image } from 'react-native';
 import { ActivityIndicator, TextInput, Button, Text, IconButton } from 'react-native-paper';
 import * as Keychain from 'react-native-keychain';
 import BootSplash from 'react-native-bootsplash';
@@ -31,6 +31,7 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
     const [globalLoading, setGlobalLoading] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [hasCreds, setHasCreds] = useState(false);
 
     useEffect(() => {
         // Hide app splashscreen
@@ -59,7 +60,14 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
                 const new_user_data = await store.dispatch(syncFromStorage()).unwrap();
                 if (new_user_data?.phone_no) {
                     setUsername(new_user_data.phone_no);
-                    await attemptAutoLogin(new_user_data.phone_no);
+                    const has = await Keychain.hasGenericPassword({
+                        server: API_URL,
+                        service: `${new_user_data.phone_no}-credentials`,
+                    });
+                    setHasCreds(Boolean(has));
+                    if (has) {
+                        await attemptAutoLogin(new_user_data.phone_no);
+                    }
                 }
             }
         } catch (err) {
@@ -124,18 +132,20 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
     };
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
-            <View style={styles.wrapper}>
-                <View style={styles.titleContainer}>
-                    <Text style={styles.title}>FoxTrot</Text>
-                    <Text style={styles.subTitle}>secure communications</Text>
-                </View>
-                {loginErr && <Text style={styles.errorMsg}>{loginErr}</Text>}
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+            <View style={styles.titleContainer}>
+                <Image source={require('../../../assets/bootsplash/logo.png')} style={{ width: 80, height: 80 }} />
+                <Text style={styles.title}>FoxTrot</Text>
+                <Text style={styles.subTitle}>secure communications</Text>
+            </View>
 
-                {globalLoading ? (
-                    <ActivityIndicator size="large" />
-                ) : (
-                    <View style={{ rowGap: 8 }}>
+            {loginErr && <Text style={styles.errorMsg}>{loginErr}</Text>}
+
+            {globalLoading ? (
+                <ActivityIndicator size="large" />
+            ) : (
+                <>
+                    <View style={{ gap: 8 }}>
                         <TextInput
                             mode="outlined"
                             autoCapitalize="none"
@@ -152,29 +162,35 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
                             label="Password"
                             outlineColor={loginErr ? 'red' : undefined}
                         />
+                    </View>
 
-                        {/* Actions */}
-                        <View style={{ marginTop: 15, display: 'flex', alignItems: 'center' }}>
-                            <Button
-                                mode="contained"
-                                icon="login"
-                                style={styles.button}
-                                loading={loading}
-                                onPress={() => handleLogin(username, password)}
-                            >
-                                Login
-                            </Button>
-                            <Text style={{ paddingVertical: 10 }}>Or</Text>
-                            <Button
-                                mode="contained"
-                                icon="account-plus"
-                                style={styles.buttonSecondary}
-                                onPress={() => props.navigation.navigate('Signup')}
-                            >
-                                Signup
-                            </Button>
-                        </View>
-                        <View style={{ display: 'flex', alignItems: 'center' }}>
+                    <Button
+                        mode="contained"
+                        icon="login"
+                        style={[styles.button, { marginTop: 20 }]}
+                        loading={loading}
+                        onPress={() => handleLogin(username, password)}
+                    >
+                        Login
+                    </Button>
+
+                    <View style={styles.dividerRow}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerText}>or</Text>
+                        <View style={styles.dividerLine} />
+                    </View>
+
+                    <Button
+                        mode="contained"
+                        icon="account-plus"
+                        style={styles.buttonSecondary}
+                        onPress={() => props.navigation.navigate('Signup')}
+                    >
+                        Create Account
+                    </Button>
+
+                    {hasCreds && (
+                        <View style={styles.biometricContainer}>
                             <IconButton
                                 icon="fingerprint"
                                 size={50}
@@ -182,10 +198,11 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
                                 onPress={() => attemptAutoLogin(username)}
                                 accessibilityLabel="Retry biometric authentication"
                             />
+                            <Text style={styles.biometricHint}>Quick login with biometrics</Text>
                         </View>
-                    </View>
-                )}
-            </View>
+                    )}
+                </>
+            )}
         </ScrollView>
     );
 }

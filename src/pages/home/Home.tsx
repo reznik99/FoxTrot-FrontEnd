@@ -23,6 +23,7 @@ import { RootState, store } from '~/store/store';
 import { popFromStorage, StorageKeys } from '~/global/storage';
 import { dbSaveCallRecord } from '~/global/database';
 import { PRIMARY } from '~/global/variables';
+import { logger } from '~/global/logger';
 import globalStyle from '~/global/style';
 
 export default function Home() {
@@ -121,7 +122,7 @@ export default function Home() {
 
     const registerCallHandlers = useCallback(() => {
         RNNotificationCall.addEventListener('answer', info => {
-            console.debug('RNNotificationCall: User answered call', info.callUUID);
+            logger.debug('RNNotificationCall: User answered call', info.callUUID);
             RNNotificationCall.backToApp();
             const data = JSON.parse(info.payload || '{}') as { caller: UserData; data: SocketMessage };
             navigation.navigate('Call', {
@@ -133,7 +134,7 @@ export default function Home() {
         });
         // endCall only fires when the call is declined or times out (never after answer)
         RNNotificationCall.addEventListener('endCall', info => {
-            console.debug('RNNotificationCall: User ended call', info.callUUID);
+            logger.debug('RNNotificationCall: User ended call', info.callUUID);
             InCallManager.stopRingtone();
             try {
                 const data = JSON.parse(info.payload || '{}') as { caller: UserData; data: SocketMessage };
@@ -150,7 +151,7 @@ export default function Home() {
                     });
                 }
             } catch (err) {
-                console.error('Failed to save missed call record:', err);
+                logger.error('Failed to save missed call record:', err);
             }
         });
         return () => {

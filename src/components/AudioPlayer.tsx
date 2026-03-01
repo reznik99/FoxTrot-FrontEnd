@@ -5,6 +5,7 @@ import Sound from 'react-native-nitro-sound';
 import RNFS, { CachesDirectoryPath } from 'react-native-fs';
 
 import { DARKHEADER, PRIMARY } from '~/global/variables';
+import { logger } from '~/global/logger';
 
 type IProps = {
     messageId: number;
@@ -40,7 +41,7 @@ export default function AudioPlayer(props: IProps) {
             Sound.addPlaybackEndListener(() => setPlayingAudio(false));
             setPlayingAudio(true);
         } catch (err) {
-            console.error(err);
+            logger.error(err);
         }
     }, [props.audioUri, props.audioData, props.messageId]);
 
@@ -51,7 +52,7 @@ export default function AudioPlayer(props: IProps) {
             Sound.removePlayBackListener();
             Sound.removePlaybackEndListener();
         } catch (err) {
-            console.error(err);
+            logger.error(err);
         }
     }, []);
 

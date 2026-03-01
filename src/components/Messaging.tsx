@@ -7,6 +7,7 @@ import Sound, { AudioSet, AudioEncoderAndroidType } from 'react-native-nitro-sou
 import CustomKeyboardAvoidingView from '~/components/CustomKeyboardAvoidingView';
 import { getMicrophoneRecordingPermission, getReadExtPermission } from '~/global/permissions';
 import { DARKHEADER, PRIMARY, SECONDARY_LITE } from '~/global/variables';
+import { logger } from '~/global/logger';
 
 type IProps = {
     inputMessage: string;
@@ -68,9 +69,9 @@ export default function Messaging(props: IProps) {
             };
             const result = await Sound.startRecorder(undefined, audioConfig);
             setAudioFilePath(result);
-            console.log('Recording started:', result);
+            logger.info('Recording started:', result);
         } catch (err) {
-            console.error(err);
+            logger.error(err);
         }
     }, [resetAudio]);
 
@@ -80,7 +81,7 @@ export default function Messaging(props: IProps) {
             await Sound.stopRecorder();
             Sound.removeRecordBackListener();
         } catch (err) {
-            console.error(err);
+            logger.error(err);
         }
     }, []);
 
@@ -91,7 +92,7 @@ export default function Messaging(props: IProps) {
             Sound.addPlaybackEndListener(() => setPlayingAudio(false));
             setPlayingAudio(true);
         } catch (err) {
-            console.error(err);
+            logger.error(err);
         }
     }, [audioFilePath]);
 
@@ -102,7 +103,7 @@ export default function Messaging(props: IProps) {
             Sound.removePlayBackListener();
             Sound.removePlaybackEndListener();
         } catch (err) {
-            console.error(err);
+            logger.error(err);
         }
     }, []);
 
@@ -111,7 +112,7 @@ export default function Messaging(props: IProps) {
             await props.handleSendAudio(audioFilePath, audioRecordTime);
             resetAudio();
         } catch (err) {
-            console.error(err);
+            logger.error(err);
         }
     }, [audioFilePath, audioRecordTime, resetAudio, props]);
 

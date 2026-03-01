@@ -8,6 +8,7 @@ import CallHistoryItem from '~/components/CallHistoryItem';
 import { dbGetCallHistory, dbClearCallHistory, dbDeleteCalls, dbMarkAllCallsSeen } from '~/global/database';
 import { CallRecord } from '~/store/reducers/user';
 import { SECONDARY_LITE } from '~/global/variables';
+import { logger } from '~/global/logger';
 import globalStyle from '~/global/style';
 
 export default function CallHistory() {
@@ -33,7 +34,7 @@ export default function CallHistory() {
             const history = dbGetCallHistory();
             setRecords(history);
         } catch (err) {
-            console.error('Failed to load call history:', err);
+            logger.error('Failed to load call history:', err);
         }
     }, []);
 
@@ -99,7 +100,7 @@ export default function CallHistory() {
                 setSelectedIds(new Set());
             }
         } catch (err) {
-            console.error('Failed to delete calls:', err);
+            logger.error('Failed to delete calls:', err);
         }
     }, [dialogMode, selectedIds]);
 

@@ -28,6 +28,7 @@ import { sendMessage } from '~/store/actions/user';
 import { downloadMedia, getMediaCachePath, uploadMedia } from '~/store/actions/media';
 import { dbGetMessages } from '~/global/database';
 import { HomeStackParamList } from '~/../App';
+import { logger } from '~/global/logger';
 
 const todaysDate = new Date().toLocaleDateString();
 
@@ -90,7 +91,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                 setHasMore(false);
             }
         } catch (err) {
-            console.error('Error loading more messages:', err);
+            logger.error('Error loading more messages:', err);
         } finally {
             setLoadingMore(false);
         }
@@ -109,7 +110,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
             });
             await store.dispatch(sendMessage({ message: toSend, to_user: peer }));
         } catch (err) {
-            console.error('Error sending message:', err);
+            logger.error('Error sending message:', err);
         } finally {
             setLoading(false);
         }
@@ -136,7 +137,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                 });
                 await store.dispatch(sendMessage({ message: toSend, to_user: peer }));
             } catch (err) {
-                console.error('Error sending audio:', err);
+                logger.error('Error sending audio:', err);
             } finally {
                 setLoading(false);
             }
@@ -163,7 +164,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                 data: { peer: peer, mediaPath: asset.uri!, mediaType: isVideo ? 'video' : 'image' },
             });
         } catch (err) {
-            console.error('Error selecting gallery media:', err);
+            logger.error('Error selecting gallery media:', err);
         } finally {
             setLoading(false);
         }
@@ -332,7 +333,7 @@ class Message extends PureComponent<MProps, MState> {
             return JSON.parse(decryptedMessage);
         } catch (err) {
             // Backwards compatibility for messages that didn't contain a type (pre v1.7)
-            console.warn(err);
+            logger.warn(err);
             return { type: 'MSG', message: decryptedMessage };
         }
     };
@@ -475,7 +476,7 @@ class Message extends PureComponent<MProps, MState> {
                 return null;
             }
             default:
-                console.warn('Unrecognized message type:', item.type);
+                logger.warn('Unrecognized message type:', item.type);
                 return null;
         }
     };
@@ -571,7 +572,7 @@ class Message extends PureComponent<MProps, MState> {
                     break;
             }
         } catch (err: any) {
-            console.error('Error on message click:', err);
+            logger.error('Error on message click:', err);
             Toast.show({
                 type: 'error',
                 text1: 'Failed to decrypt message',

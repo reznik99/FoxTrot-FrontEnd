@@ -12,6 +12,7 @@ import { RootState } from '~/store/store';
 import { UserData } from '~/store/reducers/user';
 import { HomeStackParamList } from '../../App';
 import { DARKHEADER } from '~/global/variables';
+import { logger } from '~/global/logger';
 import { humanTime } from '~/global/helper';
 import globalStyle from '~/global/style';
 
@@ -44,7 +45,7 @@ export default function HeaderConversation(props: IProps) {
             const digest = await publicKeyFingerprint(contact.public_key);
             setSecurityCode(digest);
         } catch (err) {
-            console.error(err);
+            logger.error(err);
         }
     }, [contact]);
 

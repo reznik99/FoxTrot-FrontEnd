@@ -4,6 +4,7 @@ import QuickCrypto from 'react-native-quick-crypto';
 import type { CryptoKey } from 'react-native-quick-crypto/src/keys/classes';
 import type { WebCryptoKeyPair, RandomTypedArrays } from 'react-native-quick-crypto';
 import { KeypairAlgorithm, LegacySymmetricAlgorithm, SaltLenCBC, SaltLenGCM, SymmetricAlgorithm } from '~/global/variables';
+import { logger } from '~/global/logger';
 
 interface exportedKeypair {
     privateKey: string;
@@ -127,7 +128,7 @@ export async function encryptFile(data: BufferSource): Promise<EncryptedFileResu
 
     const encrypted = Buffer.from(await QuickCrypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, data));
 
-    console.debug('Encrypt file took:', (performance.now() - startTime).toLocaleString(), 'ms', '| size:', data.byteLength);
+    logger.debug('Encrypt file took:', (performance.now() - startTime).toLocaleString(), 'ms', '| size:', data.byteLength);
     return {
         encrypted,
         keyBase64: Buffer.from(keyRaw).toString('base64'),
@@ -147,7 +148,7 @@ export async function decryptFile(encrypted: BufferSource, keyBase64: string, iv
         await QuickCrypto.subtle.decrypt({ name: 'AES-GCM', iv: Buffer.from(ivBase64, 'base64') }, key, encrypted),
     );
 
-    console.debug(
+    logger.debug(
         'Decrypt file took:',
         (performance.now() - startTime).toLocaleString(),
         'ms',
@@ -168,7 +169,7 @@ export async function encrypt(sessionKey: CryptoKey, message: string): Promise<s
     const iv = QuickCrypto.getRandomValues(new Uint8Array(SaltLenGCM));
     const ciphertext = await QuickCrypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, sessionKey, plaintext);
 
-    console.debug('Encrypt took:', (performance.now() - startTime).toLocaleString(), 'ms');
+    logger.debug('Encrypt took:', (performance.now() - startTime).toLocaleString(), 'ms');
     return (
         Buffer.from(`${ProtocolVersion.GCM_V1}`).toString('base64') +
         ':' +
@@ -206,7 +207,7 @@ async function decryptGCM(sessionKey: CryptoKey, encryptedMessage: string): Prom
         Buffer.from(ciphertext, 'base64'),
     );
 
-    console.debug('Decrypt took:', (performance.now() - startTime).toLocaleString(), 'ms');
+    logger.debug('Decrypt took:', (performance.now() - startTime).toLocaleString(), 'ms');
     return Buffer.from(plaintext).toString();
 }
 
@@ -231,7 +232,7 @@ async function decryptLegacyCBC(sessionKey: CryptoKey, encryptedMessage: string)
     }
     const decryptedChunks = await Promise.all(promises);
 
-    console.debug(
+    logger.debug(
         'Legacy Decrypt took:',
         (performance.now() - startTime).toLocaleString(),
         'ms',

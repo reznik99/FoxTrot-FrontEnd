@@ -7,6 +7,7 @@ import { StackScreenProps } from '@react-navigation/stack';
 import PasswordInput from '~/components/PasswordInput';
 import { AppDispatch, RootState } from '~/store/store';
 import { signUp } from '~/store/actions/auth';
+import { logger } from '~/global/logger';
 import { AuthStackParamList } from '~/../App';
 import styles from './style';
 
@@ -29,7 +30,7 @@ export default function Signup(props: StackScreenProps<AuthStackParamList, 'Sign
                 return props.navigation.navigate('Login', { data: { errorMsg: '', loggedOut: false } });
             }
         } catch (err) {
-            console.error('Signup error:', err);
+            logger.error('Signup error:', err);
         }
     };
 

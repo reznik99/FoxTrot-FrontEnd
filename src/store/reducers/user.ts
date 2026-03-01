@@ -4,6 +4,7 @@ import type { WebCryptoKeyPair } from 'react-native-quick-crypto';
 import { RTCIceCandidate } from 'react-native-webrtc';
 import { getAvatar } from '~/global/helper';
 import { writeToStorage } from '~/global/storage';
+import { logger } from '~/global/logger';
 import { dbSaveMessage, dbSaveConversation, dbUpdateMessageDecrypted, dbMarkMessagesSeen } from '~/global/database';
 
 export interface State {
@@ -165,7 +166,7 @@ export const userSlice = createSlice({
                 dbSaveConversation(reciever, Date.now());
                 dbSaveMessage(message, reciever.phone_no);
             } catch (err) {
-                console.error('Error saving sent message to SQLite:', err);
+                logger.error('Error saving sent message to SQLite:', err);
             }
             writeToStorage(`messages-${state.user_data.id}-last-checked`, String(Date.now()));
         },
@@ -200,7 +201,7 @@ export const userSlice = createSlice({
                 dbSaveConversation(contact, Date.now());
                 dbSaveMessage(data, data.sender);
             } catch (err) {
-                console.error('Error saving received message to SQLite:', err);
+                logger.error('Error saving received message to SQLite:', err);
             }
             writeToStorage(`messages-${state.user_data.id}-last-checked`, String(Date.now()));
         },
@@ -221,7 +222,7 @@ export const userSlice = createSlice({
             try {
                 dbUpdateMessageDecrypted(messageId, decryptedContent);
             } catch (err) {
-                console.error('Error persisting decrypted message to SQLite:', err);
+                logger.error('Error persisting decrypted message to SQLite:', err);
             }
         },
         MARK_MESSAGES_SEEN: (state, action: PayloadAction<{ conversationId: string; messageIds: number[] }>) => {
@@ -240,7 +241,7 @@ export const userSlice = createSlice({
             try {
                 dbMarkMessagesSeen(messageIds);
             } catch (err) {
-                console.error('Error persisting seen status to SQLite:', err);
+                logger.error('Error persisting seen status to SQLite:', err);
             }
         },
         APPEND_OLDER_MESSAGES: (state, action: PayloadAction<{ conversationId: string; messages: message[] }>) => {

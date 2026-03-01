@@ -1,7 +1,6 @@
 import 'react-native-gesture-handler';
 import { Buffer } from 'buffer';
 global.Buffer = global.Buffer || Buffer;
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { Provider } from 'react-redux';
@@ -26,12 +25,15 @@ import {
 import { PRIMARY, SECONDARY, SECONDARY_LITE, ACCENT, DARKHEADER, VibratePattern } from '~/global/variables';
 import { deleteFromStorage, readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { getDb, dbSaveCallRecord, dbGetUnseenCallCount } from '~/global/database';
+import { logger, showErrorPortal } from '~/global/logger';
 import { getAvatar } from '~/global/helper';
 import { FlagSecure } from '~/global/native';
 import { SocketMessage, startWebsocketManager, stopWebsocketManager } from '~/store/actions/websocket';
 import { UserData } from '~/store/reducers/user';
 import { store } from '~/store/store';
 import ConnectionIndicator from '~/components/ConnectionIndicator';
+import ErrorBoundary from '~/components/ErrorBoundary';
+import ErrorPortal from '~/components/ErrorPortal';
 import HeaderConversation from '~/components/HeaderConversation';
 import Drawer from '~/components/Drawer';
 import {
@@ -205,24 +207,24 @@ const darkTheme = {
 // Register background handler
 const messaging = getMessaging();
 setBackgroundMessageHandler(messaging, async remoteMessage => {
-    console.log('Message handled in the background!', remoteMessage);
+    logger.info('Message handled in the background!', remoteMessage);
     // Stop duplicate ringtones
     InCallManager.stopRingtone();
     // Parse event & caller data
     const caller = JSON.parse((remoteMessage.data?.caller as string) || '{}') as UserData;
     if (Object.keys(caller).length === 0) {
-        return console.error('Caller data is not defined');
+        return logger.error('Caller data is not defined');
     }
     const eventData = JSON.parse((remoteMessage.data?.data as string) || '{}') as SocketMessage;
     if (Object.keys(eventData).length === 0) {
-        return console.error('Event data is not defined');
+        return logger.error('Event data is not defined');
     }
     // Register call event listeners
     RNNotificationCall.addEventListener('answer', async info => {
-        console.debug('RNNotificationCall: User answered call', info.callUUID);
+        logger.debug('RNNotificationCall: User answered call', info.callUUID);
         RNNotificationCall.backToApp();
         if (!info.payload) {
-            console.error('Background notification data is not defined after call-screen passthrough:', info);
+            logger.error('Background notification data is not defined after call-screen passthrough:', info);
             return;
         }
         // Write caller info to special storage key that is checked after app login
@@ -230,7 +232,7 @@ setBackgroundMessageHandler(messaging, async remoteMessage => {
         // User will be opening app and authenticating after this...
     });
     RNNotificationCall.addEventListener('endCall', async info => {
-        console.debug('RNNotificationCall: User ended call', info.callUUID);
+        logger.debug('RNNotificationCall: User ended call', info.callUUID);
         // Stop ringing
         InCallManager.stopRingtone();
 
@@ -268,7 +270,7 @@ setBackgroundMessageHandler(messaging, async remoteMessage => {
                 started_at: new Date().toISOString(),
             });
         } catch (err) {
-            console.error('Failed to save missed call record to db:', err);
+            logger.error('Failed to save missed call record to db:', err);
         }
         // Delete storage info about caller so they don't get routed to call screen on next app open
         await deleteFromStorage(StorageKeys.CALL_ANSWERED_IN_BACKGROUND);
@@ -298,13 +300,23 @@ export default function App() {
                 FlagSecure.enable();
             }
         });
+
+        const defaultHandler = ErrorUtils.getGlobalHandler();
+        ErrorUtils.setGlobalHandler((error, isFatal) => {
+            logger.error(`Unhandled ${isFatal ? 'fatal ' : ''}error:`, error?.message, error?.stack);
+            showErrorPortal('Unhandled Error');
+            defaultHandler(error, isFatal);
+        });
     }, []);
 
     return (
         <Provider store={store}>
             <PaperProvider theme={darkTheme}>
                 <StatusBar backgroundColor={DARKHEADER} barStyle="light-content" />
-                <AuthNavigator />
+                <ErrorBoundary>
+                    <AuthNavigator />
+                </ErrorBoundary>
+                <ErrorPortal />
                 <Toast />
             </PaperProvider>
         </Provider>

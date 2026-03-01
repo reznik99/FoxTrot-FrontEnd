@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, ScrollView, RefreshControl, Text, Alert } from 'react-native';
+import { View, ScrollView, RefreshControl, Text } from 'react-native';
 import { Divider, FAB, ActivityIndicator, Snackbar, Icon } from 'react-native-paper';
 import RNNotificationCall from 'react-native-full-screen-notification-incoming-call';
 import InCallManager from 'react-native-incall-manager';
@@ -11,7 +11,6 @@ import ConversationPeek from '~/components/ConversationPeek';
 import {
     loadMessages,
     loadContacts,
-    generateAndSyncKeys,
     loadKeys,
     registerPushNotifications,
     getTURNServerCreds,
@@ -62,14 +61,12 @@ export default function Home() {
             });
             // Register Call Screen handler
             cleanupCallHandlers = registerCallHandlers();
-            // Load keys from TPM
+            // Load keys from TPM — if none exist, redirect to key setup
             const loaded = await loadKeypair();
             if (!loaded) {
-                const generated = await generateKeypair();
-                if (!generated) {
-                    setLoadingMsg('');
-                    return;
-                }
+                setLoadingMsg('');
+                navigation.replace('KeySetup');
+                return;
             }
             // Load new messages from backend and old messages from storage
             await loadMessagesAndContacts();
@@ -95,30 +92,6 @@ export default function Home() {
         const loadedKeys = await store.dispatch(loadKeys()).unwrap();
         return loadedKeys;
     }, []);
-
-    const generateKeypair = useCallback(async () => {
-        setLoadingMsg('Generating cryptographic keys...');
-        const success = await store.dispatch(generateAndSyncKeys()).unwrap();
-        if (!success) {
-            Alert.alert(
-                'Failed to generate keys',
-                'This account might have already logged into another device. Keys must be imported in the settings page.',
-                [
-                    {
-                        text: 'Logout',
-                        onPress: () => {
-                            navigation.navigate('Login', { data: { loggedOut: true, errorMsg: '' } });
-                        },
-                    },
-                    {
-                        text: 'OK',
-                        onPress: () => {},
-                    },
-                ],
-            );
-        }
-        return success;
-    }, [navigation]);
 
     const registerCallHandlers = useCallback(() => {
         RNNotificationCall.addEventListener('answer', info => {

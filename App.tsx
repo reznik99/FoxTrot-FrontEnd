@@ -47,6 +47,7 @@ import {
     CameraView,
     Settings,
     CallHistory,
+    KeySetup,
 } from './src';
 
 const defaultHeaderOptions: StackNavigationOptions & DrawerNavigationOptions = {
@@ -143,6 +144,7 @@ export type HomeStackParamList = {
     Call: { data: { peer_user: UserData; video_enabled: boolean } };
     CameraView: { data: { peer: UserData; mediaPath: string; mediaType?: 'image' | 'video' } };
     Settings: undefined;
+    KeySetup: undefined;
 };
 const HomeStack = createStackNavigator<HomeStackParamList>();
 const HomeNavigator = () => {
@@ -162,6 +164,11 @@ const HomeNavigator = () => {
             <HomeStack.Screen name="Call" component={Call as any} options={renderHeaderConversation} />
             <HomeStack.Screen name="CameraView" component={CameraView} options={{ title: 'Camera' }} />
             <HomeStack.Screen name="Settings" component={Settings} options={{ title: 'Settings' }} />
+            <HomeStack.Screen
+                name="KeySetup"
+                component={KeySetup}
+                options={{ title: 'Set Up Encryption', headerLeft: () => null }}
+            />
         </HomeStack.Navigator>
     );
 };

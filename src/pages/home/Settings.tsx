@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, ScrollView, Alert } from 'react-native';
 import { Button, Dialog, Portal, Chip, Text, Divider, Switch, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { pick, types } from '@react-native-documents/picker';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useDispatch, useSelector } from 'react-redux';
 import * as Keychain from 'react-native-keychain';
@@ -14,12 +13,12 @@ import { Buffer } from 'buffer';
 import { API_URL, DARKHEADER, KeychainOpts, PRIMARY, SaltLenGCM, SaltLenPBKDF2 } from '~/global/variables';
 import { logger, showErrorPortal } from '~/global/logger';
 import DeviceInfo from 'react-native-device-info';
-import { getReadExtPermission, getWriteExtPermission } from '~/global/permissions';
+import { getWriteExtPermission } from '~/global/permissions';
 import { deriveKeyFromPassword, exportKeypair } from '~/global/crypto';
+import { importKeysFromFile } from '~/global/keyImport';
 import { deleteFromStorage, getAllStorageKeys, readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { FlagSecure } from '~/global/native';
 import globalStyle from '~/global/style';
-import { loadContacts, loadKeys } from '~/store/actions/user';
 import { logOut } from '~/store/actions/auth';
 import { AppDispatch, RootState } from '~/store/store';
 import { HomeStackParamList } from '~/../App';
@@ -99,59 +98,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
         }
 
         try {
-            const hasPermission = await getReadExtPermission();
-            if (!hasPermission) {
-                throw new Error('Permission to read from external storage denied');
-            }
-            // Read encrypted key file
-            logger.debug('Reading Encrypted keypair file...');
-            const [fileSelected] = await pick({ type: types.plainText, mode: 'open' });
-            if (!fileSelected.uri) {
-                throw new Error('Failed to pick file:' + fileSelected.error || 'unknown');
-            }
-
-            const file = await RNFS.readFile(fileSelected.uri);
-
-            // Parse PBKDF2 no. of iterations, salt, IV and Ciphertext and re-generate encryption key
-            logger.debug('Deriving key encryption key from password...');
-            const [_, iter, salt, iv, ciphertext] = file.split('\n');
-            const derivedKEK = await deriveKeyFromPassword(encPassword, Buffer.from(salt, 'base64'), parseInt(iter, 10));
-
-            // Decrypt Keypair
-            logger.debug('Decrypting keypair file...');
-            let Ikeys = new ArrayBuffer();
-            try {
-                Ikeys = await QuickCrypto.subtle.decrypt(
-                    { name: 'AES-GCM', iv: Buffer.from(iv, 'base64') },
-                    derivedKEK,
-                    Buffer.from(ciphertext, 'base64'),
-                );
-            } catch (err) {
-                logger.error('Decryption error: Invalid password or corrupted file:', err);
-                throw new Error('Decryption error: Invalid password or corrupted file');
-            }
-
-            // Store on device
-            logger.debug('Saving keys into TPM...');
-            await Keychain.setInternetCredentials(API_URL, `${user_data.phone_no}-keys`, Buffer.from(Ikeys).toString(), {
-                storage: Keychain.STORAGE_TYPE.AES_GCM_NO_AUTH,
-                server: API_URL,
-                service: `${user_data.phone_no}-keys`,
-            });
-
-            // Load into redux store
-            logger.debug('Loading keys into App...');
-            const success = await dispatch(loadKeys()).unwrap();
-            if (!success) {
-                throw new Error('Failed to load imported keys into app');
-            }
-
-            // TODO: Validate that public key locally matches public key on Key Server.
-
-            // Reload contacts to re-generate per-conversation encryption keys (ECDH)
-            logger.debug('Regenerating Conversation encryption keys...');
-            await dispatch(loadContacts({ atomic: true }));
-
+            await importKeysFromFile(encPassword, user_data.phone_no);
             Toast.show({
                 type: 'success',
                 text1: 'Succesfully imported Keys',

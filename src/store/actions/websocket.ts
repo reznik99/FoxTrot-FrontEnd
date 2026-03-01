@@ -118,7 +118,7 @@ export function resetCallState() {
     };
 }
 
-// --- Internal: connection & reconnect ---
+// --- connect & reconnect ---
 
 function connectWebsocket() {
     return async (dispatch: AppDispatch, getState: GetState) => {
@@ -136,45 +136,10 @@ function connectWebsocket() {
 
             dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'connecting' });
             const ws = new WebSocket(`${WEBSOCKET_URL}?token=${token}`);
-
-            ws.onopen = () => {
-                console.debug('Socket to server opened successfully');
-                mgr.intentionalClose = false;
-                mgr.reconnectAttempt = 0;
-                dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'connected' });
-                PushNotification.createChannel(
-                    {
-                        channelId: 'Messages',
-                        channelName: 'Notifications for incoming messages',
-                        channelDescription: 'Notifications for incoming messages',
-                    },
-                    () => {},
-                );
-            };
-
-            ws.onclose = () => {
-                console.debug('WebSocket closed');
-                dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: null });
-
-                if (mgr.intentionalClose) {
-                    mgr.intentionalClose = false;
-                    dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
-                    return;
-                }
-
-                dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'reconnecting' });
-                scheduleReconnect(dispatch);
-            };
-
-            ws.onerror = (err: any) => {
-                console.error('WebSocket error:', err);
-                dispatch({ type: 'user/WEBSOCKET_ERROR', payload: err.message || 'Connection error' });
-            };
-
-            ws.onmessage = event => {
-                handleSocketMessage(event.data, dispatch, getState);
-            };
-
+            ws.onopen = () => handleSocketOpen(dispatch);
+            ws.onclose = () => handleSocketClose(dispatch);
+            ws.onerror = (err: any) => handleSocketError(err, dispatch);
+            ws.onmessage = event => handleSocketMessage(event.data, dispatch, getState);
             dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: ws });
         } catch (err) {
             console.error('Error establishing websocket:', err);
@@ -220,7 +185,7 @@ async function scheduleReconnect(dispatch: AppDispatch) {
     }, finalDelay);
 }
 
-// --- Internal: AppState & NetInfo handlers ---
+// --- AppState & NetInfo handlers ---
 
 function handleAppStateChange(nextState: string, dispatch: AppDispatch, getState: GetState) {
     if (nextState === 'background') {
@@ -258,7 +223,41 @@ function handleNetInfoChange(state: NetInfoState, dispatch: AppDispatch, getStat
     }
 }
 
-// --- Message handler ---
+// --- WebSocket event handlers ---
+
+function handleSocketOpen(dispatch: AppDispatch) {
+    console.debug('Socket to server opened successfully');
+    mgr.intentionalClose = false;
+    mgr.reconnectAttempt = 0;
+    dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'connected' });
+    PushNotification.createChannel(
+        {
+            channelId: 'Messages',
+            channelName: 'Notifications for incoming messages',
+            channelDescription: 'Notifications for incoming messages',
+        },
+        () => {},
+    );
+}
+
+function handleSocketClose(dispatch: AppDispatch) {
+    console.debug('WebSocket closed');
+    dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: null });
+
+    if (mgr.intentionalClose) {
+        mgr.intentionalClose = false;
+        dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
+        return;
+    }
+
+    dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'reconnecting' });
+    scheduleReconnect(dispatch);
+}
+
+function handleSocketError(err: any, dispatch: AppDispatch) {
+    console.error('WebSocket error:', err);
+    dispatch({ type: 'user/WEBSOCKET_ERROR', payload: err.message || 'Connection error' });
+}
 
 function handleSocketMessage(data: any, dispatch: AppDispatch, getState: GetState) {
     try {

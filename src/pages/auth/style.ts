@@ -1,50 +1,67 @@
 import { StyleSheet } from 'react-native';
-import { DARKHEADER, PRIMARY, SECONDARY } from '~/global/variables';
+import { DARKHEADER, PRIMARY, SECONDARY, SECONDARY_LITE } from '~/global/variables';
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
-        alignItems: 'center',
-        backgroundColor: SECONDARY,
-    },
-    wrapper: {
-        flex: 1,
-        width: '75%',
-        height: '100%',
+        flexGrow: 1,
         justifyContent: 'center',
-        padding: 10,
+        backgroundColor: SECONDARY,
+        padding: 32,
     },
-    formWrapper: {
-        flex: 1,
-        width: '100%',
-        height: '100%',
+    titleContainer: {
         alignItems: 'center',
+        marginBottom: 32,
+    },
+    title: {
+        fontSize: 38,
+        fontWeight: 'bold',
+        color: '#fff',
+        marginTop: 16,
+    },
+    subTitle: {
+        fontSize: 16,
+        color: PRIMARY,
+        letterSpacing: 2,
+        textTransform: 'uppercase',
+        marginTop: 4,
     },
     button: {
         width: '100%',
-        paddingVertical: 6,
-        backgroundColor: PRIMARY,
+        paddingVertical: 4,
     },
     buttonSecondary: {
         width: '100%',
-        paddingVertical: 6,
+        paddingVertical: 4,
         backgroundColor: DARKHEADER,
     },
-    titleContainer: {
-        display: 'flex',
+    dividerRow: {
+        flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 30,
+        marginVertical: 16,
     },
-    title: {
-        fontSize: 35,
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#333',
     },
-    subTitle: {
-        fontSize: 20,
-        color: PRIMARY,
+    dividerText: {
+        color: SECONDARY_LITE,
+        marginHorizontal: 12,
+        fontSize: 13,
     },
     errorMsg: {
-        color: 'red',
+        color: '#e53935',
         textAlign: 'center',
+        marginBottom: 8,
+    },
+    biometricContainer: {
+        alignItems: 'center',
+        marginTop: 24,
+    },
+    biometricHint: {
+        color: SECONDARY_LITE,
+        fontSize: 13,
+        marginTop: 4,
     },
 });
 

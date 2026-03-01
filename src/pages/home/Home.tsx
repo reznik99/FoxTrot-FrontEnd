@@ -8,13 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ConversationPeek from '~/components/ConversationPeek';
-import {
-    loadMessages,
-    loadContacts,
-    loadKeys,
-    registerPushNotifications,
-    getTURNServerCreds,
-} from '~/store/actions/user';
+import { loadMessages, loadContacts, loadKeys, registerPushNotifications, getTURNServerCreds } from '~/store/actions/user';
 import { startWebsocketManager, SocketMessage } from '~/store/actions/websocket';
 import { Conversation, UserData } from '~/store/reducers/user';
 import { setupInterceptors, RootNavigation } from '~/store/actions/auth';

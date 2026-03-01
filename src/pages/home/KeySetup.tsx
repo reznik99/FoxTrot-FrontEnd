@@ -104,12 +104,7 @@ export default function KeySetup() {
                 </Text>
 
                 <View style={styles.inputContainer}>
-                    <PasswordInput
-                        value={password}
-                        label="Decryption Password"
-                        mode="outlined"
-                        onChangeText={setPassword}
-                    />
+                    <PasswordInput value={password} label="Decryption Password" mode="outlined" onChangeText={setPassword} />
                 </View>
 
                 <Button mode="contained" onPress={handleImport} disabled={!password.trim()} style={styles.button}>
@@ -139,12 +134,7 @@ export default function KeySetup() {
                 For new accounts or first-time setup
             </Text>
 
-            <Button
-                mode="contained-tonal"
-                icon="key-arrow-right"
-                onPress={() => setMode('import')}
-                style={styles.button}
-            >
+            <Button mode="contained-tonal" icon="key-arrow-right" onPress={() => setMode('import')} style={styles.button}>
                 Import Existing Keys
             </Button>
             <Text variant="bodySmall" style={styles.hint}>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import { ActivityIndicator } from 'react-native-paper';
+import { ActivityIndicator, Icon } from 'react-native-paper';
 import { useSelector } from 'react-redux';
 import { RootState } from '~/store/store';
 
@@ -14,15 +14,17 @@ const STATUS_COLORS: Record<string, string> = {
 const ConnectionIndicator = () => {
     const socketStatus = useSelector((state: RootState) => state.userReducer.socketStatus);
     const isReconnecting = socketStatus === 'reconnecting' || socketStatus === 'connecting';
+    const color = STATUS_COLORS[socketStatus] || STATUS_COLORS.disconnected;
     return (
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
-            {isReconnecting && <ActivityIndicator size={12} color={STATUS_COLORS.reconnecting} style={{ marginRight: 6 }} />}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16, gap: 4 }}>
+            {isReconnecting && <ActivityIndicator size={12} color={color} />}
+            <Icon source="server-network" size={14} color={color} />
             <View
                 style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: STATUS_COLORS[socketStatus] || STATUS_COLORS.disconnected,
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: color,
                 }}
             />
         </View>

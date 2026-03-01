@@ -38,13 +38,13 @@ export function formatBytes(bytes: number): string {
     return gb.toFixed(1) + ' GB';
 }
 
-export function onlineStatus(peer: { online?: boolean; last_seen?: string | Date }): {
+export function onlineStatus(peer: { online?: boolean; last_seen?: number }): {
     color: string;
     label: string;
 } {
     if (peer.online) {
         return { color: '#039111ff', label: 'Online' };
-    } else if (millisecondsSince(new Date(peer.last_seen)) < milliseconds.hour) {
+    } else if (peer.last_seen && Date.now() - peer.last_seen < milliseconds.hour) {
         return { color: PRIMARY, label: 'Recently active' };
     }
     return { color: SECONDARY_LITE, label: 'Offline' };

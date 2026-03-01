@@ -87,6 +87,9 @@ const HomeTabs = () => {
             setUnseenCount(0);
         }
     }, []);
+    useEffect(() => {
+        refreshBadge();
+    }, [refreshBadge]);
     return (
         <Tab.Navigator
             screenOptions={{

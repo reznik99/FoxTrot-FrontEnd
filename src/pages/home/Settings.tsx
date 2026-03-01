@@ -254,6 +254,26 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                 <Divider style={{ marginVertical: 15 }} />
 
                 <Text variant="titleSmall" style={{ marginBottom: 10, color: PRIMARY }}>
+                    Diagnostics
+                </Text>
+                <View style={{ marginBottom: 10 }}>
+                    <Text variant="bodyLarge">
+                        App Logs{'  '}
+                        <Text variant="bodySmall" style={{ color: '#666' }}>
+                            v{DeviceInfo.getVersion()} ({DeviceInfo.getBuildNumber()})
+                        </Text>
+                    </Text>
+                    <Text variant="bodySmall" style={{ color: '#999', marginBottom: 10 }}>
+                        View recent application logs for troubleshooting. Logs are stored in memory and cleared on app
+                        restart.
+                    </Text>
+                    <Button mode="contained-tonal" icon="text-box-search" onPress={() => showErrorPortal('Diagnostics')}>
+                        View Logs
+                    </Button>
+                </View>
+                <Divider style={{ marginVertical: 15 }} />
+
+                <Text variant="titleSmall" style={{ marginBottom: 10, color: PRIMARY }}>
                     Storage
                 </Text>
                 <View
@@ -324,27 +344,6 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                         loading={visibleDialog === 'reset'}
                     >
                         Factory Reset App
-                    </Button>
-                </View>
-
-                <Divider style={{ marginVertical: 15 }} />
-
-                <Text variant="titleSmall" style={{ marginBottom: 10, color: PRIMARY }}>
-                    Diagnostics
-                </Text>
-                <View style={{ marginBottom: 10 }}>
-                    <Text variant="bodyLarge">
-                        App Logs{'  '}
-                        <Text variant="bodySmall" style={{ color: '#666' }}>
-                            v{DeviceInfo.getVersion()} ({DeviceInfo.getBuildNumber()})
-                        </Text>
-                    </Text>
-                    <Text variant="bodySmall" style={{ color: '#999', marginBottom: 10 }}>
-                        View recent application logs for troubleshooting. Logs are stored in memory and cleared on app
-                        restart.
-                    </Text>
-                    <Button mode="contained-tonal" icon="text-box-search" onPress={() => showErrorPortal('Diagnostics')}>
-                        View Logs
                     </Button>
                 </View>
 

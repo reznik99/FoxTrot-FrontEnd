@@ -33,14 +33,12 @@ export interface SocketMessage {
 const MAX_RECONNECT_ATTEMPTS = 10;
 const BASE_DELAY_MS = 1000;
 const MAX_DELAY_MS = 30_000;
-const BACKGROUND_GRACE_MS = 60_000;
 
 // Module-level state (not Redux — timers, flags, subscriptions)
 const mgr = {
     intentionalClose: false,
     reconnectAttempt: 0,
     reconnectTimer: null as ReturnType<typeof setTimeout> | null,
-    backgroundTimer: null as ReturnType<typeof setTimeout> | null,
     appStateSub: null as NativeEventSubscription | null,
     netInfoSub: null as NetInfoSubscription | null,
     lastNetConnected: null as boolean | null,
@@ -53,16 +51,16 @@ function isSocketDead(getState: GetState): boolean {
     return !sock || sock.readyState === WebSocket.CLOSED || sock.readyState === WebSocket.CLOSING;
 }
 
-function clearTimer(key: 'reconnectTimer' | 'backgroundTimer') {
-    if (mgr[key]) {
-        clearTimeout(mgr[key]);
-        mgr[key] = null;
+function clearReconnectTimer() {
+    if (mgr.reconnectTimer) {
+        clearTimeout(mgr.reconnectTimer);
+        mgr.reconnectTimer = null;
     }
 }
 
 function reconnectNow(dispatch: AppDispatch) {
     mgr.reconnectAttempt = 0;
-    clearTimer('reconnectTimer');
+    clearReconnectTimer();
     dispatch(connectWebsocket());
 }
 
@@ -86,8 +84,7 @@ export function startWebsocketManager() {
 
 export function stopWebsocketManager() {
     return async (dispatch: AppDispatch, getState: GetState) => {
-        clearTimer('reconnectTimer');
-        clearTimer('backgroundTimer');
+        clearReconnectTimer();
 
         mgr.appStateSub?.remove();
         mgr.appStateSub = null;
@@ -150,7 +147,7 @@ function connectWebsocket() {
 }
 
 async function scheduleReconnect(dispatch: AppDispatch) {
-    clearTimer('reconnectTimer');
+    clearReconnectTimer();
 
     if (mgr.reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
         console.warn('Max reconnect attempts reached');
@@ -189,20 +186,15 @@ async function scheduleReconnect(dispatch: AppDispatch) {
 
 function handleAppStateChange(nextState: string, dispatch: AppDispatch, getState: GetState) {
     if (nextState === 'background') {
-        clearTimer('backgroundTimer');
-        mgr.backgroundTimer = setTimeout(() => {
-            mgr.backgroundTimer = null;
-            console.debug('Background grace period expired, closing socket');
-            const { socketConn } = getState().userReducer;
-            if (socketConn && socketConn.readyState === WebSocket.OPEN) {
-                mgr.intentionalClose = true;
-                socketConn.close();
-            }
-        }, BACKGROUND_GRACE_MS);
+        console.debug('App backgrounded, closing socket');
+        const { socketConn } = getState().userReducer;
+        if (socketConn && socketConn.readyState === WebSocket.OPEN) {
+            mgr.intentionalClose = true;
+            socketConn.close();
+        }
     } else if (nextState === 'active') {
-        clearTimer('backgroundTimer');
         if (isSocketDead(getState)) {
-            console.debug('App foregrounded with dead socket, reconnecting');
+            console.debug('App foregrounded, reconnecting');
             reconnectNow(dispatch);
         }
     }
@@ -213,7 +205,7 @@ function handleNetInfoChange(state: NetInfoState, dispatch: AppDispatch, getStat
     mgr.lastNetConnected = state.isConnected;
 
     if (!state.isConnected) {
-        clearTimer('reconnectTimer');
+        clearReconnectTimer();
         return;
     }
 
@@ -255,8 +247,9 @@ function handleSocketClose(dispatch: AppDispatch) {
 }
 
 function handleSocketError(err: any, dispatch: AppDispatch) {
-    console.error('WebSocket error:', err);
-    dispatch({ type: 'user/WEBSOCKET_ERROR', payload: err.message || 'Connection error' });
+    const message = err?.message || err?.type || 'Connection error';
+    console.error('WebSocket error:', message);
+    dispatch({ type: 'user/WEBSOCKET_ERROR', payload: message });
 }
 
 function handleSocketMessage(data: any, dispatch: AppDispatch, getState: GetState) {

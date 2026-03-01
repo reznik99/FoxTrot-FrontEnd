@@ -31,6 +31,7 @@ import { FlagSecure } from '~/global/native';
 import { SocketMessage, startWebsocketManager, stopWebsocketManager } from '~/store/actions/websocket';
 import { UserData } from '~/store/reducers/user';
 import { store } from '~/store/store';
+import ConnectionIndicator from '~/components/ConnectionIndicator';
 import HeaderConversation from '~/components/HeaderConversation';
 import Drawer from '~/components/Drawer';
 import {
@@ -116,11 +117,17 @@ const HomeTabs = () => {
 export type RootDrawerParamList = {
     FoxTrot: undefined;
 };
+const renderConnectionIndicator = () => <ConnectionIndicator />;
+
 const AppNavigator = createDrawerNavigator<RootDrawerParamList>();
 const AppDrawer = () => {
     return (
         <AppNavigator.Navigator screenOptions={{ swipeEdgeWidth: 200 }} drawerContent={renderDrawerContent}>
-            <AppNavigator.Screen name="FoxTrot" component={HomeTabs} options={defaultHeaderOptions} />
+            <AppNavigator.Screen
+                name="FoxTrot"
+                component={HomeTabs}
+                options={{ ...defaultHeaderOptions, headerRight: renderConnectionIndicator }}
+            />
         </AppNavigator.Navigator>
     );
 };

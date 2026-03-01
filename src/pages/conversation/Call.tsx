@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Image } from 'react-native';
 import { connect, ConnectedProps } from 'react-redux';
-import { Icon } from 'react-native-paper';
+import { ActivityIndicator, Icon } from 'react-native-paper';
 import { mediaDevices, MediaStream, RTCPeerConnection, RTCSessionDescription, RTCView } from 'react-native-webrtc';
 import RTCDataChannel from 'react-native-webrtc/lib/typescript/RTCDataChannel';
 import { RTCOfferOptions } from 'react-native-webrtc/lib/typescript/RTCUtil';
@@ -457,17 +457,17 @@ class Call extends React.Component<Props, State> {
     renderCallInfo = () => {
         const info = this.state.connectionInfo;
         const localCandidate = info?.localCandidate;
+        const connType = info?.isRelayed ? 'relay' : localCandidate?.candidateType || '';
         return (
             this.state.stream && (
-                <View>
-                    <Text>
-                        {this.calculateCallTime()} : {localCandidate?.protocol}({localCandidate?.networkType})
-                    </Text>
-                    <Text>
-                        Connection : {info?.isRelayed ? 'relay' : localCandidate?.candidateType}{' '}
-                        {getIconForConnType(info?.isRelayed ? 'relay' : localCandidate?.candidateType || '')}
-                    </Text>
-                    <Text>Ping : {this.state.callDelay}ms</Text>
+                <View style={{ alignItems: 'center', gap: 2 }}>
+                    <Text style={styles.headerText}>{this.calculateCallTime()}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        {getIconForConnType(connType)}
+                        <Text style={styles.headerTextSmall}>
+                            {connType || 'connecting'} · {localCandidate?.protocol || '...'} · {this.state.callDelay}ms
+                        </Text>
+                    </View>
                 </View>
             )
         );
@@ -481,7 +481,7 @@ class Call extends React.Component<Props, State> {
             <View style={styles.body}>
                 {/* Header */}
                 <View style={styles.header}>
-                    <Text>{this.state.callStatus}</Text>
+                    <Text style={styles.headerText}>{this.state.callStatus}</Text>
                     {this.renderCallInfo()}
                 </View>
                 {/* Remote camera view or placeholder */}
@@ -495,10 +495,23 @@ class Call extends React.Component<Props, State> {
                             zOrder={1}
                         />
                     ) : (
-                        <Image
-                            style={[styles.stream, { backgroundColor: '#333333' }]}
-                            source={{ uri: this.state.peerUser?.pic }}
-                        />
+                        <View style={[styles.stream, styles.peerPlaceholder]}>
+                            <Image style={styles.peerAvatar} source={{ uri: this.state.peerUser?.pic }} />
+                            <Text style={styles.peerName}>{this.state.peerUser?.phone_no}</Text>
+                            {!this.state.stream ? (
+                                <Text style={[styles.peerStatus, { marginTop: 8 }]}>Tap call to start</Text>
+                            ) : !this.state.peerStream ? (
+                                <View style={styles.peerStatusRow}>
+                                    <ActivityIndicator size={14} color="#ffffffaa" />
+                                    <Text style={styles.peerStatus}>Calling...</Text>
+                                </View>
+                            ) : (
+                                <View style={styles.peerStatusRow}>
+                                    <Icon source="video-off" size={16} color="#ffffffaa" />
+                                    <Text style={styles.peerStatus}>Camera off</Text>
+                                </View>
+                            )}
+                        </View>
                     )}
                 </View>
                 <View style={[styles.footer]}>
@@ -513,16 +526,15 @@ class Call extends React.Component<Props, State> {
                             onTouchEnd={this.toggleMinimizedStream}
                         />
                     ) : (
-                        <Image
-                            style={[styles.userCamera, styles.userCameraSmall]}
-                            source={{ uri: this.props.userData.pic }}
-                        />
+                        <View style={styles.localPlaceholder}>
+                            <Image style={styles.localAvatar} source={{ uri: this.props.userData.pic }} />
+                        </View>
                     )}
-                    <View style={[styles.actionContainer, { paddingBottom: this.props.insets.bottom }]}>
+                    <View style={[styles.actionContainer, { paddingBottom: this.props.insets.bottom + 8 }]}>
                         {/* Inactive call controls */}
                         {!this.state.stream && (
                             <TouchableOpacity onPress={this.startStream} style={[styles.actionButton, styles.bgGreen]}>
-                                <Icon source="phone" size={20} />
+                                <Icon source="phone" size={24} color="#fff" />
                             </TouchableOpacity>
                         )}
                         {/* Active call controls */}
@@ -532,26 +544,36 @@ class Call extends React.Component<Props, State> {
                                     onPress={this.toggleLoudSpeaker}
                                     style={[styles.actionButton, this.state.loudSpeaker && styles.bgWhite]}
                                 >
+                                    <Icon source="volume-high" size={24} color={this.state.loudSpeaker ? '#000' : '#fff'} />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={this.toggleVoiceEnabled}
+                                    style={[styles.actionButton, !this.state.voiceEnabled && styles.bgWhite]}
+                                >
                                     <Icon
-                                        source="volume-high"
-                                        size={20}
-                                        color={this.state.loudSpeaker ? 'black' : undefined}
+                                        source={this.state.voiceEnabled ? 'microphone' : 'microphone-off'}
+                                        size={24}
+                                        color={this.state.voiceEnabled ? '#fff' : '#000'}
                                     />
                                 </TouchableOpacity>
-                                <TouchableOpacity onPress={this.toggleVoiceEnabled} style={styles.actionButton}>
-                                    <Icon source={this.state.voiceEnabled ? 'microphone' : 'microphone-off'} size={20} />
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={this.toggleVideoEnabled} style={styles.actionButton}>
-                                    <Icon source={this.state.videoEnabled ? 'video' : 'video-off'} size={20} />
+                                <TouchableOpacity
+                                    onPress={this.toggleVideoEnabled}
+                                    style={[styles.actionButton, !this.state.videoEnabled && styles.bgWhite]}
+                                >
+                                    <Icon
+                                        source={this.state.videoEnabled ? 'video' : 'video-off'}
+                                        size={24}
+                                        color={this.state.videoEnabled ? '#fff' : '#000'}
+                                    />
                                 </TouchableOpacity>
                                 <TouchableOpacity onPress={this.toggleCamera} style={styles.actionButton}>
-                                    <Icon source="camera-switch" size={20} />
+                                    <Icon source="camera-switch" size={24} color="#fff" />
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     onPress={() => this.endCall(false)}
                                     style={[styles.actionButton, styles.bgRed]}
                                 >
-                                    <Icon source="phone" size={20} />
+                                    <Icon source="phone-hangup" size={24} color="#fff" />
                                 </TouchableOpacity>
                             </>
                         )}
@@ -613,12 +635,20 @@ const styles = StyleSheet.create({
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#777777a0',
+        backgroundColor: '#00000080',
         position: 'absolute',
         width: '100%',
         top: 0,
         zIndex: 2,
-        paddingVertical: 5,
+        paddingVertical: 8,
+    },
+    headerText: {
+        color: '#fff',
+        fontSize: 14,
+    },
+    headerTextSmall: {
+        color: '#ffffffcc',
+        fontSize: 12,
     },
     body: {
         backgroundColor: DARKHEADER,
@@ -641,13 +671,54 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         width: '100%',
-        backgroundColor: '#000000a0',
+        backgroundColor: '#00000080',
+    },
+    peerPlaceholder: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: DARKHEADER,
+    },
+    peerAvatar: {
+        width: 160,
+        height: 160,
+        borderRadius: 80,
+        backgroundColor: '#333',
+    },
+    peerName: {
+        color: '#fff',
+        fontSize: 20,
+        marginTop: 16,
+    },
+    peerStatus: {
+        color: '#ffffffaa',
+        fontSize: 14,
+    },
+    peerStatusRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 8,
+    },
+    localPlaceholder: {
+        width: 125,
+        aspectRatio: 9 / 16,
+        alignSelf: 'flex-end',
+        borderRadius: 5,
+        backgroundColor: '#333333f0',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    localAvatar: {
+        width: 120,
+        height: 120,
+        borderRadius: 80,
+        backgroundColor: '#555',
     },
     actionButton: {
         borderRadius: 50,
         padding: 15,
         margin: 5,
-        backgroundColor: 'gray',
+        backgroundColor: '#555',
     },
     userCamera: {
         width: 225,
@@ -661,10 +732,10 @@ const styles = StyleSheet.create({
         aspectRatio: 9 / 16,
     },
     bgRed: {
-        backgroundColor: 'red',
+        backgroundColor: '#e53935',
     },
     bgGreen: {
-        backgroundColor: 'green',
+        backgroundColor: '#4caf50',
     },
     bgWhite: {
         backgroundColor: 'white',

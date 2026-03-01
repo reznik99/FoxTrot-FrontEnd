@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, ScrollView, RefreshControl, Text } from 'react-native';
+import { View, FlatList, RefreshControl, Text } from 'react-native';
 import { Divider, FAB, ActivityIndicator, Snackbar, Icon } from 'react-native-paper';
 import RNNotificationCall from 'react-native-full-screen-notification-incoming-call';
 import InCallManager from 'react-native-incall-manager';
@@ -15,7 +15,7 @@ import { setupInterceptors, RootNavigation } from '~/store/actions/auth';
 import { RootState, store } from '~/store/store';
 import { popFromStorage, StorageKeys } from '~/global/storage';
 import { dbSaveCallRecord } from '~/global/database';
-import { PRIMARY } from '~/global/variables';
+import { PRIMARY, SECONDARY_LITE } from '~/global/variables';
 import { logger } from '~/global/logger';
 import globalStyle from '~/global/style';
 
@@ -154,7 +154,11 @@ export default function Home() {
                 </View>
             ) : (
                 <>
-                    <ScrollView
+                    <FlatList
+                        data={convos}
+                        keyExtractor={(item, index) => item.other_user.phone_no || String(index)}
+                        renderItem={({ item }) => <ConversationPeek data={item} navigation={navigation} />}
+                        ItemSeparatorComponent={Divider}
                         refreshControl={
                             <RefreshControl
                                 refreshing={refreshing}
@@ -163,20 +167,15 @@ export default function Home() {
                                 }}
                             />
                         }
-                    >
-                        {convos?.length ? (
-                            convos.map((convo, index) => (
-                                <View key={index}>
-                                    <ConversationPeek data={convo} navigation={navigation} />
-                                    <Divider />
-                                </View>
-                            ))
-                        ) : (
-                            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                                <Text style={[globalStyle.errorMsg, { color: '#fff' }]}>No Conversations.</Text>
+                        ListEmptyComponent={
+                            <View style={{ alignItems: 'center', marginTop: 80 }}>
+                                <Icon source="message-text-outline" size={64} color={SECONDARY_LITE} />
+                                <Text style={{ color: SECONDARY_LITE, fontSize: 16, marginTop: 12 }}>
+                                    No conversations yet
+                                </Text>
                             </View>
-                        )}
-                    </ScrollView>
+                        }
+                    />
 
                     <FAB
                         color="#fff"

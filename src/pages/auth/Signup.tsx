@@ -36,7 +36,7 @@ export default function Signup(props: StackScreenProps<AuthStackParamList, 'Sign
     };
 
     return (
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 88 }]} keyboardShouldPersistTaps="handled">
             <View style={styles.titleContainer}>
                 <Icon source="account-plus-outline" size={64} color={PRIMARY} />
                 <Text style={styles.title}>Create Account</Text>

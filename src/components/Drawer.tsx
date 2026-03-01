@@ -102,7 +102,7 @@ export default function Drawer(props: DrawerContentComponentProps) {
                     <DrawerItem
                         inactiveTintColor="#fff"
                         label="Logout"
-                        style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: '#e3e1e1', backgroundColor: DARKHEADER }}
+                        style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: '#333', backgroundColor: DARKHEADER }}
                         onPress={() => dispatch(logOut({ navigation: props.navigation as any }))}
                         icon={renderLogoutIcon}
                     />
@@ -111,11 +111,11 @@ export default function Drawer(props: DrawerContentComponentProps) {
 
             <Portal>
                 <Dialog visible={showSecurityCode} onDismiss={() => setShowSecurityCode(false)}>
-                    <Dialog.Icon icon="lock" color="#00ff00" />
+                    <Dialog.Icon icon="shield-lock" color={PRIMARY} />
                     <Dialog.Title style={{ textAlign: 'center' }}>Your Security Code</Dialog.Title>
                     <Dialog.Content>
                         {securityCode.match(/.{1,24}/g)?.map((val, idx) => (
-                            <Text key={idx} style={{ fontFamily: 'Roboto', textAlign: 'center' }}>
+                            <Text key={idx} style={{ fontFamily: 'monospace', textAlign: 'center', letterSpacing: 1 }}>
                                 {val}
                             </Text>
                         ))}
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
 });
 
 const renderLockIcon = ({ size, color }: { size: number; color: string }) => {
-    return <Icon source="lock" color={color} size={size} />;
+    return <Icon source="shield-lock" color={color} size={size} />;
 };
 
 const renderCogIcon = ({ size, color }: { size: number; color: string }) => {

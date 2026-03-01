@@ -11,9 +11,9 @@ import { publicKeyFingerprint } from '~/global/crypto';
 import { RootState } from '~/store/store';
 import { UserData } from '~/store/reducers/user';
 import { HomeStackParamList } from '../../App';
-import { DARKHEADER } from '~/global/variables';
+import { DARKHEADER, PRIMARY } from '~/global/variables';
 import { logger } from '~/global/logger';
-import { humanTime } from '~/global/helper';
+import { humanTime, onlineStatus } from '~/global/helper';
 import globalStyle from '~/global/style';
 
 interface IProps {
@@ -96,14 +96,14 @@ export default function HeaderConversation(props: IProps) {
 
             <Portal>
                 <Dialog visible={visibleDialog === 'SecurityCode'} onDismiss={() => setVisibleDialog('')}>
-                    <Dialog.Icon icon="lock" color="#00ff00" />
+                    <Dialog.Icon icon="shield-lock" color={PRIMARY} />
                     <Dialog.Title style={{ textAlign: 'center' }}>Security Code</Dialog.Title>
                     <Dialog.Content>
-                        <Text style={globalStyle.dialogText}>
-                            Verify with your contact ({data?.peer_user?.phone_no}) that this code matches their profile code
+                        <Text style={[globalStyle.dialogText, { textAlign: 'center', color: '#969393' }]}>
+                            Verify this code matches on {data?.peer_user?.phone_no}'s device
                         </Text>
                         {securityCode.match(/.{1,24}/g)?.map((val, idx) => (
-                            <Text key={idx} style={{ fontFamily: 'Roboto', textAlign: 'center' }}>
+                            <Text key={idx} style={{ fontFamily: 'monospace', textAlign: 'center', letterSpacing: 1 }}>
                                 {val}
                             </Text>
                         ))}
@@ -127,13 +127,35 @@ export default function HeaderConversation(props: IProps) {
                     </Dialog.Actions>
                 </Dialog>
                 <Dialog visible={visibleDialog === 'UserInfo'} onDismiss={() => setVisibleDialog('')}>
-                    <Dialog.Icon icon="information" />
-                    <Dialog.Title style={{ textAlign: 'center' }}>User Information</Dialog.Title>
-                    <Dialog.Content>
-                        <Text>Username: {contact?.phone_no}</Text>
-                        <Text>Status: {contact?.online ? '✅Online' : '❌Offline'}</Text>
-                        <Text>Last seen: {humanTime(contact?.last_seen || '0')}</Text>
-                        <Text>Identity Key: {contact?.public_key}</Text>
+                    <Dialog.Icon icon="account-circle" />
+                    <Dialog.Title style={{ textAlign: 'center' }}>
+                        {contact?.phone_no || data.peer_user.phone_no}
+                    </Dialog.Title>
+                    <Dialog.Content style={{ gap: 12 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text>Status</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <View
+                                    style={{
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: 4,
+                                        backgroundColor: onlineStatus(contact || {}).color,
+                                    }}
+                                />
+                                <Text>{onlineStatus(contact || {}).label}</Text>
+                            </View>
+                        </View>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text>Last seen</Text>
+                            <Text>{humanTime(contact?.last_seen || '0')}</Text>
+                        </View>
+                        <View style={{ gap: 4 }}>
+                            <Text>Identity Key</Text>
+                            <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#969393' }} selectable>
+                                {contact?.public_key || 'No key available'}
+                            </Text>
+                        </View>
                     </Dialog.Content>
                     <Dialog.Actions style={{ justifyContent: 'space-evenly' }}>
                         <Button
@@ -142,6 +164,18 @@ export default function HeaderConversation(props: IProps) {
                             style={{ paddingHorizontal: 15 }}
                         >
                             Close
+                        </Button>
+                        <Button
+                            mode="contained"
+                            icon="content-copy"
+                            onPress={() => {
+                                setVisibleDialog('');
+                                Clipboard.setString(contact?.public_key || '');
+                                ToastAndroid.show('Identity Key Copied', ToastAndroid.SHORT);
+                            }}
+                            style={{ paddingHorizontal: 15 }}
+                        >
+                            Copy Key
                         </Button>
                     </Dialog.Actions>
                 </Dialog>

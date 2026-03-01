@@ -28,6 +28,7 @@ import { getDb, dbGetConversations, dbGetConversation, dbSaveMessage, dbSaveConv
 import { API_URL, KeypairAlgorithm } from '~/global/variables';
 import { AppDispatch, RootState } from '~/store/store';
 import { getAvatar } from '~/global/helper';
+import { logger } from '~/global/logger';
 
 const createDefaultAsyncThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: AppDispatch }>();
 
@@ -40,7 +41,7 @@ export const loadKeys = createDefaultAsyncThunk('loadKeys', async (_, thunkAPI) 
             return true;
         }
 
-        console.debug(
+        logger.debug(
             `Loading '${KeypairAlgorithm.name} ${KeypairAlgorithm.namedCurve}' keys from secure storage for user ${state.user_data.phone_no}`,
         );
         const credentials = await Keychain.getInternetCredentials(API_URL, {
@@ -48,7 +49,7 @@ export const loadKeys = createDefaultAsyncThunk('loadKeys', async (_, thunkAPI) 
             service: `${state.user_data.phone_no}-keys`,
         });
         if (!credentials || credentials.username !== `${state.user_data.phone_no}-keys`) {
-            console.debug('Warn: No keys found. First time login on device');
+            logger.debug('Warn: No keys found. First time login on device');
             return false;
         }
 
@@ -58,7 +59,7 @@ export const loadKeys = createDefaultAsyncThunk('loadKeys', async (_, thunkAPI) 
         thunkAPI.dispatch(KEY_LOAD(keys));
         return true;
     } catch (err: any) {
-        console.error('Error loading keys:', err, JSON.stringify(await Keychain.getSupportedBiometryType()));
+        logger.error('Error loading keys:', err, JSON.stringify(await Keychain.getSupportedBiometryType()));
         Toast.show({
             type: 'error',
             text1: 'Failed to load Identity Keypair from TPM',
@@ -82,11 +83,11 @@ export const generateAndSyncKeys = createDefaultAsyncThunk<boolean>('generateAnd
         const keys = await exportKeypair(keyPair);
 
         // Upload public key
-        console.debug(`Syncing '${KeypairAlgorithm.name} ${KeypairAlgorithm.namedCurve}' public key to server`);
+        logger.debug(`Syncing '${KeypairAlgorithm.name} ${KeypairAlgorithm.namedCurve}' public key to server`);
         await axios.post(`${API_URL}/savePublicKey`, { publicKey: keys.publicKey }, axiosBearerConfig(state.token));
 
         // Store on device
-        console.debug(`Saving '${KeypairAlgorithm.name} ${KeypairAlgorithm.namedCurve}' keys to secure storage`);
+        logger.debug(`Saving '${KeypairAlgorithm.name} ${KeypairAlgorithm.namedCurve}' keys to secure storage`);
         await Keychain.setInternetCredentials(API_URL, `${state.user_data.phone_no}-keys`, JSON.stringify(keys), {
             storage: Keychain.STORAGE_TYPE.AES_GCM_NO_AUTH,
             server: API_URL,
@@ -98,7 +99,7 @@ export const generateAndSyncKeys = createDefaultAsyncThunk<boolean>('generateAnd
         return true;
     } catch (err: any) {
         await Keychain.resetInternetCredentials({ server: API_URL, service: `${state.user_data?.phone_no}-keys` });
-        console.error('Error generating and syncing keys:', err);
+        logger.error('Error generating and syncing keys:', err);
         Toast.show({
             type: 'error',
             text1: 'Failed to generate Identity Keypair',
@@ -140,10 +141,10 @@ export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, th
                     previousConversations.set(conv.other_user.phone_no, fullConv);
                 }
             }
-            console.debug('Loaded', previousConversations.size, 'conversations from SQLite. Last checked', lastChecked);
+            logger.debug('Loaded', previousConversations.size, 'conversations from SQLite. Last checked', lastChecked);
         } else {
             previousConversations = new Map(state.conversations);
-            console.debug('Found', previousConversations.size, 'conversations in memory. Last checked', lastChecked);
+            logger.debug('Found', previousConversations.size, 'conversations in memory. Last checked', lastChecked);
         }
 
         // If no cached conversations, load all from API just in case.
@@ -190,17 +191,17 @@ export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, th
                 dbSaveConversation(peer, new Date(msg.sent_at).getTime());
                 dbSaveMessage(msg, peer.phone_no);
             } catch (err: any) {
-                console.error('Error saving message to SQLite:', err);
+                logger.error('Error saving message to SQLite:', err);
             }
         });
         const newMessagesLoaded = response.data?.length;
-        console.debug('Loaded', newMessagesLoaded, 'new messages from api');
+        logger.debug('Loaded', newMessagesLoaded, 'new messages from api');
 
         // Save all new conversations to redux state
         thunkAPI.dispatch(LOAD_CONVERSATIONS(conversations));
         writeToStorage(`messages-${state.user_data.id}-last-checked`, String(Date.now()));
     } catch (err: any) {
-        console.error('Error loading messages:', err);
+        logger.error('Error loading messages:', err);
         Toast.show({
             type: 'error',
             text1: 'Error loading messages',
@@ -223,10 +224,10 @@ export const loadContacts = createDefaultAsyncThunk('loadContacts', async ({ ato
             response.data.map(async contact => {
                 try {
                     const session_key = await generateSessionKeyECDH(contact.public_key || '', state.keys?.privateKey);
-                    console.debug('Generated session key for contact:', contact.phone_no);
+                    logger.debug('Generated session key for contact:', contact.phone_no);
                     return { ...contact, pic: getAvatar(contact.id), session_key };
                 } catch (err: any) {
-                    console.warn('Failed to generate session key:', contact.phone_no, err.message || err);
+                    logger.warn('Failed to generate session key:', contact.phone_no, err.message || err);
                     return { ...contact, pic: getAvatar(contact.id) };
                 }
             }),
@@ -234,7 +235,7 @@ export const loadContacts = createDefaultAsyncThunk('loadContacts', async ({ ato
 
         thunkAPI.dispatch(LOAD_CONTACTS(contacts));
     } catch (err: any) {
-        console.error('Error loading contacts:', err);
+        logger.error('Error loading contacts:', err);
         Toast.show({
             type: 'error',
             text1: 'Error loading contacts',
@@ -257,7 +258,7 @@ export const addContact = createDefaultAsyncThunk('addContact', async ({ user }:
         thunkAPI.dispatch(ADD_CONTACT_SUCCESS({ ...data, pic: getAvatar(user.id), session_key }));
         return true;
     } catch (err: any) {
-        console.error('Error adding contact:', err);
+        logger.error('Error adding contact:', err);
         Toast.show({
             type: 'error',
             text1: 'Failed to add contact',
@@ -283,10 +284,10 @@ export const searchUsers = createDefaultAsyncThunk<UserData[], { prefix: string 
                 pic: getAvatar(user.id),
                 isContact: state.contacts.some(contact => contact.id === user.id),
             }));
-            console.debug('Action: searchUsers, Prefix:', prefix, 'Results:', results);
+            logger.debug('Action: searchUsers, Prefix:', prefix, 'Results:', results);
             return results;
         } catch (err: any) {
-            console.error('Error searching users:', err);
+            logger.error('Error searching users:', err);
             return [];
         } finally {
             thunkAPI.dispatch({ type: 'SET_LOADING', payload: false });
@@ -330,7 +331,7 @@ export const sendMessage = createDefaultAsyncThunk('sendMessage', async (data: s
         thunkAPI.dispatch(SEND_MESSAGE(localMessage));
         return true;
     } catch (err: any) {
-        console.error('Error sending message:', err);
+        logger.error('Error sending message:', err);
         Toast.show({
             type: 'error',
             text1: 'Error sending message',
@@ -365,7 +366,7 @@ export const syncFromStorage = createDefaultAsyncThunk('syncFromStorage', async 
     try {
         thunkAPI.dispatch(SET_LOADING(true));
 
-        console.debug('Loading user from local storage');
+        logger.debug('Loading user from local storage');
         // TODO: Load existing contacts from async storage
         const user_data = await readFromStorage(StorageKeys.USER_DATA);
         if (!user_data) {
@@ -378,7 +379,7 @@ export const syncFromStorage = createDefaultAsyncThunk('syncFromStorage', async 
         thunkAPI.dispatch(SYNC_FROM_STORAGE(payload));
         return payload.user_data;
     } catch (err: any) {
-        console.error('Error syncing from storage:', err);
+        logger.error('Error syncing from storage:', err);
         Toast.show({
             type: 'error',
             text1: 'Failed to sync data from storage',
@@ -395,7 +396,7 @@ export const registerPushNotifications = createDefaultAsyncThunk('registerPushNo
     try {
         const state = thunkAPI.getState().userReducer;
 
-        console.debug('Registering for Push Notifications');
+        logger.debug('Registering for Push Notifications');
         const granted = await getPushNotificationPermission();
         if (granted) {
             const messaging = getMessaging();
@@ -403,10 +404,10 @@ export const registerPushNotifications = createDefaultAsyncThunk('registerPushNo
             const token = await getToken(messaging);
             await axios.post(`${API_URL}/registerPushNotifications`, { token }, axiosBearerConfig(state.token));
         } else {
-            console.error('Push notifications permission denied');
+            logger.error('Push notifications permission denied');
         }
     } catch (err: any) {
-        console.error('Error Registering for Push Notifications:', err);
+        logger.error('Error Registering for Push Notifications:', err);
         Toast.show({
             type: 'error',
             text1: 'Failed to register for push notifications',
@@ -420,11 +421,11 @@ export const getTURNServerCreds = createDefaultAsyncThunk('getTURNServerCreds', 
     try {
         const state = thunkAPI.getState().userReducer;
 
-        console.debug('Fetching TURN server credentials');
+        logger.debug('Fetching TURN server credentials');
         const response = await axios.get(`${API_URL}/turnServerKey`, axiosBearerConfig(state.token));
         thunkAPI.dispatch(TURN_CREDS(response.data));
     } catch (err: any) {
-        console.error('Error fetching TURN Server credentials:', err);
+        logger.error('Error fetching TURN Server credentials:', err);
         Toast.show({
             type: 'info',
             text1: 'Failed to fetch proxy credentials',

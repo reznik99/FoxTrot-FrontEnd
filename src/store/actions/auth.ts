@@ -7,6 +7,7 @@ import { Alert } from 'react-native';
 import { API_URL, KeychainOpts } from '~/global/variables';
 import { getAvatar } from '~/global/helper';
 import { deleteFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
+import { logger } from '~/global/logger';
 import { LOGGED_IN, LOGIN_ERROR_MSG, LOGOUT, SET_LOADING, SIGNED_UP, SIGNUP_ERROR_MSG } from '../reducers/user';
 import { AuthStackParamList, HomeStackParamList, RootDrawerParamList } from '~/../App';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -25,7 +26,7 @@ export const logIn = createAsyncThunk('logIn', async ({ username, password }: lo
             password: password,
         });
 
-        console.debug('Saving user in storage');
+        logger.debug('Saving user in storage');
         // Save user_data in phone storage
         const user_data = { pic: getAvatar(res.data.user_data?.id), ...res.data.user_data };
         writeToStorage(StorageKeys.USER_DATA, JSON.stringify(user_data));
@@ -47,7 +48,7 @@ export const logIn = createAsyncThunk('logIn', async ({ username, password }: lo
         thunkAPI.dispatch(LOGGED_IN({ token: res.data.token, user_data: user_data }));
         return true;
     } catch (err: any) {
-        console.error('Error logging in:', err);
+        logger.error('Error logging in:', err);
         thunkAPI.dispatch(LOGIN_ERROR_MSG(err.response?.data?.message || err.message));
         Alert.alert('Unable to Login', err.response?.data?.message || err.message, [{ text: 'OK', onPress: () => {} }]);
         return false;
@@ -90,7 +91,7 @@ export const signUp = createAsyncThunk(
             });
             return true;
         } catch (err: any) {
-            console.error('Error signing up:', err);
+            logger.error('Error signing up:', err);
             thunkAPI.dispatch(SIGNUP_ERROR_MSG(err.response?.data?.message || err.message));
             return false;
         } finally {
@@ -105,7 +106,7 @@ export type RootNavigation = StackNavigationProp<
     undefined
 >;
 export const logOut = createAsyncThunk('logOut', async ({ navigation }: { navigation: RootNavigation }, thunkAPI) => {
-    console.debug('Logging out');
+    logger.debug('Logging out');
     // Clear redux state
     thunkAPI.dispatch(LOGOUT(undefined));
     // Clear storage

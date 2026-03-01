@@ -60,7 +60,7 @@ export default function ErrorPortal() {
                             {title}
                         </Text>
                         <Text variant="bodySmall" style={styles.meta}>
-                            v{DeviceInfo.getVersion()} ({DeviceInfo.getBuildNumber()}) — {new Date().toLocaleDateString()}
+                            v{DeviceInfo.getVersion()} ({DeviceInfo.getBuildNumber()}) — {new Date().toLocaleString()}
                         </Text>
                     </View>
 

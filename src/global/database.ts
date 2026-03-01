@@ -6,6 +6,7 @@ import { Buffer } from 'buffer';
 
 import { CallRecord, message, UserData } from '~/store/reducers/user';
 import { DB_MSG_PAGE_SIZE } from './variables';
+import { logger } from '~/global/logger';
 
 const DB_NAME = 'foxtrot.db';
 const DB_KEY_SERVICE = 'foxtrot-db-key';
@@ -45,7 +46,7 @@ async function getOrCreateDbKey(): Promise<string> {
             return credentials.password;
         }
     } catch (err) {
-        console.debug('No existing database key found, generating new one');
+        logger.debug('No existing database key found, generating new one');
     }
 
     const keyBytes = QuickCrypto.getRandomValues(new Uint8Array(32));
@@ -56,7 +57,7 @@ async function getOrCreateDbKey(): Promise<string> {
         storage: Keychain.STORAGE_TYPE.AES_GCM_NO_AUTH,
     });
 
-    console.debug('Generated and stored new database encryption key');
+    logger.debug('Generated and stored new database encryption key');
     return key;
 }
 
@@ -71,7 +72,7 @@ export async function getDb(): Promise<DB> {
 
     const encryptionKey = await getOrCreateDbKey();
     db = open({ name: DB_NAME, encryptionKey });
-    console.debug('Database opened');
+    logger.debug('Database opened');
 
     initializeSchema();
     return db;
@@ -81,7 +82,7 @@ export function closeDb(): void {
     if (db) {
         db.close();
         db = null;
-        console.debug('Database closed');
+        logger.debug('Database closed');
     }
 }
 
@@ -103,7 +104,7 @@ function initializeSchema(): void {
         return;
     }
 
-    console.debug('Initializing database schema version', SCHEMA_VERSION);
+    logger.debug('Initializing database schema version', SCHEMA_VERSION);
 
     // Messages table - matches the `message` interface from reducers
     database.executeSync(`
@@ -164,7 +165,7 @@ function initializeSchema(): void {
         database.executeSync('UPDATE schema_version SET version = ?', [SCHEMA_VERSION]);
     }
 
-    console.debug('Database schema initialized');
+    logger.debug('Database schema initialized');
 }
 
 // Messages
@@ -207,7 +208,7 @@ export function dbGetMessages(conversationId: string, limit = DB_MSG_PAGE_SIZE, 
          ORDER BY datetime(sent_at) DESC LIMIT ? OFFSET ?`,
         [conversationId, limit, offset],
     );
-    console.debug('Loaded', result.rows.length, 'messages from database');
+    logger.debug('Loaded', result.rows.length, 'messages from database');
     return (result.rows || []).map(row => ({
         id: row.id as number,
         message: row.message as string,

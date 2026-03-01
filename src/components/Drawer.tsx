@@ -12,6 +12,7 @@ import { SECONDARY, SECONDARY_LITE, KeypairAlgorithm, DARKHEADER, PRIMARY } from
 import { logOut } from '~/store/actions/auth';
 import { publicKeyFingerprint } from '~/global/crypto';
 import { formatBytes, getAvatar } from '~/global/helper';
+import { logger } from '~/global/logger';
 import { AppDispatch, RootState } from '~/store/store';
 
 const GITHUB_URL = 'https://github.com/reznik99/FoxTrot-FrontEnd';
@@ -47,7 +48,7 @@ export default function Drawer(props: DrawerContentComponentProps) {
             const code = await publicKeyFingerprint(state.user_data.public_key || '');
             setSecurityCode(code);
         } catch (err) {
-            console.error(err);
+            logger.error(err);
         }
     }, [state.user_data]);
 

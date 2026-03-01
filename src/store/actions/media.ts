@@ -6,6 +6,7 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 import { API_URL } from '~/global/variables';
 import { encryptFile, decryptFile } from '~/global/crypto';
 import { formatBytes } from '~/global/helper';
+import { logger } from '~/global/logger';
 import { AppDispatch, RootState } from '~/store/store';
 
 const createDefaultAsyncThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: AppDispatch }>();
@@ -72,9 +73,9 @@ export async function evictMediaCache(): Promise<void> {
             await RNFS.unlink(file.path);
             freed += file.size || 0;
         }
-        console.debug(`Media cache eviction: freed ${formatBytes(freed)}`);
+        logger.debug(`Media cache eviction: freed ${formatBytes(freed)}`);
     } catch (err) {
-        console.error('Media cache eviction failed:', err);
+        logger.error('Media cache eviction failed:', err);
     }
 }
 

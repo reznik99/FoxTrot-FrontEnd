@@ -2,6 +2,7 @@ import { createMMKV, type MMKV } from 'react-native-mmkv';
 import * as Keychain from 'react-native-keychain';
 import QuickCrypto from 'react-native-quick-crypto';
 import { Buffer } from 'buffer';
+import { logger } from '~/global/logger';
 
 const MMKV_KEY_SERVICE = 'foxtrot-mmkv-key';
 
@@ -18,7 +19,7 @@ async function getMmkvKey(): Promise<string | null> {
             return credentials.password;
         }
     } catch (err) {
-        console.debug('No existing MMKV key found');
+        logger.debug('No existing MMKV key found');
     }
     return null;
 }
@@ -32,7 +33,7 @@ async function createMmkvKey(): Promise<string> {
         storage: Keychain.STORAGE_TYPE.AES_GCM_NO_AUTH,
     });
 
-    console.debug('Generated and stored new MMKV encryption key');
+    logger.debug('Generated and stored new MMKV encryption key');
     return key;
 }
 
@@ -63,7 +64,7 @@ async function getStorage(): Promise<MMKV> {
                 id: 'foxtrot-storage',
                 encryptionKey: existingKey,
             });
-            console.debug('MMKV storage opened with encryption');
+            logger.debug('MMKV storage opened with encryption');
         } else {
             // No key exists - fresh install or needs migration
             // Open unencrypted first to preserve any existing data
@@ -75,7 +76,7 @@ async function getStorage(): Promise<MMKV> {
 
             // Encrypt storage (migrates existing data if any)
             storage.recrypt(newKey);
-            console.debug(
+            logger.debug(
                 hasExistingData ? 'MMKV storage migrated to encrypted' : 'MMKV storage initialized with encryption',
             );
         }

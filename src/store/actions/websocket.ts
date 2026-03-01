@@ -9,6 +9,7 @@ import Toast from 'react-native-toast-message';
 
 import { AppDispatch, GetState } from '../store';
 import { getAvatar } from '~/global/helper';
+import { logger } from '~/global/logger';
 
 export interface SocketData {
     cmd: 'MSG' | 'CALL_OFFER' | 'CALL_ICE_CANDIDATE' | 'CALL_ANSWER';
@@ -110,7 +111,7 @@ export function resetCallState() {
             dispatch({ type: 'user/RECV_CALL_ANSWER', payload: undefined });
             dispatch({ type: 'user/RECV_CALL_OFFER', payload: undefined });
         } catch (err) {
-            console.warn('Error resetCallState: ', err);
+            logger.warn('Error resetCallState: ', err);
         }
     };
 }
@@ -139,7 +140,7 @@ function connectWebsocket() {
             ws.onmessage = event => handleSocketMessage(event.data, dispatch, getState);
             dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: ws });
         } catch (err) {
-            console.error('Error establishing websocket:', err);
+            logger.error('Error establishing websocket:', err);
             dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'reconnecting' });
             scheduleReconnect(dispatch);
         }
@@ -150,7 +151,7 @@ async function scheduleReconnect(dispatch: AppDispatch) {
     clearReconnectTimer();
 
     if (mgr.reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
-        console.warn('Max reconnect attempts reached');
+        logger.warn('Max reconnect attempts reached');
         dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
         dispatch({ type: 'user/WEBSOCKET_ERROR', payload: 'Unable to reconnect. Please check your connection.' });
         Toast.show({
@@ -165,7 +166,7 @@ async function scheduleReconnect(dispatch: AppDispatch) {
     // No point retrying without internet — NetInfo listener will reconnect when network returns
     const netState = await NetInfo.fetch();
     if (!netState.isConnected) {
-        console.debug('No network, waiting for connectivity');
+        logger.debug('No network, waiting for connectivity');
         return;
     }
 
@@ -173,7 +174,7 @@ async function scheduleReconnect(dispatch: AppDispatch) {
     const jitter = delay * 0.2 * (Math.random() * 2 - 1);
     const finalDelay = Math.round(delay + jitter);
 
-    console.debug(`Reconnect ${mgr.reconnectAttempt + 1}/${MAX_RECONNECT_ATTEMPTS} in ${finalDelay}ms`);
+    logger.debug(`Reconnect ${mgr.reconnectAttempt + 1}/${MAX_RECONNECT_ATTEMPTS} in ${finalDelay}ms`);
     mgr.reconnectAttempt++;
 
     mgr.reconnectTimer = setTimeout(() => {
@@ -186,7 +187,7 @@ async function scheduleReconnect(dispatch: AppDispatch) {
 
 function handleAppStateChange(nextState: string, dispatch: AppDispatch, getState: GetState) {
     if (nextState === 'background') {
-        console.debug('App backgrounded, closing socket');
+        logger.debug('App backgrounded, closing socket');
         const { socketConn } = getState().userReducer;
         if (socketConn && socketConn.readyState === WebSocket.OPEN) {
             mgr.intentionalClose = true;
@@ -194,7 +195,7 @@ function handleAppStateChange(nextState: string, dispatch: AppDispatch, getState
         }
     } else if (nextState === 'active') {
         if (isSocketDead(getState)) {
-            console.debug('App foregrounded, reconnecting');
+            logger.debug('App foregrounded, reconnecting');
             reconnectNow(dispatch);
         }
     }
@@ -210,7 +211,7 @@ function handleNetInfoChange(state: NetInfoState, dispatch: AppDispatch, getStat
     }
 
     if (wasConnected === false && isSocketDead(getState)) {
-        console.debug('Network restored, reconnecting WebSocket');
+        logger.debug('Network restored, reconnecting WebSocket');
         reconnectNow(dispatch);
     }
 }
@@ -218,7 +219,7 @@ function handleNetInfoChange(state: NetInfoState, dispatch: AppDispatch, getStat
 // --- WebSocket event handlers ---
 
 function handleSocketOpen(dispatch: AppDispatch) {
-    console.debug('Socket to server opened successfully');
+    logger.debug('Socket to server opened successfully');
     mgr.intentionalClose = false;
     mgr.reconnectAttempt = 0;
     dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'connected' });
@@ -233,7 +234,7 @@ function handleSocketOpen(dispatch: AppDispatch) {
 }
 
 function handleSocketClose(dispatch: AppDispatch) {
-    console.debug('WebSocket closed');
+    logger.debug('WebSocket closed');
     dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: null });
 
     if (mgr.intentionalClose) {
@@ -248,7 +249,7 @@ function handleSocketClose(dispatch: AppDispatch) {
 
 function handleSocketError(err: any, dispatch: AppDispatch) {
     const message = err?.message || err?.type || 'Connection error';
-    console.error('WebSocket error:', message);
+    logger.error('WebSocket error:', message);
     dispatch({ type: 'user/WEBSOCKET_ERROR', payload: message });
 }
 
@@ -270,7 +271,7 @@ function handleSocketMessage(data: any, dispatch: AppDispatch, getState: GetStat
                 });
                 break;
             case 'CALL_OFFER':
-                console.debug('Websocket CALL_OFFER Recieved', parsedData.data?.sender);
+                logger.debug('Websocket CALL_OFFER Recieved', parsedData.data?.sender);
 
                 const userState = getState().userReducer;
                 let caller = userState.contacts.find(con => con.phone_no === parsedData.data.sender);
@@ -306,17 +307,17 @@ function handleSocketMessage(data: any, dispatch: AppDispatch, getState: GetStat
                 });
                 break;
             case 'CALL_ANSWER':
-                console.debug('Websocket CALL_ANSWER Recieved', parsedData.data?.sender);
+                logger.debug('Websocket CALL_ANSWER Recieved', parsedData.data?.sender);
                 dispatch({ type: 'user/RECV_CALL_ANSWER', payload: parsedData.data?.answer });
                 break;
             case 'CALL_ICE_CANDIDATE':
-                console.debug('Websocket RECV_CALL_ICE_CANDIDATE Recieved', parsedData.data?.sender);
+                logger.debug('Websocket RECV_CALL_ICE_CANDIDATE Recieved', parsedData.data?.sender);
                 dispatch({ type: 'user/RECV_CALL_ICE_CANDIDATE', payload: parsedData.data?.candidate });
                 break;
             default:
-                console.debug('Websocket RECV unknown command from', parsedData.data?.sender, parsedData.cmd);
+                logger.debug('Websocket RECV unknown command from', parsedData.data?.sender, parsedData.cmd);
         }
     } catch (err: any) {
-        console.error('Websocket RECV error:', err);
+        logger.error('Websocket RECV error:', err);
     }
 }

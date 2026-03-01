@@ -12,7 +12,7 @@ import RNFS from 'react-native-fs';
 import { Buffer } from 'buffer';
 
 import { API_URL, DARKHEADER, KeychainOpts, PRIMARY, SaltLenGCM, SaltLenPBKDF2 } from '~/global/variables';
-import { showErrorPortal } from '~/global/logger';
+import { logger, showErrorPortal } from '~/global/logger';
 import DeviceInfo from 'react-native-device-info';
 import { getReadExtPermission, getWriteExtPermission } from '~/global/permissions';
 import { deriveKeyFromPassword, exportKeypair } from '~/global/crypto';
@@ -50,10 +50,10 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
         readFromStorage(StorageKeys.AUTO_EVICT_CACHE).then(val => setAutoEvict(val !== 'false'));
         Keychain.hasInternetCredentials({ server: API_URL, service: `${user_data.phone_no}-keys` })
             .then(_hasKeys => setHasIdentityKeys(Boolean(_hasKeys)))
-            .catch(err => console.error('Error checking TPM for keys:', err));
+            .catch(err => logger.error('Error checking TPM for keys:', err));
         Keychain.hasGenericPassword({ server: API_URL, service: `${user_data.phone_no}-credentials` })
             .then(_hasPwd => setHasPassword(Boolean(_hasPwd)))
-            .catch(err => console.error('Error checking TPM for password:', err));
+            .catch(err => logger.error('Error checking TPM for password:', err));
     }, [user_data]);
 
     useEffect(() => {
@@ -104,7 +104,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                 throw new Error('Permission to read from external storage denied');
             }
             // Read encrypted key file
-            console.debug('Reading Encrypted keypair file...');
+            logger.debug('Reading Encrypted keypair file...');
             const [fileSelected] = await pick({ type: types.plainText, mode: 'open' });
             if (!fileSelected.uri) {
                 throw new Error('Failed to pick file:' + fileSelected.error || 'unknown');
@@ -113,12 +113,12 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
             const file = await RNFS.readFile(fileSelected.uri);
 
             // Parse PBKDF2 no. of iterations, salt, IV and Ciphertext and re-generate encryption key
-            console.debug('Deriving key encryption key from password...');
+            logger.debug('Deriving key encryption key from password...');
             const [_, iter, salt, iv, ciphertext] = file.split('\n');
             const derivedKEK = await deriveKeyFromPassword(encPassword, Buffer.from(salt, 'base64'), parseInt(iter, 10));
 
             // Decrypt Keypair
-            console.debug('Decrypting keypair file...');
+            logger.debug('Decrypting keypair file...');
             let Ikeys = new ArrayBuffer();
             try {
                 Ikeys = await QuickCrypto.subtle.decrypt(
@@ -127,12 +127,12 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                     Buffer.from(ciphertext, 'base64'),
                 );
             } catch (err) {
-                console.error('Decryption error: Invalid password or corrupted file:', err);
+                logger.error('Decryption error: Invalid password or corrupted file:', err);
                 throw new Error('Decryption error: Invalid password or corrupted file');
             }
 
             // Store on device
-            console.debug('Saving keys into TPM...');
+            logger.debug('Saving keys into TPM...');
             await Keychain.setInternetCredentials(API_URL, `${user_data.phone_no}-keys`, Buffer.from(Ikeys).toString(), {
                 storage: Keychain.STORAGE_TYPE.AES_GCM_NO_AUTH,
                 server: API_URL,
@@ -140,7 +140,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
             });
 
             // Load into redux store
-            console.debug('Loading keys into App...');
+            logger.debug('Loading keys into App...');
             const success = await dispatch(loadKeys()).unwrap();
             if (!success) {
                 throw new Error('Failed to load imported keys into app');
@@ -149,7 +149,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
             // TODO: Validate that public key locally matches public key on Key Server.
 
             // Reload contacts to re-generate per-conversation encryption keys (ECDH)
-            console.debug('Regenerating Conversation encryption keys...');
+            logger.debug('Regenerating Conversation encryption keys...');
             await dispatch(loadContacts({ atomic: true }));
 
             Toast.show({
@@ -159,7 +159,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                 visibilityTime: 6000,
             });
         } catch (err: any) {
-            console.error('Error importing user keys:', err);
+            logger.error('Error importing user keys:', err);
             Alert.alert('Failed to import keys', err.message ?? err.toString(), [{ text: 'OK', onPress: () => {} }]);
         } finally {
             setVisibleDialog('');
@@ -198,11 +198,11 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                 Buffer.from(iv).toString('base64') +
                 '\n' +
                 Buffer.from(encryptedIKeys).toString('base64');
-            console.debug('File: \n', file);
+            logger.debug('File: \n', file);
 
             const hasPermission = await getWriteExtPermission();
             if (!hasPermission) {
-                console.error('Permission to write to external storage denied');
+                logger.error('Permission to write to external storage denied');
                 return;
             }
 
@@ -217,7 +217,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                 visibilityTime: 6000,
             });
         } catch (err: any) {
-            console.error('Error exporting user keys:', err);
+            logger.error('Error exporting user keys:', err);
             Alert.alert('Failed to export keys', err.message ?? err.toString(), [{ text: 'OK', onPress: () => {} }]);
         } finally {
             setVisibleDialog('');
@@ -386,7 +386,12 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                     Diagnostics
                 </Text>
                 <View style={{ marginBottom: 10 }}>
-                    <Text variant="bodyLarge">App Logs</Text>
+                    <Text variant="bodyLarge">
+                        App Logs{'  '}
+                        <Text variant="bodySmall" style={{ color: '#666' }}>
+                            v{DeviceInfo.getVersion()} ({DeviceInfo.getBuildNumber()})
+                        </Text>
+                    </Text>
                     <Text variant="bodySmall" style={{ color: '#999', marginBottom: 10 }}>
                         View recent application logs for troubleshooting. Logs are stored in memory and cleared on app
                         restart.
@@ -394,11 +399,6 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                     <Button mode="contained-tonal" icon="text-box-search" onPress={() => showErrorPortal('Diagnostics')}>
                         View Logs
                     </Button>
-                </View>
-                <View>
-                    <Text variant="bodySmall" style={{ color: '#666' }}>
-                        v{DeviceInfo.getVersion()} ({DeviceInfo.getBuildNumber()})
-                    </Text>
                 </View>
 
                 <Divider style={{ marginVertical: 15 }} />

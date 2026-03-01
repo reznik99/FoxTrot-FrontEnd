@@ -16,6 +16,7 @@ import { getCameraAndMicrophonePermissions } from '~/global/permissions';
 import { DARKHEADER, SECONDARY, SECONDARY_LITE } from '~/global/variables';
 import { sendMessage } from '~/store/actions/user';
 import { uploadMedia } from '~/store/actions/media';
+import { logger } from '~/global/logger';
 import { HomeStackParamList } from '~/../App';
 import { AppDispatch } from '~/store/store';
 
@@ -47,7 +48,7 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
 
     const requestPermissions = useCallback(async () => {
         try {
-            console.debug('Requesting camera permissions');
+            logger.debug('Requesting camera permissions');
             const permission = await getCameraAndMicrophonePermissions();
             if (!permission) {
                 Toast.show({
@@ -60,7 +61,7 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
             setHasPermission(true);
             return true;
         } catch (err) {
-            console.error('Error requesting camera permissions:', err);
+            logger.error('Error requesting camera permissions:', err);
             return false;
         }
     }, []);
@@ -93,7 +94,7 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
             const pic = await cameraRef.current.takePhoto({ enableAutoDistortionCorrection: true });
             setMedia(`file://${pic.path}`);
         } catch (err) {
-            console.error('Error taking image:', err);
+            logger.error('Error taking image:', err);
         } finally {
             setLoading(false);
         }
@@ -130,17 +131,17 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
 
             if (isVideo) {
                 // Compress video before upload
-                console.debug('Compressing video...');
+                logger.debug('Compressing video...');
                 filePath = await VideoCompressor.compress(media, {
                     compressionMethod: 'auto',
                 });
                 contentType = 'video/mp4';
-                console.debug('Video compressed:', filePath);
+                logger.debug('Video compressed:', filePath);
             }
 
             // Generate thumbnail and upload encrypted file in parallel
             const thumbnailPromise = generateThumbnail(media, isVideo).catch(err => {
-                console.warn('Failed to generate thumbnail, sending without preview:', err);
+                logger.warn('Failed to generate thumbnail, sending without preview:', err);
                 return undefined;
             });
             const uploadPromise = dispatch(uploadMedia({ filePath, contentType })).unwrap();
@@ -164,7 +165,7 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
                 props.navigation.goBack();
             }
         } catch (err: any) {
-            console.error('Error sending media:', err);
+            logger.error('Error sending media:', err);
             Toast.show({
                 type: 'error',
                 text1: 'Failed to send media',

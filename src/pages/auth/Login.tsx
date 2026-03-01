@@ -12,6 +12,7 @@ import { API_URL, KeychainOpts, PRIMARY } from '~/global/variables';
 import { milliseconds, millisecondsSince } from '~/global/helper';
 import PasswordInput from '~/components/PasswordInput';
 import { RootState, store } from '~/store/store';
+import { logger } from '~/global/logger';
 import { AuthStackParamList } from '~/../App';
 import styles from './style';
 
@@ -43,7 +44,7 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
             if (props.route.params?.data?.errorMsg) {
                 Alert.alert('Unable to Login', props.route.params?.data?.errorMsg, [{ text: 'OK', onPress: () => {} }]);
             }
-            return console.debug('User logged out');
+            return logger.debug('User logged out');
         }
         // Read user info from storage
         readStorage();
@@ -62,7 +63,7 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
                 }
             }
         } catch (err) {
-            console.error('Error on auto-login:', err);
+            logger.error('Error on auto-login:', err);
         } finally {
             setGlobalLoading(false);
         }
@@ -79,7 +80,7 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
             // TODO: place token in store
             const tokenIsValid = await store.dispatch(validateToken(creds.auth_token)).unwrap();
             if (tokenIsValid) {
-                console.debug('JWT auth token still valid, skipping login...');
+                logger.debug('JWT auth token still valid, skipping login...');
                 props.navigation.replace('App');
                 return;
             }
@@ -90,7 +91,7 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
 
     const loadCredentials = async (user_name: string) => {
         try {
-            console.debug('Loading credentials from secure storage');
+            logger.debug('Loading credentials from secure storage');
             const res = await Keychain.getGenericPassword({
                 server: API_URL,
                 service: `${user_name}-credentials`,
@@ -104,7 +105,7 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
             const creds = JSON.parse(res.password);
             return { username: res.username, ...creds } as Credentials;
         } catch (err) {
-            console.error('Failed to load creds:', err);
+            logger.error('Failed to load creds:', err);
             return undefined;
         }
     };
@@ -117,7 +118,7 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
         Keyboard.dismiss();
         const loggedIn = await store.dispatch(logIn({ username: user_name, password: password_ })).unwrap();
         if (loggedIn) {
-            console.debug('Routing to home page');
+            logger.debug('Routing to home page');
             props.navigation.replace('App');
         }
     };

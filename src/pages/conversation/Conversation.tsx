@@ -13,7 +13,7 @@ import Sound from 'react-native-nitro-sound';
 import FullScreenMedia from '~/components/FullScreenMedia';
 import AudioPlayer from '~/components/AudioPlayer';
 import Messaging from '~/components/Messaging';
-import { DARKHEADER, PRIMARY, SECONDARY, DB_MSG_PAGE_SIZE } from '~/global/variables';
+import { PRIMARY, SECONDARY, DB_MSG_PAGE_SIZE } from '~/global/variables';
 import { decrypt } from '~/global/crypto';
 
 import {
@@ -462,9 +462,12 @@ class Message extends PureComponent<MProps, MState> {
                         );
                     }
                     return (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', padding: 10, gap: 8 }}>
-                            <Icon source="download" color="#fff" size={24} />
-                            <Text style={styles.text}>Audio ({Sound.mmssss(Math.floor(item.duration || 0))})</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 200 }}>
+                            <Icon source="download" color={PRIMARY} size={28} />
+                            <View>
+                                <Text style={styles.text}>Audio message</Text>
+                                <Text style={{ color: '#969393', fontSize: 12 }}>{Sound.mmssss(Math.floor(item.duration || 0))}</Text>
+                            </View>
                         </View>
                     );
                 }
@@ -599,9 +602,9 @@ class Message extends PureComponent<MProps, MState> {
                     )}
                     {/* Encrypted placeholder */}
                     {isEncrypted && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 }}>
-                            <Icon source="shield-lock" color={isSent ? DARKHEADER : PRIMARY} size={18} />
-                            <Text style={{ color: '#ccc', fontSize: 13 }}>Tap to decrypt</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 4 }}>
+                            <Icon source="shield-lock" color={isSent ? '#ffffffcc' : PRIMARY} size={20} />
+                            <Text style={{ color: isSent ? '#ffffffcc' : '#ccc', fontSize: 14 }}>Tap to decrypt</Text>
                         </View>
                     )}
                     {/* Message */}
@@ -651,10 +654,6 @@ const styles = StyleSheet.create({
     sent: {
         alignSelf: 'flex-end',
         backgroundColor: PRIMARY,
-    },
-    system: {
-        alignSelf: 'center',
-        backgroundColor: 'gray',
     },
     messageTime: {
         color: '#969393',

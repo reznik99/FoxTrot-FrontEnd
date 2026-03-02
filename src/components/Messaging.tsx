@@ -6,7 +6,7 @@ import Sound, { AudioSet, AudioEncoderAndroidType } from 'react-native-nitro-sou
 
 import CustomKeyboardAvoidingView from '~/components/CustomKeyboardAvoidingView';
 import { getMicrophoneRecordingPermission, getReadExtPermission } from '~/global/permissions';
-import { DARKHEADER, PRIMARY, SECONDARY_LITE } from '~/global/variables';
+import { DARKHEADER, ERROR_RED, PRIMARY, SECONDARY_LITE } from '~/global/variables';
 import { logger } from '~/global/logger';
 
 type IProps = {
@@ -26,6 +26,7 @@ export default function Messaging(props: IProps) {
     const [audioRecordTime, setAudioRecordTime] = useState(0);
     const [audioPlaybackTime, setAudioPlaybackTime] = useState(0);
     const [playingAudio, setPlayingAudio] = useState(false);
+    const [recording, setRecording] = useState(false);
 
     const setInputMessage = useCallback(
         (text: string) => {
@@ -69,6 +70,7 @@ export default function Messaging(props: IProps) {
             };
             const result = await Sound.startRecorder(undefined, audioConfig);
             setAudioFilePath(result);
+            setRecording(true);
             logger.info('Recording started:', result);
         } catch (err) {
             logger.error(err);
@@ -80,6 +82,7 @@ export default function Messaging(props: IProps) {
             // Stop recording
             await Sound.stopRecorder();
             Sound.removeRecordBackListener();
+            setRecording(false);
         } catch (err) {
             logger.error(err);
         }
@@ -121,31 +124,38 @@ export default function Messaging(props: IProps) {
             {/* Audio data controls */}
             {audioFilePath && (
                 <View style={styles.audioContainer}>
-                    <View style={styles.inputContainer}>
-                        <TouchableOpacity style={styles.button} onPress={resetAudio}>
-                            <Icon source="close" color={SECONDARY_LITE} size={20} />
-                        </TouchableOpacity>
-                        <Text>Duration: {Sound.mmssss(audioPlaybackTime ? ~~audioPlaybackTime : ~~audioRecordTime)}</Text>
-                        {playingAudio ? (
-                            <TouchableOpacity style={styles.button} onPress={stopAudio}>
-                                <Icon source="pause" color={PRIMARY} size={20} />
+                    {recording ? (
+                        <View style={styles.audioRow}>
+                            <Icon source="microphone" color="#e53935" size={18} />
+                            <Text style={styles.recordingLabel}>Recording</Text>
+                            <Text style={styles.audioDuration}>{Sound.mmssss(~~audioRecordTime)}</Text>
+                        </View>
+                    ) : (
+                        <View style={styles.audioRow}>
+                            <TouchableOpacity onPress={playingAudio ? stopAudio : playAudio} hitSlop={8}>
+                                <Icon source={playingAudio ? 'pause' : 'play'} color={PRIMARY} size={20} />
                             </TouchableOpacity>
-                        ) : (
-                            <TouchableOpacity style={styles.button} onPress={playAudio}>
-                                <Icon source="play" color={PRIMARY} size={20} />
+                            <View style={styles.audioTrack}>
+                                <View
+                                    style={[
+                                        styles.audioFill,
+                                        {
+                                            width:
+                                                audioRecordTime > 0
+                                                    ? `${(audioPlaybackTime / audioRecordTime) * 100}%`
+                                                    : '0%',
+                                        },
+                                    ]}
+                                />
+                            </View>
+                            <Text style={styles.audioDuration}>
+                                {Sound.mmssss(audioPlaybackTime ? ~~audioPlaybackTime : ~~audioRecordTime)}
+                            </Text>
+                            <TouchableOpacity onPress={resetAudio} hitSlop={8}>
+                                <Icon source="close" color={SECONDARY_LITE} size={18} />
                             </TouchableOpacity>
-                        )}
-                    </View>
-                    {/* Audio playback indicator */}
-                    <View style={{ width: '75%' }}>
-                        <View
-                            style={{
-                                width: `${(audioPlaybackTime / audioRecordTime) * 100}%`,
-                                height: 2,
-                                backgroundColor: playingAudio ? PRIMARY : 'transparent',
-                            }}
-                        />
-                    </View>
+                        </View>
+                    )}
                 </View>
             )}
             {/* Messaging controls */}
@@ -193,10 +203,35 @@ export default function Messaging(props: IProps) {
 
 const styles = StyleSheet.create({
     audioContainer: {
-        flexDirection: 'column',
-        alignItems: 'center',
-        paddingVertical: 2,
+        paddingVertical: 8,
+        paddingHorizontal: 26,
         backgroundColor: DARKHEADER,
+    },
+    audioRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        height: 28,
+        gap: 10,
+    },
+    recordingLabel: {
+        flex: 1,
+        color: ERROR_RED,
+        fontSize: 13,
+    },
+    audioTrack: {
+        flex: 1,
+        height: 3,
+        borderRadius: 1.5,
+        backgroundColor: '#ffffff30',
+    },
+    audioFill: {
+        height: 3,
+        borderRadius: 1.5,
+        backgroundColor: PRIMARY,
+    },
+    audioDuration: {
+        color: '#ccc',
+        fontSize: 12,
     },
     inputContainer: {
         flexDirection: 'row',

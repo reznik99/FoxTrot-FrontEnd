@@ -1,4 +1,4 @@
-import { PRIMARY, SECONDARY_LITE } from '~/global/variables';
+import { ONLINE_GREEN, PRIMARY, SECONDARY_LITE } from '~/global/variables';
 
 export const milliseconds = {
     second: 1_000,
@@ -43,7 +43,7 @@ export function onlineStatus(peer: { online?: boolean; last_seen?: number }): {
     label: string;
 } {
     if (peer.online) {
-        return { color: '#039111ff', label: 'Online' };
+        return { color: ONLINE_GREEN, label: 'Online' };
     } else if (peer.last_seen && Date.now() - peer.last_seen < milliseconds.hour) {
         return { color: PRIMARY, label: 'Recently active' };
     }

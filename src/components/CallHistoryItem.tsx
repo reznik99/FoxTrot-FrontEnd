@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { Avatar, Checkbox, Icon } from 'react-native-paper';
 
-import { DARKHEADER, PRIMARY, SECONDARY_LITE } from '~/global/variables';
+import { DARKHEADER, ERROR_RED, PRIMARY, SECONDARY_LITE } from '~/global/variables';
 import { CallRecord } from '~/store/reducers/user';
 import { RootNavigation } from '~/store/actions/auth';
 import { humanTime } from '~/global/helper';
@@ -10,7 +10,7 @@ import globalStyle from '~/global/style';
 
 function getDirectionIcon(record: CallRecord): { icon: string; color: string } {
     if (record.status === 'missed') {
-        return { icon: 'phone-missed', color: '#e53935' };
+        return { icon: 'phone-missed', color: ERROR_RED };
     }
     if (record.direction === 'incoming') {
         return { icon: 'phone-incoming', color: '#43a047' };
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
         fontSize: 13,
     },
     missedText: {
-        color: '#e53935',
+        color: ERROR_RED,
     },
     timestamp: {
         color: SECONDARY_LITE,

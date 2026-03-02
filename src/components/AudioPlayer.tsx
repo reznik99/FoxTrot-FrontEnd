@@ -4,7 +4,7 @@ import { Icon, Text } from 'react-native-paper';
 import Sound from 'react-native-nitro-sound';
 import RNFS, { CachesDirectoryPath } from 'react-native-fs';
 
-import { DARKHEADER, PRIMARY } from '~/global/variables';
+import { PRIMARY, TEXT_SECONDARY } from '~/global/variables';
 import { logger } from '~/global/logger';
 
 type IProps = {
@@ -56,30 +56,28 @@ export default function AudioPlayer(props: IProps) {
         }
     }, []);
 
+    const progress = props.audioDuration > 0 ? (audioPlaybackTime / props.audioDuration) * 100 : 0;
+
     return (
         <View style={styles.audioContainer}>
-            {/* Audio data controls */}
             <View style={styles.inputContainer}>
-                <Text>{Sound.mmssss(audioPlaybackTime ? ~~audioPlaybackTime : ~~props.audioDuration)}</Text>
                 {playingAudio ? (
                     <TouchableOpacity style={styles.button} onPress={stopAudio}>
-                        <Icon source="pause" color={PRIMARY} size={25} />
+                        <Icon source="pause" color={PRIMARY} size={28} />
                     </TouchableOpacity>
                 ) : (
                     <TouchableOpacity style={styles.button} onPress={playAudio}>
-                        <Icon source="play" color={PRIMARY} size={25} />
+                        <Icon source="play" color={PRIMARY} size={28} />
                     </TouchableOpacity>
                 )}
-            </View>
-            {/* Audio playback indicator */}
-            <View style={{ flex: 1 }}>
-                <View
-                    style={{
-                        width: `${(audioPlaybackTime / props.audioDuration) * 100}%`,
-                        height: 2,
-                        backgroundColor: playingAudio ? PRIMARY : 'transparent',
-                    }}
-                />
+                <View style={styles.progressContainer}>
+                    <View style={styles.progressTrack}>
+                        <View style={[styles.progressFill, { width: `${progress}%` }]} />
+                    </View>
+                    <Text style={styles.duration}>
+                        {Sound.mmssss(audioPlaybackTime ? ~~audioPlaybackTime : ~~props.audioDuration)}
+                    </Text>
+                </View>
             </View>
         </View>
     );
@@ -87,18 +85,32 @@ export default function AudioPlayer(props: IProps) {
 
 const styles = StyleSheet.create({
     audioContainer: {
-        flexDirection: 'column',
-        flex: 1,
-        paddingHorizontal: 10,
-        backgroundColor: DARKHEADER,
+        minWidth: 200,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-around',
-        paddingVertical: 0,
+        gap: 8,
     },
     button: {
-        padding: 10,
+        padding: 4,
+    },
+    progressContainer: {
+        flex: 1,
+        gap: 4,
+    },
+    progressTrack: {
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: '#ffffff30',
+    },
+    progressFill: {
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: PRIMARY,
+    },
+    duration: {
+        color: TEXT_SECONDARY,
+        fontSize: 12,
     },
 });

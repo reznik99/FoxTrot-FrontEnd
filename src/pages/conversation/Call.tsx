@@ -19,7 +19,7 @@ import {
     getIconForConnType,
     getRTCConfiguration,
 } from '~/global/webrtc';
-import { DARKHEADER } from '~/global/variables';
+import { DARKHEADER, DIVIDER, ERROR_RED } from '~/global/variables';
 import { readFromStorage, StorageKeys } from '~/global/storage';
 import { dbSaveCallRecord } from '~/global/database';
 import { resetCallState, SocketData } from '~/store/actions/websocket';
@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
         width: 160,
         height: 160,
         borderRadius: 80,
-        backgroundColor: '#333',
+        backgroundColor: DIVIDER,
     },
     peerName: {
         color: '#fff',
@@ -732,7 +732,7 @@ const styles = StyleSheet.create({
         aspectRatio: 9 / 16,
     },
     bgRed: {
-        backgroundColor: '#e53935',
+        backgroundColor: ERROR_RED,
     },
     bgGreen: {
         backgroundColor: '#4caf50',

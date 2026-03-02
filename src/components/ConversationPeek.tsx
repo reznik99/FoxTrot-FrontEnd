@@ -7,7 +7,7 @@ import { humanTime, onlineStatus } from '~/global/helper';
 import globalStyle from '~/global/style';
 import { addContact } from '~/store/actions/user';
 import { dbDeleteConversation } from '~/global/database';
-import { DARKHEADER, SECONDARY_LITE } from '~/global/variables';
+import { DARKHEADER, ERROR_RED, SECONDARY_LITE } from '~/global/variables';
 import { Conversation, DELETE_CONVERSATION, message } from '~/store/reducers/user';
 import { AppDispatch, RootState } from '~/store/store';
 import { RootNavigation } from '~/store/actions/auth';
@@ -186,7 +186,7 @@ export default function ConversationPeek(props: IProps) {
                         </Button>
                         <Button
                             mode="contained"
-                            buttonColor="#e53935"
+                            buttonColor={ERROR_RED}
                             onPress={onConfirmDelete}
                             style={{ paddingHorizontal: 15 }}
                         >

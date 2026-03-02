@@ -11,7 +11,7 @@ import { publicKeyFingerprint } from '~/global/crypto';
 import { RootState } from '~/store/store';
 import { UserData } from '~/store/reducers/user';
 import { HomeStackParamList } from '../../App';
-import { DARKHEADER, PRIMARY } from '~/global/variables';
+import { DARKHEADER, PRIMARY, TEXT_MUTED } from '~/global/variables';
 import { logger } from '~/global/logger';
 import { humanTime, onlineStatus } from '~/global/helper';
 import globalStyle from '~/global/style';
@@ -56,7 +56,7 @@ export default function HeaderConversation(props: IProps) {
     }, [securityCode]);
 
     return (
-        <View style={[styles.topBar, { paddingTop: edgeInsets.top, paddingHorizontal: edgeInsets.left }]}>
+        <View style={[styles.topBar, { paddingTop: edgeInsets.top + 6, paddingHorizontal: edgeInsets.left }]}>
             <View style={styles.backAndTitle}>
                 {allowBack ? (
                     <TouchableOpacity style={styles.button} onPress={() => navigation.goBack()}>
@@ -99,7 +99,7 @@ export default function HeaderConversation(props: IProps) {
                     <Dialog.Icon icon="shield-lock" color={PRIMARY} />
                     <Dialog.Title style={{ textAlign: 'center' }}>Security Code</Dialog.Title>
                     <Dialog.Content>
-                        <Text style={[globalStyle.dialogText, { textAlign: 'center', color: '#969393' }]}>
+                        <Text style={[globalStyle.dialogText, { textAlign: 'center', color: TEXT_MUTED }]}>
                             Verify this code matches on {data?.peer_user?.phone_no}'s device
                         </Text>
                         {securityCode.match(/.{1,24}/g)?.map((val, idx) => (
@@ -148,11 +148,11 @@ export default function HeaderConversation(props: IProps) {
                         </View>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                             <Text>Last seen</Text>
-                            <Text>{humanTime(contact?.last_seen || '0')}</Text>
+                            <Text>{humanTime(contact?.last_seen || 0)}</Text>
                         </View>
                         <View style={{ gap: 4 }}>
                             <Text>Identity Key</Text>
-                            <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#969393' }} selectable>
+                            <Text style={{ fontFamily: 'monospace', fontSize: 12, color: TEXT_MUTED }} selectable>
                                 {contact?.public_key || 'No key available'}
                             </Text>
                         </View>
@@ -190,37 +190,29 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         backgroundColor: DARKHEADER,
-        paddingBottom: 8,
+        paddingBottom: 6,
     },
     backAndTitle: {
         flexDirection: 'row',
-        justifyContent: 'flex-start',
         alignItems: 'center',
-        overflow: 'hidden',
+        flex: 1,
+        minWidth: 0,
     },
     topBarText: {
         color: '#fff',
         fontSize: 16,
+        flexShrink: 1,
     },
     buttonContainer: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     button: {
-        height: 50,
+        minWidth: 44,
+        minHeight: 44,
         padding: 10,
-        marginHorizontal: 5,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    rightFloat: {
-        justifyContent: 'flex-end',
-    },
-    padded: {
-        paddingHorizontal: 15,
-    },
-    wider: {
-        overflow: 'visible',
     },
     profileBtn: {
         flexDirection: 'row',

@@ -67,7 +67,9 @@ export default function Drawer(props: DrawerContentComponentProps) {
                         <TouchableRipple onPress={() => Linking.openURL(GITHUB_URL)}>
                             <View style={styles.versionRow}>
                                 <Icon source="github" size={20} color={colors.primary} />
-                                <Text style={styles.version}>v{DeviceInfo.getVersion()} ({DeviceInfo.getBuildNumber()})</Text>
+                                <Text style={styles.version}>
+                                    v{DeviceInfo.getVersion()} ({DeviceInfo.getBuildNumber()})
+                                </Text>
                             </View>
                         </TouchableRipple>
                     </View>

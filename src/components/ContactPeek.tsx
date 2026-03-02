@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { Avatar, IconButton, MD2Colors as Colors, ActivityIndicator, useTheme } from 'react-native-paper';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { IconButton, MD2Colors as Colors, ActivityIndicator, useTheme } from 'react-native-paper';
 
+import AvatarWithStatus from '~/components/AvatarWithStatus';
 import globalStyle from '../global/style';
-import { DARKHEADER } from '~/global/variables';
+import { SECONDARY } from '~/global/variables';
 import { UserData } from '~/store/reducers/user';
 
 interface IProps {
@@ -18,7 +19,9 @@ export default function ContactPeek({ data, onSelect, loading, isContact }: IPro
 
     return (
         <TouchableOpacity style={styles.profilePeek} onPress={onSelect}>
-            <Avatar.Image size={55} source={{ uri: data.pic }} style={styles.profilePicContainer} />
+            <View style={{ marginRight: 20 }}>
+                <AvatarWithStatus user={data} size={55} borderColor={SECONDARY} />
+            </View>
 
             <View style={{ flex: 1 }}>
                 <Text style={globalStyle.textInfo}>{data.phone_no}</Text>
@@ -40,10 +43,5 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         padding: 10,
-    },
-    profilePicContainer: {
-        overflow: 'hidden',
-        backgroundColor: DARKHEADER,
-        marginRight: 20,
     },
 });

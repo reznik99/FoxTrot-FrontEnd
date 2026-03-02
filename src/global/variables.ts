@@ -32,7 +32,14 @@ export const KeychainOpts = {
 };
 
 // App colors
-export const PRIMARY = '#3672eb'; // '#199187';
+export const PRIMARY = '#3672eb';
+export const COLOR_PRESETS = [
+    { name: 'Blue', color: '#3672eb' },
+    { name: 'Teal', color: '#009688' },
+    { name: 'Green', color: '#43A047' },
+    { name: 'Purple', color: '#7C4DFF' },
+    { name: 'Orange', color: '#FF9800' },
+];
 export const SECONDARY = '#1b1c1f';
 export const SECONDARY_LITE = '#aaa';
 export const ACCENT = '#6227e3';
@@ -42,6 +49,7 @@ export const TEXT_MUTED = '#969393';
 export const TEXT_SECONDARY = '#ccc';
 export const DIVIDER = '#333';
 export const ONLINE_GREEN = '#039111ff';
+export const RECENTLY_ACTIVE = '#E0A500';
 // Call Vibration pattern
 export const VibratePattern = [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000];
 // Messages read from db per conversation

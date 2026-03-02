@@ -151,7 +151,7 @@ export default function CallHistory() {
                         onLongPress={onLongPress}
                     />
                 )}
-                renderSectionHeader={({ section: { title } }) => <Text style={localStyles.sectionHeader}>{title}</Text>}
+                renderSectionHeader={({ section: { title } }) => <Text style={styles.sectionHeader}>{title}</Text>}
                 ItemSeparatorComponent={Divider}
                 ListEmptyComponent={
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 }}>
@@ -202,7 +202,7 @@ export default function CallHistory() {
     );
 }
 
-const localStyles = StyleSheet.create({
+const styles = StyleSheet.create({
     sectionHeader: {
         color: SECONDARY_LITE,
         fontSize: 13,

@@ -94,6 +94,7 @@ export const StorageKeys = {
     SCREEN_SECURITY: 'screen-security',
     AUTO_EVICT_CACHE: 'auto-evict-cache',
     CALL_ANSWERED_IN_BACKGROUND: 'call_answered_in_background',
+    PRIMARY_COLOR: 'primary-color',
 } as const;
 
 export async function writeToStorage(key: string, value: string): Promise<void> {

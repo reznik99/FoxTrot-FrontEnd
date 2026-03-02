@@ -1,12 +1,12 @@
 import React, { useCallback, useState } from 'react';
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import { ActivityIndicator, Icon, Text } from 'react-native-paper';
+import { ActivityIndicator, Icon, Text, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Sound, { AudioSet, AudioEncoderAndroidType } from 'react-native-nitro-sound';
 
 import CustomKeyboardAvoidingView from '~/components/CustomKeyboardAvoidingView';
 import { getMicrophoneRecordingPermission, getReadExtPermission } from '~/global/permissions';
-import { DARKHEADER, ERROR_RED, PRIMARY, SECONDARY_LITE, TEXT_SECONDARY } from '~/global/variables';
+import { DARKHEADER, ERROR_RED, SECONDARY_LITE, TEXT_SECONDARY } from '~/global/variables';
 import { logger } from '~/global/logger';
 
 type IProps = {
@@ -20,6 +20,7 @@ type IProps = {
 };
 
 export default function Messaging(props: IProps) {
+    const { colors } = useTheme();
     const edgeInsets = useSafeAreaInsets();
     const [expandActions, setExpandActions] = useState(false);
     const [audioFilePath, setAudioFilePath] = useState('');
@@ -133,13 +134,14 @@ export default function Messaging(props: IProps) {
                     ) : (
                         <View style={styles.audioRow}>
                             <TouchableOpacity onPress={playingAudio ? stopAudio : playAudio} hitSlop={8}>
-                                <Icon source={playingAudio ? 'pause' : 'play'} color={PRIMARY} size={20} />
+                                <Icon source={playingAudio ? 'pause' : 'play'} color={colors.primary} size={20} />
                             </TouchableOpacity>
                             <View style={styles.audioTrack}>
                                 <View
                                     style={[
                                         styles.audioFill,
                                         {
+                                            backgroundColor: colors.primary,
                                             width:
                                                 audioRecordTime > 0
                                                     ? `${(audioPlaybackTime / audioRecordTime) * 100}%`
@@ -161,21 +163,21 @@ export default function Messaging(props: IProps) {
             {/* Messaging controls */}
             <View style={[styles.inputContainer, { paddingBottom: edgeInsets.bottom, paddingHorizontal: edgeInsets.left }]}>
                 <TouchableOpacity style={styles.button} onPress={props.handleCameraSelect}>
-                    <Icon source="camera" color={PRIMARY} size={20} />
+                    <Icon source="camera" color={colors.primary} size={20} />
                 </TouchableOpacity>
                 {expandActions && (
                     <TouchableOpacity style={styles.button} onPress={props.handleImageSelect}>
-                        <Icon source="image" color={PRIMARY} size={20} />
+                        <Icon source="image" color={colors.primary} size={20} />
                     </TouchableOpacity>
                 )}
                 {expandActions && (
                     <TouchableOpacity style={styles.button} onPressIn={onMicPress} onPressOut={onMicRelease}>
-                        <Icon source="microphone" color={PRIMARY} size={20} />
+                        <Icon source="microphone" color={colors.primary} size={20} />
                     </TouchableOpacity>
                 )}
                 {!expandActions && (
                     <TouchableOpacity style={styles.button} onPress={() => setExpandActions(true)}>
-                        <Icon source="chevron-right" color={PRIMARY} size={20} />
+                        <Icon source="chevron-right" color={colors.primary} size={20} />
                     </TouchableOpacity>
                 )}
                 <View style={{ flex: 1 }}>
@@ -193,7 +195,7 @@ export default function Messaging(props: IProps) {
                     <ActivityIndicator style={{ marginHorizontal: 5 }} />
                 ) : (
                     <TouchableOpacity style={styles.button} onPress={audioFilePath ? sendAudio : props.handleSend}>
-                        <Icon source="send-lock" color={PRIMARY} size={20} />
+                        <Icon source="send-lock" color={colors.primary} size={20} />
                     </TouchableOpacity>
                 )}
             </View>
@@ -227,7 +229,6 @@ const styles = StyleSheet.create({
     audioFill: {
         height: 3,
         borderRadius: 1.5,
-        backgroundColor: PRIMARY,
     },
     audioDuration: {
         color: TEXT_SECONDARY,

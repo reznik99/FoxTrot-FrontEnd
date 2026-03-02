@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, TouchableOpacity, ToastAndroid, Platform, StyleSheet } from 'react-native';
-import { ActivityIndicator, Text, Button, Dialog, Portal, Icon } from 'react-native-paper';
+import { ActivityIndicator, Text, Button, Dialog, Portal, Icon, useTheme } from 'react-native-paper';
 import { useSelector } from 'react-redux';
 import { Image } from 'react-native-elements';
 import Clipboard from '@react-native-clipboard/clipboard';
@@ -11,7 +11,7 @@ import { publicKeyFingerprint } from '~/global/crypto';
 import { RootState } from '~/store/store';
 import { UserData } from '~/store/reducers/user';
 import { HomeStackParamList } from '../../App';
-import { DARKHEADER, PRIMARY, TEXT_MUTED } from '~/global/variables';
+import { DARKHEADER, TEXT_MUTED } from '~/global/variables';
 import { logger } from '~/global/logger';
 import { humanTime, onlineStatus } from '~/global/helper';
 import globalStyle from '~/global/style';
@@ -25,6 +25,7 @@ interface IProps {
 }
 
 export default function HeaderConversation(props: IProps) {
+    const { colors } = useTheme();
     const { navigation, allowBack, data } = props;
     const [visibleDialog, setVisibleDialog] = useState('');
     const [securityCode, setSecurityCode] = useState('');
@@ -96,7 +97,7 @@ export default function HeaderConversation(props: IProps) {
 
             <Portal>
                 <Dialog visible={visibleDialog === 'SecurityCode'} onDismiss={() => setVisibleDialog('')}>
-                    <Dialog.Icon icon="shield-lock" color={PRIMARY} />
+                    <Dialog.Icon icon="shield-lock" color={colors.primary} />
                     <Dialog.Title style={{ textAlign: 'center' }}>Security Code</Dialog.Title>
                     <Dialog.Content>
                         <Text style={[globalStyle.dialogText, { textAlign: 'center', color: TEXT_MUTED }]}>

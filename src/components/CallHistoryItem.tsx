@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { Avatar, Checkbox, Icon } from 'react-native-paper';
+import { Avatar, Checkbox, Icon, useTheme } from 'react-native-paper';
 
-import { DARKHEADER, ERROR_RED, PRIMARY, SECONDARY_LITE } from '~/global/variables';
+import { DARKHEADER, ERROR_RED, SECONDARY_LITE } from '~/global/variables';
 import { CallRecord } from '~/store/reducers/user';
 import { RootNavigation } from '~/store/actions/auth';
 import { humanTime } from '~/global/helper';
@@ -46,6 +46,7 @@ export default function CallHistoryItem({
     onToggleSelect,
     onLongPress,
 }: IProps) {
+    const { colors } = useTheme();
     const { icon, color } = getDirectionIcon(record);
     const duration = formatDuration(record.duration);
 
@@ -85,7 +86,7 @@ export default function CallHistoryItem({
             {selectionMode ? (
                 <Checkbox
                     status={selected ? 'checked' : 'unchecked'}
-                    color={PRIMARY}
+                    color={colors.primary}
                     onPress={() => onToggleSelect(record.id)}
                 />
             ) : (

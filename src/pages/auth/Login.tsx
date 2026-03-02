@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { View, ScrollView, Keyboard, Alert, Image } from 'react-native';
-import { ActivityIndicator, TextInput, Button, Text, IconButton } from 'react-native-paper';
+import { ActivityIndicator, TextInput, Button, Text, IconButton, useTheme } from 'react-native-paper';
 import * as Keychain from 'react-native-keychain';
 import BootSplash from 'react-native-bootsplash';
 import { StackScreenProps } from '@react-navigation/stack';
 
 import { validateToken, syncFromStorage } from '~/store/actions/user';
 import { logIn } from '~/store/actions/auth';
-import { API_URL, KeychainOpts, PRIMARY } from '~/global/variables';
+import { API_URL, KeychainOpts } from '~/global/variables';
 import { milliseconds, millisecondsSince } from '~/global/helper';
 import PasswordInput from '~/components/PasswordInput';
 import { RootState, store } from '~/store/store';
@@ -24,6 +24,7 @@ type Credentials = {
 };
 
 export default function Login(props: StackScreenProps<AuthStackParamList, 'Login'>) {
+    const { colors } = useTheme();
     const user_data = useSelector((state: RootState) => state.userReducer.user_data);
     const loading = useSelector((state: RootState) => state.userReducer.loading);
     const loginErr = useSelector((state: RootState) => state.userReducer.loginErr);
@@ -136,7 +137,7 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
             <View style={styles.titleContainer}>
                 <Image source={require('../../../assets/bootsplash/logo.png')} style={{ width: 80, height: 80 }} />
                 <Text style={styles.title}>FoxTrot</Text>
-                <Text style={styles.subTitle}>secure communications</Text>
+                <Text style={[styles.subTitle, { color: colors.primary }]}>secure communications</Text>
             </View>
 
             {loginErr && <Text style={styles.errorMsg}>{loginErr}</Text>}
@@ -194,7 +195,7 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
                             <IconButton
                                 icon="fingerprint"
                                 size={50}
-                                iconColor={PRIMARY}
+                                iconColor={colors.primary}
                                 onPress={() => attemptAutoLogin(username)}
                                 accessibilityLabel="Retry biometric authentication"
                             />

@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { PRIMARY, SECONDARY } from './variables';
+import { SECONDARY } from './variables';
 
 const globalStyle = StyleSheet.create({
     wrapper: {
@@ -25,7 +25,6 @@ const globalStyle = StyleSheet.create({
         margin: 20,
         right: 0,
         bottom: 0,
-        backgroundColor: PRIMARY,
     },
     dialogText: {
         marginBottom: 5,

@@ -225,10 +225,15 @@ export const loadContacts = createDefaultAsyncThunk('loadContacts', async ({ ato
                 try {
                     const session_key = await generateSessionKeyECDH(contact.public_key || '', state.keys?.privateKey);
                     logger.debug('Generated session key for contact:', contact.phone_no);
-                    return { ...contact, pic: getAvatar(contact.id), session_key };
+                    return {
+                        ...contact,
+                        last_seen: new Date(contact.last_seen).getTime(),
+                        pic: getAvatar(contact.id),
+                        session_key: session_key,
+                    };
                 } catch (err: any) {
                     logger.warn('Failed to generate session key:', contact.phone_no, err.message || err);
-                    return { ...contact, pic: getAvatar(contact.id) };
+                    return { ...contact, last_seen: new Date(contact.last_seen).getTime(), pic: getAvatar(contact.id) };
                 }
             }),
         );

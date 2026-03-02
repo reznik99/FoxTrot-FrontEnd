@@ -13,7 +13,7 @@ import Sound from 'react-native-nitro-sound';
 import FullScreenMedia from '~/components/FullScreenMedia';
 import AudioPlayer from '~/components/AudioPlayer';
 import Messaging from '~/components/Messaging';
-import { DB_MSG_PAGE_SIZE, PRIMARY, SECONDARY } from '~/global/variables';
+import { DARKHEADER, PRIMARY, SECONDARY, DB_MSG_PAGE_SIZE } from '~/global/variables';
 import { decrypt } from '~/global/crypto';
 
 import {
@@ -600,7 +600,7 @@ class Message extends PureComponent<MProps, MState> {
                     {/* Encrypted placeholder */}
                     {isEncrypted && (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 }}>
-                            <Icon source="shield-lock" color={PRIMARY} size={18} />
+                            <Icon source="shield-lock" color={isSent ? DARKHEADER : PRIMARY} size={18} />
                             <Text style={{ color: '#ccc', fontSize: 13 }}>Tap to decrypt</Text>
                         </View>
                     )}

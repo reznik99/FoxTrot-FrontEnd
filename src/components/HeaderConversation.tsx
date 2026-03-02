@@ -56,7 +56,7 @@ export default function HeaderConversation(props: IProps) {
     }, [securityCode]);
 
     return (
-        <View style={[styles.topBar, { paddingTop: edgeInsets.top, paddingHorizontal: edgeInsets.left }]}>
+        <View style={[styles.topBar, { paddingTop: edgeInsets.top + 6, paddingHorizontal: edgeInsets.left }]}>
             <View style={styles.backAndTitle}>
                 {allowBack ? (
                     <TouchableOpacity style={styles.button} onPress={() => navigation.goBack()}>
@@ -148,7 +148,7 @@ export default function HeaderConversation(props: IProps) {
                         </View>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                             <Text>Last seen</Text>
-                            <Text>{humanTime(contact?.last_seen || '0')}</Text>
+                            <Text>{humanTime(contact?.last_seen || 0)}</Text>
                         </View>
                         <View style={{ gap: 4 }}>
                             <Text>Identity Key</Text>
@@ -190,37 +190,29 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         backgroundColor: DARKHEADER,
-        paddingBottom: 8,
+        paddingBottom: 6,
     },
     backAndTitle: {
         flexDirection: 'row',
-        justifyContent: 'flex-start',
         alignItems: 'center',
-        overflow: 'hidden',
+        flex: 1,
+        minWidth: 0,
     },
     topBarText: {
         color: '#fff',
         fontSize: 16,
+        flexShrink: 1,
     },
     buttonContainer: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     button: {
-        height: 50,
+        minWidth: 44,
+        minHeight: 44,
         padding: 10,
-        marginHorizontal: 5,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    rightFloat: {
-        justifyContent: 'flex-end',
-    },
-    padded: {
-        paddingHorizontal: 15,
-    },
-    wider: {
-        overflow: 'visible',
     },
     profileBtn: {
         flexDirection: 'row',

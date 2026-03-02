@@ -66,8 +66,8 @@ export default function Drawer(props: DrawerContentComponentProps) {
                         <Text style={styles.username}>{state.user_data?.phone_no}</Text>
                         <TouchableRipple onPress={() => Linking.openURL(GITHUB_URL)}>
                             <View style={styles.versionRow}>
-                                <Icon source="github" size={16} color={colors.primary} />
-                                <Text style={styles.version}>v{DeviceInfo.getVersion()}</Text>
+                                <Icon source="github" size={20} color={colors.primary} />
+                                <Text style={styles.version}>v{DeviceInfo.getVersion()} ({DeviceInfo.getBuildNumber()})</Text>
                             </View>
                         </TouchableRipple>
                     </View>
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     },
     version: {
         color: SECONDARY_LITE,
-        fontSize: 12,
+        fontSize: 14,
     },
     infoContainer: {
         paddingHorizontal: 8,

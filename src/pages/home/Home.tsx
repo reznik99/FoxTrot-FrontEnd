@@ -186,17 +186,13 @@ export default function Home() {
                             { backgroundColor: colors.primary, marginBottom: globalStyle.fab.margin + insets.bottom },
                         ]}
                         onPress={() => navigation.navigate('NewConversation')}
-                        icon={renderFABIcon}
+                        icon="pencil"
                     />
                 </>
             )}
         </View>
     );
 }
-
-const renderFABIcon = (props: { size: number; color: string }) => {
-    return <Icon source="message" color={props.color} size={props.size} />;
-};
 
 const styles = StyleSheet.create({
     watermark: {

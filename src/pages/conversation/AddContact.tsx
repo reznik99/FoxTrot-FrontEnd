@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Text, View, ScrollView } from 'react-native';
-import { Divider, Searchbar, ActivityIndicator, Icon, useTheme } from 'react-native-paper';
+import { Divider, Searchbar, ActivityIndicator, Icon } from 'react-native-paper';
 import { useSelector } from 'react-redux';
 import { StackScreenProps } from '@react-navigation/stack';
 
@@ -13,7 +13,6 @@ import ContactPeek from '~/components/ContactPeek';
 import { HomeStackParamList } from '~/../App';
 
 export default function AddContact(props: StackScreenProps<HomeStackParamList, 'AddContact'>) {
-    const { colors } = useTheme();
     const { navigation } = props;
     const contact_ids = useSelector<RootState, UserData[]>(state => state.userReducer.contacts).map(c => c.id);
 

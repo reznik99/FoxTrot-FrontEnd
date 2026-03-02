@@ -169,7 +169,6 @@ export default function CallHistory() {
                     { backgroundColor: ERROR_RED, marginBottom: globalStyle.fab.margin + insets.bottom },
                 ]}
                 onPress={onFabPress}
-                size="small"
                 disabled={records.length === 0}
             />
             <Portal>

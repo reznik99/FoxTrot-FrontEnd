@@ -32,10 +32,10 @@ export const KeychainOpts = {
 };
 
 // App colors
-export const PRIMARY = '#3672eb';
+export const PRIMARY = '#2A9D8F';
 export const COLOR_PRESETS = [
     { name: 'Blue', color: '#3672eb' },
-    { name: 'Teal', color: '#009688' },
+    { name: 'Teal', color: '#2A9D8F' },
     { name: 'Green', color: '#43A047' },
     { name: 'Purple', color: '#7C4DFF' },
     { name: 'Orange', color: '#FF9800' },

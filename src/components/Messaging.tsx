@@ -6,7 +6,7 @@ import Sound, { AudioSet, AudioEncoderAndroidType } from 'react-native-nitro-sou
 
 import CustomKeyboardAvoidingView from '~/components/CustomKeyboardAvoidingView';
 import { getMicrophoneRecordingPermission, getReadExtPermission } from '~/global/permissions';
-import { DARKHEADER, ERROR_RED, PRIMARY, SECONDARY_LITE } from '~/global/variables';
+import { DARKHEADER, ERROR_RED, PRIMARY, SECONDARY_LITE, TEXT_SECONDARY } from '~/global/variables';
 import { logger } from '~/global/logger';
 
 type IProps = {
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
         backgroundColor: PRIMARY,
     },
     audioDuration: {
-        color: '#ccc',
+        color: TEXT_SECONDARY,
         fontSize: 12,
     },
     inputContainer: {

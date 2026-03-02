@@ -13,7 +13,7 @@ import Sound from 'react-native-nitro-sound';
 import FullScreenMedia from '~/components/FullScreenMedia';
 import AudioPlayer from '~/components/AudioPlayer';
 import Messaging from '~/components/Messaging';
-import { PRIMARY, SECONDARY, DB_MSG_PAGE_SIZE } from '~/global/variables';
+import { PRIMARY, SECONDARY, TEXT_MUTED, TEXT_SECONDARY, DB_MSG_PAGE_SIZE } from '~/global/variables';
 import { decrypt } from '~/global/crypto';
 
 import {
@@ -182,7 +182,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
         () => (
             <View style={{ alignItems: 'center', paddingVertical: 24 }}>
                 <Icon source="message-text-outline" size={40} color="#969393" />
-                <Text style={{ color: '#969393', marginTop: 8 }}>No messages yet</Text>
+                <Text style={{ color: TEXT_MUTED, marginTop: 8 }}>No messages yet</Text>
             </View>
         ),
         [],
@@ -192,7 +192,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
         if (!hasMore) return null;
         return (
             <View style={styles.footer}>
-                <Text style={{ color: '#969393' }}>Scroll up to load more</Text>
+                <Text style={{ color: TEXT_MUTED }}>Scroll up to load more</Text>
             </View>
         );
     }, [hasMore]);
@@ -466,7 +466,9 @@ class Message extends PureComponent<MProps, MState> {
                             <Icon source="download" color={PRIMARY} size={28} />
                             <View>
                                 <Text style={styles.text}>Audio message</Text>
-                                <Text style={{ color: '#969393', fontSize: 12 }}>{Sound.mmssss(Math.floor(item.duration || 0))}</Text>
+                                <Text style={{ color: TEXT_MUTED, fontSize: 12 }}>
+                                    {Sound.mmssss(Math.floor(item.duration || 0))}
+                                </Text>
                             </View>
                         </View>
                     );
@@ -602,9 +604,19 @@ class Message extends PureComponent<MProps, MState> {
                     )}
                     {/* Encrypted placeholder */}
                     {isEncrypted && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 4 }}>
+                        <View
+                            style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 8,
+                                paddingVertical: 6,
+                                paddingHorizontal: 4,
+                            }}
+                        >
                             <Icon source="shield-lock" color={isSent ? '#ffffffcc' : PRIMARY} size={20} />
-                            <Text style={{ color: isSent ? '#ffffffcc' : '#ccc', fontSize: 14 }}>Tap to decrypt</Text>
+                            <Text style={{ color: isSent ? '#ffffffcc' : TEXT_SECONDARY, fontSize: 14 }}>
+                                Tap to decrypt
+                            </Text>
                         </View>
                     )}
                     {/* Message */}
@@ -656,7 +668,7 @@ const styles = StyleSheet.create({
         backgroundColor: PRIMARY,
     },
     messageTime: {
-        color: '#969393',
+        color: TEXT_MUTED,
         alignContent: 'flex-end',
         fontSize: 13,
     },

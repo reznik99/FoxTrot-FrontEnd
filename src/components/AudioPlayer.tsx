@@ -4,7 +4,7 @@ import { Icon, Text } from 'react-native-paper';
 import Sound from 'react-native-nitro-sound';
 import RNFS, { CachesDirectoryPath } from 'react-native-fs';
 
-import { PRIMARY } from '~/global/variables';
+import { PRIMARY, TEXT_SECONDARY } from '~/global/variables';
 import { logger } from '~/global/logger';
 
 type IProps = {
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
         backgroundColor: PRIMARY,
     },
     duration: {
-        color: '#ccc',
+        color: TEXT_SECONDARY,
         fontSize: 12,
     },
 });

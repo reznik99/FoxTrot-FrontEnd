@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CallHistoryItem from '~/components/CallHistoryItem';
 import { dbGetCallHistory, dbClearCallHistory, dbDeleteCalls, dbMarkAllCallsSeen } from '~/global/database';
 import { CallRecord } from '~/store/reducers/user';
-import { DARKHEADER, SECONDARY_LITE } from '~/global/variables';
+import { DARKHEADER, ERROR_RED, SECONDARY_LITE } from '~/global/variables';
 import { milliseconds } from '~/global/helper';
 import { logger } from '~/global/logger';
 import globalStyle from '~/global/style';
@@ -166,7 +166,7 @@ export default function CallHistory() {
                 label={selectionMode ? `${selectedIds.size}` : undefined}
                 style={[
                     globalStyle.fab,
-                    { backgroundColor: '#e53935', marginBottom: globalStyle.fab.margin + insets.bottom },
+                    { backgroundColor: ERROR_RED, marginBottom: globalStyle.fab.margin + insets.bottom },
                 ]}
                 onPress={onFabPress}
                 size="small"

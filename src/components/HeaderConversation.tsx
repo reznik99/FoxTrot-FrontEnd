@@ -11,7 +11,7 @@ import { publicKeyFingerprint } from '~/global/crypto';
 import { RootState } from '~/store/store';
 import { UserData } from '~/store/reducers/user';
 import { HomeStackParamList } from '../../App';
-import { DARKHEADER, PRIMARY } from '~/global/variables';
+import { DARKHEADER, PRIMARY, TEXT_MUTED } from '~/global/variables';
 import { logger } from '~/global/logger';
 import { humanTime, onlineStatus } from '~/global/helper';
 import globalStyle from '~/global/style';
@@ -99,7 +99,7 @@ export default function HeaderConversation(props: IProps) {
                     <Dialog.Icon icon="shield-lock" color={PRIMARY} />
                     <Dialog.Title style={{ textAlign: 'center' }}>Security Code</Dialog.Title>
                     <Dialog.Content>
-                        <Text style={[globalStyle.dialogText, { textAlign: 'center', color: '#969393' }]}>
+                        <Text style={[globalStyle.dialogText, { textAlign: 'center', color: TEXT_MUTED }]}>
                             Verify this code matches on {data?.peer_user?.phone_no}'s device
                         </Text>
                         {securityCode.match(/.{1,24}/g)?.map((val, idx) => (
@@ -152,7 +152,7 @@ export default function HeaderConversation(props: IProps) {
                         </View>
                         <View style={{ gap: 4 }}>
                             <Text>Identity Key</Text>
-                            <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#969393' }} selectable>
+                            <Text style={{ fontFamily: 'monospace', fontSize: 12, color: TEXT_MUTED }} selectable>
                                 {contact?.public_key || 'No key available'}
                             </Text>
                         </View>

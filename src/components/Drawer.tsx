@@ -8,7 +8,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import DeviceInfo from 'react-native-device-info';
 import RNFS from 'react-native-fs';
 
-import { SECONDARY, SECONDARY_LITE, KeypairAlgorithm, DARKHEADER, PRIMARY } from '~/global/variables';
+import { KeypairAlgorithm, SECONDARY, SECONDARY_LITE, DARKHEADER, DIVIDER, PRIMARY } from '~/global/variables';
 import { logOut } from '~/store/actions/auth';
 import { publicKeyFingerprint } from '~/global/crypto';
 import { formatBytes, getAvatar } from '~/global/helper';
@@ -102,7 +102,7 @@ export default function Drawer(props: DrawerContentComponentProps) {
                     <DrawerItem
                         inactiveTintColor="#fff"
                         label="Logout"
-                        style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: '#333', backgroundColor: DARKHEADER }}
+                        style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: DIVIDER, backgroundColor: DARKHEADER }}
                         onPress={() => dispatch(logOut({ navigation: props.navigation as any }))}
                         icon={renderLogoutIcon}
                     />

@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { DARKHEADER, PRIMARY, SECONDARY, SECONDARY_LITE } from '~/global/variables';
+import { DARKHEADER, DIVIDER, ERROR_RED, PRIMARY, SECONDARY, SECONDARY_LITE } from '~/global/variables';
 
 const styles = StyleSheet.create({
     container: {
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     dividerLine: {
         flex: 1,
         height: 1,
-        backgroundColor: '#333',
+        backgroundColor: DIVIDER,
     },
     dividerText: {
         color: SECONDARY_LITE,
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
         fontSize: 13,
     },
     errorMsg: {
-        color: '#e53935',
+        color: ERROR_RED,
         textAlign: 'center',
         marginBottom: 8,
     },

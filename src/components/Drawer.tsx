@@ -1,14 +1,14 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, ToastAndroid, Linking } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { Avatar, Button, Dialog, Icon, Portal, Text, TouchableRipple } from 'react-native-paper';
+import { Avatar, Button, Dialog, Icon, Portal, Text, TouchableRipple, useTheme } from 'react-native-paper';
 import { DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
 import { DrawerContentComponentProps } from '@react-navigation/drawer/lib/typescript/src/types';
 import Clipboard from '@react-native-clipboard/clipboard';
 import DeviceInfo from 'react-native-device-info';
 import RNFS from 'react-native-fs';
 
-import { KeypairAlgorithm, SECONDARY, SECONDARY_LITE, DARKHEADER, DIVIDER, PRIMARY } from '~/global/variables';
+import { KeypairAlgorithm, SECONDARY, SECONDARY_LITE, DARKHEADER, DIVIDER } from '~/global/variables';
 import { logOut } from '~/store/actions/auth';
 import { publicKeyFingerprint } from '~/global/crypto';
 import { formatBytes, getAvatar } from '~/global/helper';
@@ -18,6 +18,7 @@ import { AppDispatch, RootState } from '~/store/store';
 const GITHUB_URL = 'https://github.com/reznik99/FoxTrot-FrontEnd';
 
 export default function Drawer(props: DrawerContentComponentProps) {
+    const { colors } = useTheme();
     const state = useSelector((_state: RootState) => _state.userReducer);
     const dispatch = useDispatch<AppDispatch>();
     const [showSecurityCode, setShowSecurityCode] = useState(false);
@@ -65,8 +66,10 @@ export default function Drawer(props: DrawerContentComponentProps) {
                         <Text style={styles.username}>{state.user_data?.phone_no}</Text>
                         <TouchableRipple onPress={() => Linking.openURL(GITHUB_URL)}>
                             <View style={styles.versionRow}>
-                                <Icon source="github" size={16} color={PRIMARY} />
-                                <Text style={styles.version}>v{DeviceInfo.getVersion()}</Text>
+                                <Icon source="github" size={20} color={colors.primary} />
+                                <Text style={styles.version}>
+                                    v{DeviceInfo.getVersion()} ({DeviceInfo.getBuildNumber()})
+                                </Text>
                             </View>
                         </TouchableRipple>
                     </View>
@@ -85,13 +88,13 @@ export default function Drawer(props: DrawerContentComponentProps) {
 
                 <View>
                     <DrawerItem
-                        inactiveTintColor={PRIMARY}
+                        inactiveTintColor={colors.primary}
                         label="Security Code"
                         onPress={() => loadSecurityCode()}
                         icon={renderLockIcon}
                     />
                     <DrawerItem
-                        inactiveTintColor={PRIMARY}
+                        inactiveTintColor={colors.primary}
                         label="Settings"
                         onPress={() => {
                             props.navigation.navigate('Settings');
@@ -111,7 +114,7 @@ export default function Drawer(props: DrawerContentComponentProps) {
 
             <Portal>
                 <Dialog visible={showSecurityCode} onDismiss={() => setShowSecurityCode(false)}>
-                    <Dialog.Icon icon="shield-lock" color={PRIMARY} />
+                    <Dialog.Icon icon="shield-lock" color={colors.primary} />
                     <Dialog.Title style={{ textAlign: 'center' }}>Your Security Code</Dialog.Title>
                     <Dialog.Content>
                         {securityCode.match(/.{1,24}/g)?.map((val, idx) => (
@@ -173,7 +176,7 @@ const styles = StyleSheet.create({
     },
     version: {
         color: SECONDARY_LITE,
-        fontSize: 12,
+        fontSize: 14,
     },
     infoContainer: {
         paddingHorizontal: 8,

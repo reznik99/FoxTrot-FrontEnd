@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { DARKHEADER, DIVIDER, ERROR_RED, PRIMARY, SECONDARY, SECONDARY_LITE } from '~/global/variables';
+import { DARKHEADER, DIVIDER, ERROR_RED, SECONDARY, SECONDARY_LITE } from '~/global/variables';
 
 const styles = StyleSheet.create({
     container: {
@@ -20,7 +20,6 @@ const styles = StyleSheet.create({
     },
     subTitle: {
         fontSize: 16,
-        color: PRIMARY,
         letterSpacing: 2,
         textTransform: 'uppercase',
         marginTop: 4,

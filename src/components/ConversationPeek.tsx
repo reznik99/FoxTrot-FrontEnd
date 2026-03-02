@@ -1,13 +1,14 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Avatar, Badge, Button, Dialog, Icon, Portal, Text } from 'react-native-paper';
+import { Button, Dialog, Icon, Portal, Text } from 'react-native-paper';
 import { useSelector, useDispatch } from 'react-redux';
 
-import { humanTime, onlineStatus } from '~/global/helper';
+import AvatarWithStatus from '~/components/AvatarWithStatus';
+import { humanTime } from '~/global/helper';
 import globalStyle from '~/global/style';
 import { addContact } from '~/store/actions/user';
 import { dbDeleteConversation } from '~/global/database';
-import { DARKHEADER, ERROR_RED, SECONDARY_LITE } from '~/global/variables';
+import { ERROR_RED, SECONDARY, SECONDARY_LITE } from '~/global/variables';
 import { Conversation, DELETE_CONVERSATION, message } from '~/store/reducers/user';
 import { AppDispatch, RootState } from '~/store/store';
 import { RootNavigation } from '~/store/actions/auth';
@@ -86,8 +87,6 @@ export default function ConversationPeek(props: IProps) {
         );
     };
 
-    const status = onlineStatus(peer);
-
     const boldIfUnseen = isNew ? styles.unseenMessage : null;
     return (
         <>
@@ -98,9 +97,8 @@ export default function ConversationPeek(props: IProps) {
                 }}
                 onLongPress={() => setShowDeleteDialog(true)}
             >
-                <View style={{ display: 'flex', flexDirection: 'row' }}>
-                    <Badge size={10} style={{ backgroundColor: status.color }} />
-                    <Avatar.Image size={55} source={{ uri: peer.pic }} style={styles.profilePicContainer} />
+                <View style={{ marginRight: 10 }}>
+                    <AvatarWithStatus user={peer} size={55} borderColor={SECONDARY} />
                 </View>
                 <View style={{ flex: 1 }}>
                     <Text style={[globalStyle.textInfo, boldIfUnseen]}>{peer.phone_no}</Text>
@@ -138,7 +136,9 @@ export default function ConversationPeek(props: IProps) {
                         marginHorizontal: 5,
                     }}
                 >
-                    <Text style={[globalStyle.textInfo, boldIfUnseen]}>{humanTime(lastMessage.sent_at)}</Text>
+                    <Text style={[globalStyle.textInfo, boldIfUnseen, { fontSize: 12, color: SECONDARY_LITE }]}>
+                        {humanTime(lastMessage.sent_at)}
+                    </Text>
                 </View>
             </TouchableOpacity>
             {isRequest && (
@@ -213,10 +213,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         padding: 5,
-    },
-    profilePicContainer: {
-        marginRight: 10,
-        backgroundColor: DARKHEADER,
     },
     unseenMessage: {
         fontWeight: 'bold',

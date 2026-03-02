@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, FlatList, RefreshControl, Text } from 'react-native';
-import { Divider, FAB, ActivityIndicator, Snackbar, Icon } from 'react-native-paper';
+import { View, FlatList, RefreshControl, Text, Image, StyleSheet } from 'react-native';
+import { Divider, FAB, ActivityIndicator, Snackbar, Icon, useTheme } from 'react-native-paper';
 import RNNotificationCall from 'react-native-full-screen-notification-incoming-call';
 import InCallManager from 'react-native-incall-manager';
 import { useSelector } from 'react-redux';
@@ -15,11 +15,12 @@ import { setupInterceptors, RootNavigation } from '~/store/actions/auth';
 import { RootState, store } from '~/store/store';
 import { popFromStorage, StorageKeys } from '~/global/storage';
 import { dbSaveCallRecord } from '~/global/database';
-import { PRIMARY, SECONDARY_LITE } from '~/global/variables';
+import { SECONDARY_LITE } from '~/global/variables';
 import { logger } from '~/global/logger';
 import globalStyle from '~/global/style';
 
 export default function Home() {
+    const { colors } = useTheme();
     const navigation = useNavigation<RootNavigation>();
     const insets = useSafeAreaInsets();
     const { conversations, loading, refreshing, socketStatus, socketErr } = useSelector(
@@ -154,6 +155,7 @@ export default function Home() {
                 </View>
             ) : (
                 <>
+                    <Image source={require('../../../assets/bootsplash/logo.png')} style={styles.watermark} />
                     <FlatList
                         data={convos}
                         keyExtractor={(item, index) => item.other_user.phone_no || String(index)}
@@ -181,10 +183,10 @@ export default function Home() {
                         color="#fff"
                         style={[
                             globalStyle.fab,
-                            { backgroundColor: PRIMARY, marginBottom: globalStyle.fab.margin + insets.bottom },
+                            { backgroundColor: colors.primary, marginBottom: globalStyle.fab.margin + insets.bottom },
                         ]}
                         onPress={() => navigation.navigate('NewConversation')}
-                        icon={renderFABIcon}
+                        icon="pencil"
                     />
                 </>
             )}
@@ -192,6 +194,13 @@ export default function Home() {
     );
 }
 
-const renderFABIcon = (props: { size: number; color: string }) => {
-    return <Icon source="message" color={props.color} size={props.size} />;
-};
+const styles = StyleSheet.create({
+    watermark: {
+        position: 'absolute',
+        width: 200,
+        height: 200,
+        alignSelf: 'center',
+        top: '40%',
+        opacity: 0.08,
+    },
+});

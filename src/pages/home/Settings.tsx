@@ -1,12 +1,13 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, ScrollView } from 'react-native';
-import { Button, Dialog, Portal, Chip, Text, Divider, Switch, useTheme } from 'react-native-paper';
+import React, { useContext, useEffect, useState, useCallback } from 'react';
+import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { Button, Dialog, Icon, Portal, Chip, Text, Divider, Switch, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useDispatch, useSelector } from 'react-redux';
 import * as Keychain from 'react-native-keychain';
 
-import { API_URL, DARKHEADER, KeychainOpts, PRIMARY } from '~/global/variables';
+import { API_URL, COLOR_PRESETS, DARKHEADER, KeychainOpts } from '~/global/variables';
+import { PrimaryColorContext } from '~/../App';
 import { logger, showErrorPortal } from '~/global/logger';
 import DeviceInfo from 'react-native-device-info';
 import { deleteFromStorage, getAllStorageKeys, readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
@@ -22,6 +23,8 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
     const theme = useTheme();
     const insets = useSafeAreaInsets();
 
+    const setPrimaryColor = useContext(PrimaryColorContext);
+    const [selectedColor, setSelectedColor] = useState(theme.colors.primary);
     const [keys, setKeys] = useState<string[]>([]);
     const [hasIdentityKeys, setHasIdentityKeys] = useState(false);
     const [hasPassword, setHasPassword] = useState(false);
@@ -85,7 +88,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
     return (
         <View style={globalStyle.wrapper}>
             <ScrollView contentContainerStyle={{ padding: 30, paddingBottom: 30 + insets.bottom }}>
-                <Text variant="titleSmall" style={{ marginBottom: 10, color: PRIMARY }}>
+                <Text variant="titleSmall" style={{ marginBottom: 10, color: theme.colors.primary }}>
                     Security
                 </Text>
                 <View style={{ marginBottom: 10 }}>
@@ -100,7 +103,38 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
 
                 <Divider style={{ marginVertical: 15 }} />
 
-                <Text variant="titleSmall" style={{ marginBottom: 10, color: PRIMARY }}>
+                <Text variant="titleSmall" style={{ marginBottom: 10, color: theme.colors.primary }}>
+                    Appearance
+                </Text>
+                <View style={{ marginBottom: 10 }}>
+                    <Text variant="bodyLarge">Accent Color</Text>
+                    <Text variant="bodySmall" style={{ color: '#999', marginBottom: 12 }}>
+                        Choose your primary accent color.
+                    </Text>
+                    <View style={styles.colorRow}>
+                        {COLOR_PRESETS.map(preset => (
+                            <TouchableOpacity
+                                key={preset.color}
+                                onPress={() => {
+                                    setSelectedColor(preset.color);
+                                    setPrimaryColor(preset.color);
+                                    writeToStorage(StorageKeys.PRIMARY_COLOR, preset.color);
+                                }}
+                                style={[
+                                    styles.colorCircle,
+                                    { backgroundColor: preset.color },
+                                    selectedColor === preset.color && styles.colorCircleSelected,
+                                ]}
+                            >
+                                {selectedColor === preset.color && <Icon source="check" size={18} color="#fff" />}
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+
+                <Divider style={{ marginVertical: 15 }} />
+
+                <Text variant="titleSmall" style={{ marginBottom: 10, color: theme.colors.primary }}>
                     Privacy
                 </Text>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -148,7 +182,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
 
                 <Divider style={{ marginVertical: 15 }} />
 
-                <Text variant="titleSmall" style={{ marginBottom: 10, color: PRIMARY }}>
+                <Text variant="titleSmall" style={{ marginBottom: 10, color: theme.colors.primary }}>
                     Diagnostics
                 </Text>
                 <View style={{ marginBottom: 10 }}>
@@ -168,7 +202,7 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                 </View>
                 <Divider style={{ marginVertical: 15 }} />
 
-                <Text variant="titleSmall" style={{ marginBottom: 10, color: PRIMARY }}>
+                <Text variant="titleSmall" style={{ marginBottom: 10, color: theme.colors.primary }}>
                     Storage
                 </Text>
                 <View
@@ -288,3 +322,21 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
         </View>
     );
 }
+
+const styles = StyleSheet.create({
+    colorRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    colorCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    colorCircleSelected: {
+        borderWidth: 2,
+        borderColor: '#fff',
+    },
+});

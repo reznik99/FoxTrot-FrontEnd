@@ -1,8 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, TouchableOpacity, ToastAndroid, Platform, StyleSheet } from 'react-native';
-import { ActivityIndicator, Text, Button, Dialog, Portal, Icon } from 'react-native-paper';
+import { View, TouchableOpacity, ToastAndroid, StyleSheet } from 'react-native';
+import { Text, Button, Dialog, Portal, Icon, useTheme } from 'react-native-paper';
 import { useSelector } from 'react-redux';
-import { Image } from 'react-native-elements';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -11,7 +10,8 @@ import { publicKeyFingerprint } from '~/global/crypto';
 import { RootState } from '~/store/store';
 import { UserData } from '~/store/reducers/user';
 import { HomeStackParamList } from '../../App';
-import { DARKHEADER, PRIMARY, TEXT_MUTED } from '~/global/variables';
+import AvatarWithStatus from '~/components/AvatarWithStatus';
+import { DARKHEADER, TEXT_MUTED } from '~/global/variables';
 import { logger } from '~/global/logger';
 import { humanTime, onlineStatus } from '~/global/helper';
 import globalStyle from '~/global/style';
@@ -25,6 +25,7 @@ interface IProps {
 }
 
 export default function HeaderConversation(props: IProps) {
+    const { colors } = useTheme();
     const { navigation, allowBack, data } = props;
     const [visibleDialog, setVisibleDialog] = useState('');
     const [securityCode, setSecurityCode] = useState('');
@@ -64,12 +65,8 @@ export default function HeaderConversation(props: IProps) {
                     </TouchableOpacity>
                 ) : null}
                 <TouchableOpacity style={styles.profileBtn} onPress={showSecurityCode}>
-                    <View style={styles.profilePicContainer}>
-                        <Image
-                            source={{ uri: `${data?.peer_user?.pic}` }}
-                            style={styles.profilePic}
-                            PlaceholderContent={<ActivityIndicator />}
-                        />
+                    <View style={{ marginRight: 8 }}>
+                        <AvatarWithStatus user={contact || data.peer_user} size={40} borderColor={DARKHEADER} />
                     </View>
                     <Text style={styles.topBarText}>{data.peer_user.phone_no}</Text>
                 </TouchableOpacity>
@@ -96,7 +93,7 @@ export default function HeaderConversation(props: IProps) {
 
             <Portal>
                 <Dialog visible={visibleDialog === 'SecurityCode'} onDismiss={() => setVisibleDialog('')}>
-                    <Dialog.Icon icon="shield-lock" color={PRIMARY} />
+                    <Dialog.Icon icon="shield-lock" color={colors.primary} />
                     <Dialog.Title style={{ textAlign: 'center' }}>Security Code</Dialog.Title>
                     <Dialog.Content>
                         <Text style={[globalStyle.dialogText, { textAlign: 'center', color: TEXT_MUTED }]}>
@@ -217,15 +214,5 @@ const styles = StyleSheet.create({
     profileBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-    },
-    profilePicContainer: {
-        overflow: 'hidden',
-        borderRadius: Platform.OS === 'ios' ? 150 / 2 : 150,
-        marginRight: 8,
-    },
-    profilePic: {
-        width: 40,
-        height: 40,
-        borderRadius: Platform.OS === 'ios' ? 150 / 2 : 150,
     },
 });

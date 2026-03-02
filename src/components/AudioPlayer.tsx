@@ -1,10 +1,10 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Icon, Text } from 'react-native-paper';
+import { Icon, Text, useTheme } from 'react-native-paper';
 import Sound from 'react-native-nitro-sound';
 import RNFS, { CachesDirectoryPath } from 'react-native-fs';
 
-import { PRIMARY, TEXT_SECONDARY } from '~/global/variables';
+import { TEXT_SECONDARY } from '~/global/variables';
 import { logger } from '~/global/logger';
 
 type IProps = {
@@ -15,6 +15,7 @@ type IProps = {
 };
 
 export default function AudioPlayer(props: IProps) {
+    const { colors } = useTheme();
     const [audioPlaybackTime, setAudioPlaybackTime] = useState(0);
     const [playingAudio, setPlayingAudio] = useState(false);
     const audioFilePathRef = useRef('');
@@ -63,16 +64,16 @@ export default function AudioPlayer(props: IProps) {
             <View style={styles.inputContainer}>
                 {playingAudio ? (
                     <TouchableOpacity style={styles.button} onPress={stopAudio}>
-                        <Icon source="pause" color={PRIMARY} size={28} />
+                        <Icon source="pause" color={colors.primary} size={28} />
                     </TouchableOpacity>
                 ) : (
                     <TouchableOpacity style={styles.button} onPress={playAudio}>
-                        <Icon source="play" color={PRIMARY} size={28} />
+                        <Icon source="play" color={colors.primary} size={28} />
                     </TouchableOpacity>
                 )}
                 <View style={styles.progressContainer}>
                     <View style={styles.progressTrack}>
-                        <View style={[styles.progressFill, { width: `${progress}%` }]} />
+                        <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: colors.primary }]} />
                     </View>
                     <Text style={styles.duration}>
                         {Sound.mmssss(audioPlaybackTime ? ~~audioPlaybackTime : ~~props.audioDuration)}
@@ -107,7 +108,6 @@ const styles = StyleSheet.create({
     progressFill: {
         height: 4,
         borderRadius: 2,
-        backgroundColor: PRIMARY,
     },
     duration: {
         color: TEXT_SECONDARY,

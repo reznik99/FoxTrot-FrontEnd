@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
-import { Button, Text, Icon, ActivityIndicator } from 'react-native-paper';
+import { Button, Text, Icon, ActivityIndicator, useTheme } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import Toast from 'react-native-toast-message';
 
-import { PRIMARY, SECONDARY, SECONDARY_LITE } from '~/global/variables';
+import { SECONDARY, SECONDARY_LITE } from '~/global/variables';
 import { importKeysFromFile } from '~/global/keyImport';
 import { exportKeysToFile } from '~/global/keyExport';
 import { logger } from '~/global/logger';
@@ -15,6 +15,7 @@ import { RootNavigation } from '~/store/actions/auth';
 import PasswordInput from '~/components/PasswordInput';
 
 export default function KeySetup() {
+    const { colors } = useTheme();
     const navigation = useNavigation<RootNavigation>();
     const phoneNo = useSelector((state: RootState) => state.userReducer.user_data.phone_no);
     const hasKeys = useSelector((state: RootState) => Boolean(state.userReducer.keys));
@@ -140,7 +141,7 @@ export default function KeySetup() {
     if (mode === 'import') {
         return (
             <View style={styles.container}>
-                <Icon source="key-arrow-right" size={64} color={PRIMARY} />
+                <Icon source="key-arrow-right" size={64} color={colors.primary} />
                 <Text variant="headlineSmall" style={styles.title}>
                     Import Keys
                 </Text>
@@ -165,7 +166,7 @@ export default function KeySetup() {
     if (mode === 'export') {
         return (
             <View style={styles.container}>
-                <Icon source="download-circle" size={64} color={PRIMARY} />
+                <Icon source="download-circle" size={64} color={colors.primary} />
                 <Text variant="headlineSmall" style={styles.title}>
                     Export Keys
                 </Text>
@@ -190,7 +191,7 @@ export default function KeySetup() {
 
     return (
         <View style={styles.container}>
-            <Icon source="shield-lock" size={64} color={PRIMARY} />
+            <Icon source="shield-lock" size={64} color={colors.primary} />
             <Text variant="headlineSmall" style={styles.title}>
                 {hasKeys ? 'Manage Keys' : 'Set Up Encryption'}
             </Text>

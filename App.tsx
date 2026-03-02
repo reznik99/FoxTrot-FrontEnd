@@ -1,10 +1,10 @@
 import 'react-native-gesture-handler';
 import { Buffer } from 'buffer';
 global.Buffer = global.Buffer || Buffer;
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { createContext, useMemo, useState, useCallback, useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { Provider } from 'react-redux';
-import { Provider as PaperProvider, MD3DarkTheme, Icon } from 'react-native-paper';
+import { Provider as PaperProvider, MD3DarkTheme, Icon, useTheme } from 'react-native-paper';
 import { NavigationContainer, DarkTheme as NavDarkTheme, RouteProp } from '@react-navigation/native';
 import { createDrawerNavigator, DrawerContentComponentProps, DrawerNavigationOptions } from '@react-navigation/drawer';
 import RNNotificationCall, { DeclinePayload } from 'react-native-full-screen-notification-incoming-call';
@@ -22,7 +22,7 @@ import {
 } from '@react-navigation/stack';
 
 // App
-import { PRIMARY, SECONDARY, SECONDARY_LITE, ACCENT, DARKHEADER, VibratePattern } from '~/global/variables';
+import { PRIMARY, SECONDARY, SECONDARY_LITE, ACCENT, DARKHEADER, DIVIDER, ERROR_RED, VibratePattern } from '~/global/variables';
 import { deleteFromStorage, readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { getDb, dbSaveCallRecord, dbGetUnseenCallCount } from '~/global/database';
 import { logger, showErrorPortal } from '~/global/logger';
@@ -79,6 +79,7 @@ const renderCallsIcon = ({ color, size }: { color: string; size: number }) => (
     <Icon source="phone" color={color} size={size} />
 );
 const HomeTabs = () => {
+    const { colors } = useTheme();
     const [unseenCount, setUnseenCount] = useState(0);
     const refreshBadge = useCallback(() => {
         try {
@@ -94,10 +95,10 @@ const HomeTabs = () => {
         <Tab.Navigator
             screenOptions={{
                 headerShown: false,
-                tabBarStyle: { backgroundColor: DARKHEADER, borderTopColor: '#333' },
-                tabBarActiveTintColor: PRIMARY,
+                tabBarStyle: { backgroundColor: DARKHEADER, borderTopColor: DIVIDER },
+                tabBarActiveTintColor: colors.primary,
                 tabBarInactiveTintColor: SECONDARY_LITE,
-                tabBarBadgeStyle: { backgroundColor: '#e53935' },
+                tabBarBadgeStyle: { backgroundColor: ERROR_RED },
             }}
             screenListeners={{ state: refreshBadge }}
         >
@@ -203,16 +204,7 @@ const AuthNavigator = () => {
     );
 };
 
-const darkTheme = {
-    ...MD3DarkTheme,
-    colors: {
-        ...MD3DarkTheme.colors,
-        primary: PRIMARY,
-        onPrimary: '#fff',
-        background: SECONDARY,
-        accent: ACCENT,
-    },
-};
+export const PrimaryColorContext = createContext<(color: string) => void>(() => {});
 
 // Register background handler
 const messaging = getMessaging();
@@ -304,10 +296,31 @@ setBackgroundMessageHandler(messaging, async remoteMessage => {
 });
 
 export default function App() {
+    const [primaryColor, setPrimaryColor] = useState(PRIMARY);
+
+    const darkTheme = useMemo(
+        () => ({
+            ...MD3DarkTheme,
+            colors: {
+                ...MD3DarkTheme.colors,
+                primary: primaryColor,
+                onPrimary: '#fff',
+                background: SECONDARY,
+                accent: ACCENT,
+            },
+        }),
+        [primaryColor],
+    );
+
     useEffect(() => {
         readFromStorage(StorageKeys.SCREEN_SECURITY).then(val => {
             if (val === 'true') {
                 FlagSecure.enable();
+            }
+        });
+        readFromStorage(StorageKeys.PRIMARY_COLOR).then(val => {
+            if (val) {
+                setPrimaryColor(val);
             }
         });
 
@@ -322,12 +335,14 @@ export default function App() {
     return (
         <Provider store={store}>
             <PaperProvider theme={darkTheme}>
-                <StatusBar backgroundColor={DARKHEADER} barStyle="light-content" />
-                <ErrorBoundary>
-                    <AuthNavigator />
-                </ErrorBoundary>
-                <ErrorPortal />
-                <Toast />
+                <PrimaryColorContext.Provider value={setPrimaryColor}>
+                    <StatusBar backgroundColor={DARKHEADER} barStyle="light-content" />
+                    <ErrorBoundary>
+                        <AuthNavigator />
+                    </ErrorBoundary>
+                    <ErrorPortal />
+                    <Toast />
+                </PrimaryColorContext.Provider>
             </PaperProvider>
         </Provider>
     );

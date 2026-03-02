@@ -1,6 +1,6 @@
 import React, { PureComponent, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, Text, Pressable, View, Linking, ToastAndroid, Image, Vibration } from 'react-native';
-import { ActivityIndicator, Icon, Modal, Portal } from 'react-native-paper';
+import { ActivityIndicator, Icon, Modal, Portal, useTheme } from 'react-native-paper';
 import { useSelector } from 'react-redux';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { FlashList } from '@shopify/flash-list';
@@ -13,7 +13,7 @@ import Sound from 'react-native-nitro-sound';
 import FullScreenMedia from '~/components/FullScreenMedia';
 import AudioPlayer from '~/components/AudioPlayer';
 import Messaging from '~/components/Messaging';
-import { PRIMARY, SECONDARY, TEXT_MUTED, TEXT_SECONDARY, DB_MSG_PAGE_SIZE } from '~/global/variables';
+import { SECONDARY, TEXT_MUTED, TEXT_SECONDARY, DB_MSG_PAGE_SIZE } from '~/global/variables';
 import { decrypt } from '~/global/crypto';
 
 import {
@@ -33,6 +33,7 @@ import { logger } from '~/global/logger';
 const todaysDate = new Date().toLocaleDateString();
 
 export default function Conversation(props: StackScreenProps<HomeStackParamList, 'Conversation'>) {
+    const { colors } = useTheme();
     const { peer_user } = props.route.params.data;
 
     const fallbackConversation = useMemo(() => ({ messages: [] as message[], other_user: peer_user }), [peer_user]);
@@ -200,11 +201,11 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
     const renderListFooter = useCallback(
         () => (
             <View style={styles.footer}>
-                <Icon source="shield-lock" color={PRIMARY} size={20} />
+                <Icon source="shield-lock" color={colors.primary} size={20} />
                 <Text style={{ color: 'white' }}> Messages are end-to-end encrypted</Text>
             </View>
         ),
-        [],
+        [colors.primary],
     );
 
     return (
@@ -232,6 +233,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                         isSent={item.sender === user_data.phone_no}
                         zoomMedia={data => setZoomMedia(data)}
                         conversationId={peer.phone_no}
+                        primaryColor={colors.primary}
                     />
                 )}
             />
@@ -275,6 +277,7 @@ type MProps = {
     peer: UserData;
     zoomMedia: (data: string) => void;
     conversationId: string;
+    primaryColor: string;
 };
 type MState = {
     loading: boolean;
@@ -463,7 +466,7 @@ class Message extends PureComponent<MProps, MState> {
                     }
                     return (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 200 }}>
-                            <Icon source="download" color={PRIMARY} size={28} />
+                            <Icon source="download" color={this.props.primaryColor} size={28} />
                             <View>
                                 <Text style={styles.text}>Audio message</Text>
                                 <Text style={{ color: TEXT_MUTED, fontSize: 12 }}>
@@ -590,7 +593,10 @@ class Message extends PureComponent<MProps, MState> {
 
         return (
             <Pressable
-                style={[styles.messageContainer, isSent ? styles.sent : styles.received]}
+                style={[
+                    styles.messageContainer,
+                    isSent ? [styles.sent, { backgroundColor: this.props.primaryColor }] : styles.received,
+                ]}
                 onPress={() => this.handleClick(item)}
                 onLongPress={() => this.copyMessage()}
             >
@@ -613,7 +619,7 @@ class Message extends PureComponent<MProps, MState> {
                                 paddingHorizontal: 4,
                             }}
                         >
-                            <Icon source="shield-lock" color={isSent ? '#ffffffcc' : PRIMARY} size={20} />
+                            <Icon source="shield-lock" color={isSent ? '#ffffffcc' : this.props.primaryColor} size={20} />
                             <Text style={{ color: isSent ? '#ffffffcc' : TEXT_SECONDARY, fontSize: 14 }}>
                                 Tap to decrypt
                             </Text>
@@ -665,7 +671,6 @@ const styles = StyleSheet.create({
     },
     sent: {
         alignSelf: 'flex-end',
-        backgroundColor: PRIMARY,
     },
     messageTime: {
         color: TEXT_MUTED,

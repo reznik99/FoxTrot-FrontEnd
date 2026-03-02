@@ -278,7 +278,6 @@ export const searchUsers = createDefaultAsyncThunk<UserData[], { prefix: string 
     'searchUsers',
     async ({ prefix }, thunkAPI) => {
         try {
-            thunkAPI.dispatch({ type: 'SET_LOADING', payload: true });
             const state = thunkAPI.getState().userReducer;
 
             const response = await axios.get<UserData[]>(`${API_URL}/searchUsers/${prefix}`, axiosBearerConfig(state.token));
@@ -294,8 +293,6 @@ export const searchUsers = createDefaultAsyncThunk<UserData[], { prefix: string 
         } catch (err: any) {
             logger.error('Error searching users:', err);
             return [];
-        } finally {
-            thunkAPI.dispatch({ type: 'SET_LOADING', payload: false });
         }
     },
 );

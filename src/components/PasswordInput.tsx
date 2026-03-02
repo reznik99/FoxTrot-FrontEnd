@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { TextInput } from 'react-native-paper';
+import { TextInput, useTheme } from 'react-native-paper';
 import { TextInputLabelProp } from 'react-native-paper/lib/typescript/components/TextInput/types';
-import { PRIMARY, SECONDARY_LITE } from '~/global/variables';
+import { SECONDARY_LITE } from '~/global/variables';
 
 type Props = {
     value: string;
@@ -13,6 +13,7 @@ type Props = {
 };
 
 export default function PasswordInput(props: Props) {
+    const { colors } = useTheme();
     const [showPassword, setShowPassword] = useState(false);
 
     return (
@@ -27,7 +28,7 @@ export default function PasswordInput(props: Props) {
             right={
                 <TextInput.Icon
                     icon={showPassword ? 'eye-off' : 'eye'}
-                    color={showPassword ? PRIMARY : SECONDARY_LITE}
+                    color={showPassword ? colors.primary : SECONDARY_LITE}
                     forceTextInputFocus={false}
                     onPress={() => setShowPassword(!showPassword)}
                 />

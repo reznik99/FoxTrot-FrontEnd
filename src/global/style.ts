@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { PRIMARY, SECONDARY } from './variables';
+import { SECONDARY, ERROR_RED } from './variables';
 
 const globalStyle = StyleSheet.create({
     wrapper: {
@@ -15,7 +15,7 @@ const globalStyle = StyleSheet.create({
         alignItems: 'center',
     },
     errorMsg: {
-        color: 'red',
+        color: ERROR_RED,
         textAlign: 'center',
         fontSize: 20,
         paddingVertical: 20,
@@ -25,7 +25,6 @@ const globalStyle = StyleSheet.create({
         margin: 20,
         right: 0,
         bottom: 0,
-        backgroundColor: PRIMARY,
     },
     dialogText: {
         marginBottom: 5,

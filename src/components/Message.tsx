@@ -35,6 +35,7 @@ export type MessageContextMenuData = {
     objectKey?: string;
     fileKey?: string;
     fileIv?: string;
+    mediaUri?: string;
     sentAt: string;
     rawMessageLength: number;
     isSent: boolean;
@@ -196,6 +197,7 @@ export default class Message extends PureComponent<MProps, MState> {
             objectKey: this.state.decryptedMessage.objectKey,
             fileKey: this.state.decryptedMessage.fileKey,
             fileIv: this.state.decryptedMessage.fileIv,
+            mediaUri: this.state.mediaUri,
             sentAt: this.props.item.sent_at,
             rawMessageLength: Buffer.byteLength(this.props.item.message, 'utf8'),
             isSent: this.props.isSent,

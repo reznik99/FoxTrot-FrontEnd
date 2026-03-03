@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, ToastAndroid, TouchableOpacity, View } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import RNFS from 'react-native-fs';
@@ -24,6 +24,15 @@ const REACTIONS = ['\u{1F44D}', '\u{2764}\u{FE0F}', '\u{1F602}', '\u{1F62E}', '\
 
 export default function MessageContextMenu({ data, onDismiss }: Props) {
     const [infoVisible, setInfoVisible] = useState(false);
+    const [mediaFileSize, setMediaFileSize] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (infoVisible && data.mediaUri) {
+            RNFS.stat(data.mediaUri.replace('file://', ''))
+                .then(stat => setMediaFileSize(stat.size))
+                .catch(() => setMediaFileSize(null));
+        }
+    }, [infoVisible, data.mediaUri]);
 
     const handleCopy = useCallback(() => {
         Clipboard.setString(data.text || '');
@@ -102,7 +111,7 @@ export default function MessageContextMenu({ data, onDismiss }: Props) {
 
             {/* Info dialog */}
             <Portal>
-                <Dialog visible={infoVisible} onDismiss={() => setInfoVisible(false)} style={styles.dialog}>
+                <Dialog visible={infoVisible} onDismiss={onDismiss} style={styles.dialog}>
                     <Dialog.Title style={styles.dialogTitle}>Message Info</Dialog.Title>
                     <Dialog.Content>
                         <Text style={styles.infoLabel}>Direction</Text>
@@ -118,9 +127,18 @@ export default function MessageContextMenu({ data, onDismiss }: Props) {
                         <Text style={styles.infoValue}>
                             {data.objectKey ? data.objectKey.split('/').pop() || data.objectKey : 'None'}
                         </Text>
+
+                        {data.objectKey && (
+                            <>
+                                <Text style={styles.infoLabel}>Media size</Text>
+                                <Text style={styles.infoValue}>
+                                    {mediaFileSize != null ? formatBytes(mediaFileSize) : 'Not downloaded'}
+                                </Text>
+                            </>
+                        )}
                     </Dialog.Content>
                     <Dialog.Actions>
-                        <Pressable onPress={() => setInfoVisible(false)} style={styles.dialogAction}>
+                        <Pressable onPress={onDismiss} style={styles.dialogAction}>
                             <Text style={styles.dialogActionText}>Close</Text>
                         </Pressable>
                     </Dialog.Actions>

@@ -112,7 +112,7 @@ export async function publicKeyFingerprint(peerPublic: string): Promise<string> 
 }
 
 export interface EncryptedFileResult {
-    encrypted: Buffer;
+    encrypted: Buffer<ArrayBuffer>;
     keyBase64: string;
     ivBase64: string;
 }

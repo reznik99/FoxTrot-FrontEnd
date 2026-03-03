@@ -10,7 +10,15 @@ import { API_URL, COLOR_PRESETS, DARKHEADER, KeychainOpts } from '~/global/varia
 import { PrimaryColorContext } from '~/../App';
 import { logger, showErrorPortal } from '~/global/logger';
 import DeviceInfo from 'react-native-device-info';
-import { deleteFromStorage, getAllStorageKeys, readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
+import {
+    deleteFromStorage,
+    getAllStorageKeys,
+    MMKV_KEY_SERVICE,
+    readFromStorage,
+    StorageKeys,
+    writeToStorage,
+} from '~/global/storage';
+import { deleteDb, DB_KEY_SERVICE } from '~/global/database';
 import { FlagSecure } from '~/global/native';
 import globalStyle from '~/global/style';
 import { logOut } from '~/store/actions/auth';
@@ -73,7 +81,11 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
             ...allKeys.map(key => deleteFromStorage(key)),
             Keychain.resetInternetCredentials({ server: API_URL, service: `${user_data?.phone_no}-keys` }),
             Keychain.resetGenericPassword({ server: API_URL, service: `${user_data?.phone_no}-credentials` }),
+            Keychain.resetGenericPassword({ service: MMKV_KEY_SERVICE }),
+            Keychain.resetGenericPassword({ service: DB_KEY_SERVICE }),
         ]);
+        // Close and delete SQLite database file (messages, conversations, calls)
+        deleteDb();
         dispatch(logOut({ navigation: props.navigation as any }));
     }, [user_data, props.navigation, dispatch]);
 

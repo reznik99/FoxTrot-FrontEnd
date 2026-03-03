@@ -9,7 +9,7 @@ import { DB_MSG_PAGE_SIZE } from './variables';
 import { logger } from '~/global/logger';
 
 const DB_NAME = 'foxtrot.db';
-const DB_KEY_SERVICE = 'foxtrot-db-key';
+export const DB_KEY_SERVICE = 'foxtrot-db-key';
 const SCHEMA_VERSION = 2;
 
 // SQLite database is encrypted using SQLCipher (AES-256-CBC with HMAC-SHA512).
@@ -83,6 +83,14 @@ export function closeDb(): void {
         db.close();
         db = null;
         logger.debug('Database closed');
+    }
+}
+
+export function deleteDb(): void {
+    if (db) {
+        db.delete();
+        db = null;
+        logger.debug('Database deleted');
     }
 }
 

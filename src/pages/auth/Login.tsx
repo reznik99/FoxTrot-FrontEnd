@@ -113,7 +113,12 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
 
             const creds = JSON.parse(res.password);
             return { username: res.username, ...creds } as Credentials;
-        } catch (err) {
+        } catch (err: any) {
+            const msg = err?.message || '';
+            if (msg.includes('code: 10') || msg.includes('code: 13')) {
+                logger.debug('Biometric authentication cancelled');
+                return undefined;
+            }
             logger.error('Failed to load creds:', err);
             return undefined;
         }

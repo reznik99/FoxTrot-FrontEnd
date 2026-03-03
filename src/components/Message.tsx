@@ -1,6 +1,6 @@
+import { Buffer } from 'buffer';
 import React, { PureComponent } from 'react';
-import { Image, Linking, Pressable, StyleSheet, Text, ToastAndroid, View } from 'react-native';
-import Clipboard from '@react-native-clipboard/clipboard';
+import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import RNFS from 'react-native-fs';
 import Sound from 'react-native-nitro-sound';
 import { ActivityIndicator, Icon } from 'react-native-paper';
@@ -27,11 +27,25 @@ type decryptedMessage = {
     thumbnail?: string;
 };
 
+export type MessageContextMenuData = {
+    messageId: number;
+    conversationId: string;
+    type: string;
+    text?: string;
+    objectKey?: string;
+    fileKey?: string;
+    fileIv?: string;
+    sentAt: string;
+    rawMessageLength: number;
+    isSent: boolean;
+};
+
 type MProps = {
     item: message;
     isSent: boolean;
     peer: UserData;
     zoomMedia: (data: string) => void;
+    onLongPress: (data: MessageContextMenuData) => void;
     conversationId: string;
     primaryColor: string;
 };
@@ -70,18 +84,122 @@ export default class Message extends PureComponent<MProps, MState> {
         }
     }
 
-    onPress = () => this.handleClick(this.props.item);
+    handlePress = async () => {
+        if (this.state.loading) return;
+        try {
+            this.setState({ loading: true });
+            const msgObject = this.state.decryptedMessage;
 
-    copyMessage = () => {
-        if (!this.state.decryptedMessage) {
-            return;
-        }
-        if (this.state.decryptedMessage?.type !== 'MSG') {
-            return;
-        }
+            // Check if message is encrypted, if so, decrypt it
+            if (!msgObject) {
+                const decryptedMessage = await this.decryptMessage(this.props.item);
+                this.setState({ decryptedMessage });
 
-        Clipboard.setString(this.state.decryptedMessage.message || '');
-        ToastAndroid.show('Message Copied', ToastAndroid.SHORT);
+                // Update Redux store (also persists to SQLite)
+                store.dispatch(
+                    UPDATE_MESSAGE_DECRYPTED({
+                        conversationId: this.props.conversationId,
+                        messageId: this.props.item.id,
+                        decryptedContent: JSON.stringify(decryptedMessage),
+                    }),
+                );
+                return;
+            }
+            // Message is decrypted so behaviour depends on content
+            switch (msgObject?.type) {
+                case 'IMG':
+                    if (msgObject.message) {
+                        // Legacy inline base64 — zoom in
+                        this.props.zoomMedia(msgObject.message);
+                    } else if (msgObject.objectKey && msgObject.fileKey && msgObject.fileIv) {
+                        if (this.state.mediaUri) {
+                            // Already downloaded — zoom in
+                            this.props.zoomMedia(this.state.mediaUri);
+                        } else {
+                            // Download from S3, decrypt, cache, and open immediately
+                            const uri = await store
+                                .dispatch(
+                                    downloadMedia({
+                                        objectKey: msgObject.objectKey,
+                                        keyBase64: msgObject.fileKey,
+                                        ivBase64: msgObject.fileIv,
+                                    }),
+                                )
+                                .unwrap();
+                            this.setState({ mediaUri: uri });
+                            this.props.zoomMedia(uri);
+                        }
+                    }
+                    break;
+                case 'VIDEO':
+                    if (msgObject.objectKey && msgObject.fileKey && msgObject.fileIv) {
+                        if (this.state.mediaUri) {
+                            // Already downloaded — open full screen
+                            this.props.zoomMedia(this.state.mediaUri);
+                        } else {
+                            // Download from S3, decrypt, cache, and open immediately
+                            const uri = await store
+                                .dispatch(
+                                    downloadMedia({
+                                        objectKey: msgObject.objectKey,
+                                        keyBase64: msgObject.fileKey,
+                                        ivBase64: msgObject.fileIv,
+                                    }),
+                                )
+                                .unwrap();
+                            this.setState({ mediaUri: uri });
+                            this.props.zoomMedia(uri);
+                        }
+                    }
+                    break;
+                case 'AUDIO':
+                    if (msgObject.objectKey && msgObject.fileKey && msgObject.fileIv && !this.state.mediaUri) {
+                        const uri = await store
+                            .dispatch(
+                                downloadMedia({
+                                    objectKey: msgObject.objectKey,
+                                    keyBase64: msgObject.fileKey,
+                                    ivBase64: msgObject.fileIv,
+                                }),
+                            )
+                            .unwrap();
+                        this.setState({ mediaUri: uri });
+                    }
+                    break;
+                case 'MSG': // If message contains URL open it in browser
+                    const messageChunks = msgObject?.message?.split(' ') || [];
+                    const link = messageChunks.find(chunk => chunk.startsWith('https://') || chunk.startsWith('http://'));
+                    if (link) {
+                        Linking.openURL(link);
+                    }
+                    break;
+            }
+        } catch (err: any) {
+            logger.error('Error on message click:', err);
+            Toast.show({
+                type: 'error',
+                text1: 'Failed to decrypt message',
+                text2: err?.message || 'Session Key might have been rotated since this message was sent',
+            });
+        } finally {
+            this.setState({ loading: false });
+        }
+    };
+
+    handleLongPress = () => {
+        if (!this.state.decryptedMessage) return;
+        this.props.onLongPress({
+            messageId: this.props.item.id,
+            conversationId: this.props.conversationId,
+            type: this.state.decryptedMessage.type,
+            text: this.state.decryptedMessage.message,
+            objectKey: this.state.decryptedMessage.objectKey,
+            fileKey: this.state.decryptedMessage.fileKey,
+            fileIv: this.state.decryptedMessage.fileIv,
+            sentAt: this.props.item.sent_at,
+            rawMessageLength: Buffer.byteLength(this.props.item.message, 'utf8'),
+            isSent: this.props.isSent,
+        });
     };
 
     decryptMessage = async (item: message): Promise<decryptedMessage> => {
@@ -183,22 +301,18 @@ export default class Message extends PureComponent<MProps, MState> {
                 );
 
                 if (linkIndex < 0) {
-                    return (
-                        <Text style={styles.text} selectable>
-                            {item.message}
-                        </Text>
-                    );
+                    return <Text style={styles.text}>{item.message}</Text>;
                 }
 
                 return (
                     <Text style={styles.text}>
-                        <Text selectable>{messageChunks.slice(0, linkIndex).join(' ')}</Text>
-                        <Text selectable style={styles.linkText}>
+                        <Text>{messageChunks.slice(0, linkIndex).join(' ')}</Text>
+                        <Text style={styles.linkText}>
                             {linkIndex > 0 ? ' ' : ''}
                             {messageChunks[linkIndex]}
                             {linkIndex < messageChunks.length - 1 ? ' ' : ''}
                         </Text>
-                        <Text selectable>{messageChunks.slice(linkIndex + 1, messageChunks.length).join(' ')}</Text>
+                        <Text>{messageChunks.slice(linkIndex + 1, messageChunks.length).join(' ')}</Text>
                     </Text>
                 );
             }
@@ -248,108 +362,6 @@ export default class Message extends PureComponent<MProps, MState> {
         }
     };
 
-    handleClick = async (item: message) => {
-        if (this.state.loading) return;
-        try {
-            this.setState({ loading: true });
-            const msgObject = this.state.decryptedMessage;
-
-            // Check if message is encrypted, if so, decrypt it
-            if (!msgObject) {
-                const decryptedMessage = await this.decryptMessage(item);
-                this.setState({ decryptedMessage });
-
-                // Update Redux store (also persists to SQLite)
-                store.dispatch(
-                    UPDATE_MESSAGE_DECRYPTED({
-                        conversationId: this.props.conversationId,
-                        messageId: item.id,
-                        decryptedContent: JSON.stringify(decryptedMessage),
-                    }),
-                );
-                return;
-            }
-            // Message is decrypted so behaviour depends on content
-            switch (msgObject?.type) {
-                case 'IMG':
-                    if (msgObject.message) {
-                        // Legacy inline base64 — zoom in
-                        this.props.zoomMedia(msgObject.message);
-                    } else if (msgObject.objectKey && msgObject.fileKey && msgObject.fileIv) {
-                        if (this.state.mediaUri) {
-                            // Already downloaded — zoom in
-                            this.props.zoomMedia(this.state.mediaUri);
-                        } else {
-                            // Download from S3, decrypt, cache, and open immediately
-                            const uri = await store
-                                .dispatch(
-                                    downloadMedia({
-                                        objectKey: msgObject.objectKey,
-                                        keyBase64: msgObject.fileKey,
-                                        ivBase64: msgObject.fileIv,
-                                    }),
-                                )
-                                .unwrap();
-                            this.setState({ mediaUri: uri });
-                            this.props.zoomMedia(uri);
-                        }
-                    }
-                    break;
-                case 'VIDEO':
-                    if (msgObject.objectKey && msgObject.fileKey && msgObject.fileIv) {
-                        if (this.state.mediaUri) {
-                            // Already downloaded — open full screen
-                            this.props.zoomMedia(this.state.mediaUri);
-                        } else {
-                            // Download from S3, decrypt, cache, and open immediately
-                            const uri = await store
-                                .dispatch(
-                                    downloadMedia({
-                                        objectKey: msgObject.objectKey,
-                                        keyBase64: msgObject.fileKey,
-                                        ivBase64: msgObject.fileIv,
-                                    }),
-                                )
-                                .unwrap();
-                            this.setState({ mediaUri: uri });
-                            this.props.zoomMedia(uri);
-                        }
-                    }
-                    break;
-                case 'AUDIO':
-                    if (msgObject.objectKey && msgObject.fileKey && msgObject.fileIv && !this.state.mediaUri) {
-                        const uri = await store
-                            .dispatch(
-                                downloadMedia({
-                                    objectKey: msgObject.objectKey,
-                                    keyBase64: msgObject.fileKey,
-                                    ivBase64: msgObject.fileIv,
-                                }),
-                            )
-                            .unwrap();
-                        this.setState({ mediaUri: uri });
-                    }
-                    break;
-                case 'MSG': // If message contains URL open it in browser
-                    const messageChunks = msgObject?.message?.split(' ') || [];
-                    const link = messageChunks.find(chunk => chunk.startsWith('https://') || chunk.startsWith('http://'));
-                    if (link) {
-                        Linking.openURL(link);
-                    }
-                    break;
-            }
-        } catch (err: any) {
-            logger.error('Error on message click:', err);
-            Toast.show({
-                type: 'error',
-                text1: 'Failed to decrypt message',
-                text2: err?.message || 'Session Key might have been rotated since this message was sent',
-            });
-        } finally {
-            this.setState({ loading: false });
-        }
-    };
-
     render = () => {
         const { item, isSent } = this.props;
         const isEncrypted = !this.state.decryptedMessage;
@@ -361,8 +373,8 @@ export default class Message extends PureComponent<MProps, MState> {
                     styles.messageContainer,
                     isSent ? [styles.sent, { backgroundColor: this.props.primaryColor }] : styles.received,
                 ]}
-                onPress={this.onPress}
-                onLongPress={this.copyMessage}
+                onPress={this.handlePress}
+                onLongPress={this.handleLongPress}
             >
                 <View style={[styles.message]}>
                     {/* Loader */}

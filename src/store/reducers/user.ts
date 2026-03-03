@@ -3,7 +3,13 @@ import type { WebCryptoKeyPair } from 'react-native-quick-crypto';
 import type { CryptoKey } from 'react-native-quick-crypto/src/keys/classes';
 import { RTCIceCandidate } from 'react-native-webrtc';
 
-import { dbMarkMessagesSeen, dbSaveConversation, dbSaveMessage, dbUpdateMessageDecrypted } from '~/global/database';
+import {
+    dbDeleteMessage,
+    dbMarkMessagesSeen,
+    dbSaveConversation,
+    dbSaveMessage,
+    dbUpdateMessageDecrypted,
+} from '~/global/database';
 import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { writeToStorage } from '~/global/storage';
@@ -245,6 +251,18 @@ export const userSlice = createSlice({
                 logger.error('Error persisting seen status to SQLite:', err);
             }
         },
+        DELETE_MESSAGE: (state, action: PayloadAction<{ conversationId: string; messageId: number }>) => {
+            const { conversationId, messageId } = action.payload;
+            const conversation = state.conversations.get(conversationId);
+            if (conversation) {
+                conversation.messages = conversation.messages.filter(m => m.id !== messageId);
+            }
+            try {
+                dbDeleteMessage(messageId);
+            } catch (err) {
+                logger.error('Error deleting message from SQLite:', err);
+            }
+        },
         APPEND_OLDER_MESSAGES: (state, action: PayloadAction<{ conversationId: string; messages: message[] }>) => {
             const { conversationId, messages } = action.payload;
             if (messages.length === 0) {
@@ -307,6 +325,7 @@ export const {
     RECV_MESSAGE,
     UPDATE_MESSAGE_DECRYPTED,
     MARK_MESSAGES_SEEN,
+    DELETE_MESSAGE,
     APPEND_OLDER_MESSAGES,
     RECV_CALL_OFFER,
     RECV_CALL_ANSWER,

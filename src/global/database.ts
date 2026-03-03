@@ -244,6 +244,11 @@ export function dbMarkMessagesSeen(messageIds: number[]): void {
     database.executeSync(`UPDATE messages SET seen = 1 WHERE id IN (${placeholders})`, messageIds);
 }
 
+export function dbDeleteMessage(messageId: number): void {
+    const database = requireDb();
+    database.executeSync('DELETE FROM messages WHERE id = ?', [messageId]);
+}
+
 // Conversations
 
 export function dbSaveConversation(peer: UserData, updatedAt: number): void {

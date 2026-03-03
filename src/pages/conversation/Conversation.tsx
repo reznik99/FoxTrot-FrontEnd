@@ -7,7 +7,8 @@ import { Icon, Modal, Portal, useTheme } from 'react-native-paper';
 import { useSelector } from 'react-redux';
 
 import FullScreenMedia from '~/components/FullScreenMedia';
-import Message from '~/components/Message';
+import Message, { MessageContextMenuData } from '~/components/Message';
+import MessageContextMenu from '~/components/MessageContextMenu';
 import Messaging from '~/components/Messaging';
 import { dbGetMessages } from '~/global/database';
 import { logger } from '~/global/logger';
@@ -34,6 +35,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
     const [loading, setLoading] = useState(false);
     const [inputMessage, setInputMessage] = useState('');
     const [zoomMedia, setZoomMedia] = useState('');
+    const [contextMenuData, setContextMenuData] = useState<MessageContextMenuData | null>(null);
     const [hasMore, setHasMore] = useState(conversation.messages.length >= DB_MSG_PAGE_SIZE);
     const paginationRef = useRef({
         loading: false,
@@ -55,6 +57,11 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
     const reversedMessages = useMemo(() => {
         return [...conversation.messages].reverse();
     }, [conversation.messages]);
+
+    const handleLongPress = useCallback((data: MessageContextMenuData) => {
+        Vibration.vibrate(50);
+        setContextMenuData(data);
+    }, []);
 
     const loadMoreMessages = useCallback(() => {
         const pg = paginationRef.current;
@@ -218,6 +225,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                         peer={peer}
                         isSent={item.sender === user_data.phone_no}
                         zoomMedia={setZoomMedia}
+                        onLongPress={handleLongPress}
                         conversationId={peer.phone_no}
                         primaryColor={colors.primary}
                     />
@@ -243,6 +251,18 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                     {zoomMedia && <FullScreenMedia media={zoomMedia} onDismiss={() => setZoomMedia('')} />}
                 </Modal>
             </Portal>
+            {/* Message context menu */}
+            <Portal>
+                <Modal
+                    visible={!!contextMenuData}
+                    onDismiss={() => setContextMenuData(null)}
+                    contentContainerStyle={styles.contextMenuModal}
+                >
+                    {contextMenuData && (
+                        <MessageContextMenu data={contextMenuData} onDismiss={() => setContextMenuData(null)} />
+                    )}
+                </Modal>
+            </Portal>
         </View>
     );
 }
@@ -266,5 +286,9 @@ const styles = StyleSheet.create({
         marginVertical: 5,
         backgroundColor: '#333333a0',
         borderRadius: 10,
+    },
+    contextMenuModal: {
+        justifyContent: 'flex-end',
+        marginBottom: 40,
     },
 });

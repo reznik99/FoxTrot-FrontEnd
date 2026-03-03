@@ -1,5 +1,6 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
-import type { StackScreenProps, StackNavigationProp } from '@react-navigation/stack';
+import type { StackNavigationProp, StackScreenProps } from '@react-navigation/stack';
+
 import type { UserData } from '~/store/reducers/user';
 
 export type HomeTabParamList = {

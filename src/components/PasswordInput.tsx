@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TextInput, useTheme } from 'react-native-paper';
 import { TextInputLabelProp } from 'react-native-paper/lib/typescript/components/TextInput/types';
+
 import { SECONDARY_LITE } from '~/global/variables';
 
 type Props = {

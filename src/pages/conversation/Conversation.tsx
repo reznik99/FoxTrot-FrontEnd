@@ -1,23 +1,22 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { StyleSheet, Text, View, Vibration } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { StyleSheet, Text, Vibration, View } from 'react-native';
+import { StackScreenProps } from '@react-navigation/stack';
+import { FlashList } from '@shopify/flash-list';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { Icon, Modal, Portal, useTheme } from 'react-native-paper';
 import { useSelector } from 'react-redux';
-import { launchImageLibrary } from 'react-native-image-picker';
-import { FlashList } from '@shopify/flash-list';
-import { StackScreenProps } from '@react-navigation/stack';
 
 import FullScreenMedia from '~/components/FullScreenMedia';
 import Message from '~/components/Message';
 import Messaging from '~/components/Messaging';
-import { SECONDARY, TEXT_MUTED, DB_MSG_PAGE_SIZE } from '~/global/variables';
-
-import { message, MARK_MESSAGES_SEEN, APPEND_OLDER_MESSAGES } from '~/store/reducers/user';
-import { RootState, store } from '~/store/store';
-import { sendMessage } from '~/store/actions/user';
-import { uploadMedia } from '~/store/actions/media';
 import { dbGetMessages } from '~/global/database';
-import { HomeStackParamList } from '~/global/navigation';
 import { logger } from '~/global/logger';
+import { HomeStackParamList } from '~/global/navigation';
+import { DB_MSG_PAGE_SIZE, SECONDARY, TEXT_MUTED } from '~/global/variables';
+import { uploadMedia } from '~/store/actions/media';
+import { sendMessage } from '~/store/actions/user';
+import { APPEND_OLDER_MESSAGES, MARK_MESSAGES_SEEN, message } from '~/store/reducers/user';
+import { RootState, store } from '~/store/store';
 
 export default function Conversation(props: StackScreenProps<HomeStackParamList, 'Conversation'>) {
     const { colors } = useTheme();

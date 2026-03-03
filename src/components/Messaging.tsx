@@ -1,13 +1,13 @@
 import React, { useCallback, useState } from 'react';
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import Sound, { AudioEncoderAndroidType, AudioSet } from 'react-native-nitro-sound';
 import { ActivityIndicator, Icon, Text, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Sound, { AudioSet, AudioEncoderAndroidType } from 'react-native-nitro-sound';
 
 import CustomKeyboardAvoidingView from '~/components/CustomKeyboardAvoidingView';
+import { logger } from '~/global/logger';
 import { getMicrophoneRecordingPermission, getReadExtPermission } from '~/global/permissions';
 import { DARKHEADER, ERROR_RED, SECONDARY_LITE, TEXT_SECONDARY } from '~/global/variables';
-import { logger } from '~/global/logger';
 
 type IProps = {
     inputMessage: string;

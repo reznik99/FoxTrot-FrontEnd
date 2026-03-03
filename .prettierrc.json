@@ -4,5 +4,14 @@
     "trailingComma": "all",
     "printWidth": 125,
     "tabWidth": 4,
-    "useTabs": false
+    "useTabs": false,
+    "plugins": ["@ianvs/prettier-plugin-sort-imports"],
+    "importOrder": [
+        "^react(-native)?(/.*)?$",
+        "<THIRD_PARTY_MODULES>",
+        "",
+        "^~/(.*)$",
+        "",
+        "^[./]"
+    ]
 }

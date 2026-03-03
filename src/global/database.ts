@@ -1,12 +1,12 @@
-import { open, DB } from '@op-engineering/op-sqlite';
-
+import { Buffer } from 'buffer';
+import { DB, open } from '@op-engineering/op-sqlite';
 import * as Keychain from 'react-native-keychain';
 import QuickCrypto from 'react-native-quick-crypto';
-import { Buffer } from 'buffer';
 
-import { CallRecord, message, UserData } from '~/store/reducers/user';
-import { DB_MSG_PAGE_SIZE } from './variables';
 import { logger } from '~/global/logger';
+import { CallRecord, message, UserData } from '~/store/reducers/user';
+
+import { DB_MSG_PAGE_SIZE } from './variables';
 
 const DB_NAME = 'foxtrot.db';
 export const DB_KEY_SERVICE = 'foxtrot-db-key';

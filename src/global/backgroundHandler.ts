@@ -1,14 +1,14 @@
-import RNNotificationCall, { DeclinePayload } from 'react-native-full-screen-notification-incoming-call';
 import { getMessaging, setBackgroundMessageHandler } from '@react-native-firebase/messaging';
-import PushNotification from 'react-native-push-notification';
+import RNNotificationCall, { DeclinePayload } from 'react-native-full-screen-notification-incoming-call';
 import InCallManager from 'react-native-incall-manager';
+import PushNotification from 'react-native-push-notification';
 import QuickCrypto from 'react-native-quick-crypto';
 
-import { deleteFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
-import { getDb, dbSaveCallRecord } from '~/global/database';
-import { VibratePattern } from '~/global/variables';
-import { logger } from '~/global/logger';
+import { dbSaveCallRecord, getDb } from '~/global/database';
 import { getAvatar } from '~/global/helper';
+import { logger } from '~/global/logger';
+import { deleteFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
+import { VibratePattern } from '~/global/variables';
 import { SocketMessage } from '~/store/actions/websocket';
 import { UserData } from '~/store/reducers/user';
 

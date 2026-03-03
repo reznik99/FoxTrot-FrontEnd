@@ -1,48 +1,49 @@
 import 'react-native-gesture-handler';
+import '~/global/buffer';
 import '~/global/backgroundHandler';
-import { Buffer } from 'buffer';
-global.Buffer = global.Buffer || Buffer;
-import React, { createContext, useMemo, useState, useCallback, useEffect } from 'react';
-import { StatusBar } from 'react-native';
-import { Provider } from 'react-redux';
-import { Provider as PaperProvider, MD3DarkTheme, Icon, useTheme } from 'react-native-paper';
-import { NavigationContainer, DarkTheme as NavDarkTheme, RouteProp } from '@react-navigation/native';
-import { createDrawerNavigator, DrawerContentComponentProps, DrawerNavigationOptions } from '@react-navigation/drawer';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import Toast from 'react-native-toast-message';
-import {
-    createStackNavigator,
-    CardStyleInterpolators,
-    StackNavigationOptions,
-    StackHeaderProps,
-} from '@react-navigation/stack';
 
-// App
-import { PRIMARY, SECONDARY, SECONDARY_LITE, ACCENT, DARKHEADER, DIVIDER, ERROR_RED } from '~/global/variables';
-import { readFromStorage, StorageKeys } from '~/global/storage';
-import { dbGetUnseenCallCount } from '~/global/database';
-import { logger, showErrorPortal } from '~/global/logger';
-import { FlagSecure } from '~/global/native';
-import { startWebsocketManager, stopWebsocketManager } from '~/store/actions/websocket';
-import { HomeTabParamList, RootDrawerParamList, HomeStackParamList, AuthStackParamList } from '~/global/navigation';
-import { store } from '~/store/store';
+import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import { StatusBar } from 'react-native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createDrawerNavigator, DrawerContentComponentProps, DrawerNavigationOptions } from '@react-navigation/drawer';
+import { DarkTheme as NavDarkTheme, NavigationContainer, RouteProp } from '@react-navigation/native';
+import {
+    CardStyleInterpolators,
+    createStackNavigator,
+    StackHeaderProps,
+    StackNavigationOptions,
+} from '@react-navigation/stack';
+import { Icon, MD3DarkTheme, Provider as PaperProvider, useTheme } from 'react-native-paper';
+import Toast from 'react-native-toast-message';
+import { Provider } from 'react-redux';
+
 import ConnectionIndicator from '~/components/ConnectionIndicator';
+import Drawer from '~/components/Drawer';
 import ErrorBoundary from '~/components/ErrorBoundary';
 import ErrorPortal from '~/components/ErrorPortal';
 import HeaderConversation from '~/components/HeaderConversation';
-import Drawer from '~/components/Drawer';
+import { dbGetUnseenCallCount } from '~/global/database';
+import { logger, showErrorPortal } from '~/global/logger';
+import { FlagSecure } from '~/global/native';
+import { AuthStackParamList, HomeStackParamList, HomeTabParamList, RootDrawerParamList } from '~/global/navigation';
+import { readFromStorage, StorageKeys } from '~/global/storage';
+// App
+import { ACCENT, DARKHEADER, DIVIDER, ERROR_RED, PRIMARY, SECONDARY, SECONDARY_LITE } from '~/global/variables';
+import { startWebsocketManager, stopWebsocketManager } from '~/store/actions/websocket';
+import { store } from '~/store/store';
+
 import {
-    Login,
-    Signup,
-    Home,
-    Conversation,
-    NewConversation,
     AddContact,
     Call,
-    CameraView,
-    Settings,
     CallHistory,
+    CameraView,
+    Conversation,
+    Home,
     KeySetup,
+    Login,
+    NewConversation,
+    Settings,
+    Signup,
 } from './src';
 
 const defaultHeaderOptions: StackNavigationOptions & DrawerNavigationOptions = {

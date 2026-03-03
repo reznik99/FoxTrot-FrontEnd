@@ -1,23 +1,23 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, FlatList, RefreshControl, Text, Image, StyleSheet } from 'react-native';
-import { Divider, FAB, ActivityIndicator, Snackbar, Icon, useTheme } from 'react-native-paper';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import RNNotificationCall from 'react-native-full-screen-notification-incoming-call';
 import InCallManager from 'react-native-incall-manager';
-import { useSelector } from 'react-redux';
-import { useNavigation } from '@react-navigation/native';
+import { ActivityIndicator, Divider, FAB, Icon, Snackbar, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 
 import ConversationPeek from '~/components/ConversationPeek';
-import { loadMessages, loadContacts, loadKeys, registerPushNotifications, getTURNServerCreds } from '~/store/actions/user';
-import { startWebsocketManager, SocketMessage } from '~/store/actions/websocket';
-import { Conversation, UserData } from '~/store/reducers/user';
-import { setupInterceptors, RootNavigation } from '~/store/actions/auth';
-import { RootState, store } from '~/store/store';
-import { popFromStorage, StorageKeys } from '~/global/storage';
 import { dbSaveCallRecord } from '~/global/database';
-import { SECONDARY_LITE } from '~/global/variables';
 import { logger } from '~/global/logger';
+import { popFromStorage, StorageKeys } from '~/global/storage';
 import globalStyle from '~/global/style';
+import { SECONDARY_LITE } from '~/global/variables';
+import { RootNavigation, setupInterceptors } from '~/store/actions/auth';
+import { getTURNServerCreds, loadContacts, loadKeys, loadMessages, registerPushNotifications } from '~/store/actions/user';
+import { SocketMessage, startWebsocketManager } from '~/store/actions/websocket';
+import { Conversation, UserData } from '~/store/reducers/user';
+import { RootState, store } from '~/store/store';
 
 export default function Home() {
     const navigation = useNavigation<RootNavigation>();

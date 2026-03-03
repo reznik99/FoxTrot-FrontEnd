@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
-import { SECONDARY, ERROR_RED } from './variables';
+
+import { ERROR_RED, SECONDARY } from './variables';
 
 const globalStyle = StyleSheet.create({
     wrapper: {

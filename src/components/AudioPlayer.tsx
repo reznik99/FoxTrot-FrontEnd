@@ -1,11 +1,11 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Icon, Text, useTheme } from 'react-native-paper';
-import Sound from 'react-native-nitro-sound';
 import RNFS, { CachesDirectoryPath } from 'react-native-fs';
+import Sound from 'react-native-nitro-sound';
+import { Icon, Text, useTheme } from 'react-native-paper';
 
-import { TEXT_SECONDARY } from '~/global/variables';
 import { logger } from '~/global/logger';
+import { TEXT_SECONDARY } from '~/global/variables';
 
 type IProps = {
     messageId: number;

@@ -1,19 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
-import { View, ScrollView, Keyboard, Alert, Image } from 'react-native';
-import { ActivityIndicator, TextInput, Button, Text, IconButton, useTheme } from 'react-native-paper';
-import * as Keychain from 'react-native-keychain';
-import BootSplash from 'react-native-bootsplash';
+import { Alert, Image, Keyboard, ScrollView, View } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
+import BootSplash from 'react-native-bootsplash';
+import * as Keychain from 'react-native-keychain';
+import { ActivityIndicator, Button, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
+import { useSelector } from 'react-redux';
 
-import { validateToken, syncFromStorage } from '~/store/actions/user';
-import { logIn } from '~/store/actions/auth';
-import { API_URL, KeychainOpts } from '~/global/variables';
-import { milliseconds, millisecondsSince } from '~/global/helper';
 import PasswordInput from '~/components/PasswordInput';
-import { RootState, store } from '~/store/store';
+import { milliseconds, millisecondsSince } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { AuthStackParamList } from '~/global/navigation';
+import { API_URL, KeychainOpts } from '~/global/variables';
+import { logIn } from '~/store/actions/auth';
+import { syncFromStorage, validateToken } from '~/store/actions/user';
+import { RootState, store } from '~/store/store';
+
 import styles from './style';
 
 type Credentials = {

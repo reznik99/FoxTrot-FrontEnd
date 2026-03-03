@@ -1,20 +1,20 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, TouchableOpacity, ToastAndroid, StyleSheet } from 'react-native';
-import { Text, Button, Dialog, Portal, Icon, useTheme } from 'react-native-paper';
-import { useSelector } from 'react-redux';
+import React, { useCallback, useMemo, useState } from 'react';
+import { StyleSheet, ToastAndroid, TouchableOpacity, View } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { Button, Dialog, Icon, Portal, Text, useTheme } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 
-import { publicKeyFingerprint } from '~/global/crypto';
-import { RootState } from '~/store/store';
-import { UserData } from '~/store/reducers/user';
-import { HomeStackParamList } from '~/global/navigation';
 import AvatarWithStatus from '~/components/AvatarWithStatus';
-import { DARKHEADER, TEXT_MUTED } from '~/global/variables';
-import { logger } from '~/global/logger';
+import { publicKeyFingerprint } from '~/global/crypto';
 import { humanTime, onlineStatus } from '~/global/helper';
+import { logger } from '~/global/logger';
+import { HomeStackParamList } from '~/global/navigation';
 import globalStyle from '~/global/style';
+import { DARKHEADER, TEXT_MUTED } from '~/global/variables';
+import { UserData } from '~/store/reducers/user';
+import { RootState } from '~/store/store';
 
 interface IProps {
     navigation: StackNavigationProp<HomeStackParamList, 'Conversation' | 'Call'>;

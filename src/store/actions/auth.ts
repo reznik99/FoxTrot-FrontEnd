@@ -1,15 +1,16 @@
+import { Alert } from 'react-native';
+import { createAsyncThunk } from '@reduxjs/toolkit';
 import axios, { AxiosError } from 'axios';
 import * as Keychain from 'react-native-keychain';
 import Toast from 'react-native-toast-message';
-import { createAsyncThunk } from '@reduxjs/toolkit';
-import { Alert } from 'react-native';
 
-import { API_URL, KeychainOpts } from '~/global/variables';
 import { getAvatar } from '~/global/helper';
-import { deleteFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { logger } from '~/global/logger';
-import { LOGGED_IN, LOGIN_ERROR_MSG, LOGOUT, SET_LOADING, SIGNED_UP, SIGNUP_ERROR_MSG } from '../reducers/user';
 import { RootNavigation } from '~/global/navigation';
+import { deleteFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
+import { API_URL, KeychainOpts } from '~/global/variables';
+
+import { LOGGED_IN, LOGIN_ERROR_MSG, LOGOUT, SET_LOADING, SIGNED_UP, SIGNUP_ERROR_MSG } from '../reducers/user';
 
 type logInParams = { username: string; password: string };
 export const logIn = createAsyncThunk('logIn', async ({ username, password }: logInParams, thunkAPI) => {

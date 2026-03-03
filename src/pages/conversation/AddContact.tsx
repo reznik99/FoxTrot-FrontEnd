@@ -1,16 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Text, View, ScrollView } from 'react-native';
-import { Divider, Searchbar, ActivityIndicator, Icon } from 'react-native-paper';
-import { useSelector } from 'react-redux';
+import { ScrollView, Text, View } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
+import { ActivityIndicator, Divider, Icon, Searchbar } from 'react-native-paper';
+import { useSelector } from 'react-redux';
 
-import { searchUsers, addContact } from '~/store/actions/user';
-import globalStyle from '~/global/style';
-import { DARKHEADER, SECONDARY_LITE } from '~/global/variables';
-import { RootState, store } from '~/store/store';
-import { UserData } from '~/store/reducers/user';
 import ContactPeek from '~/components/ContactPeek';
 import { HomeStackParamList } from '~/global/navigation';
+import globalStyle from '~/global/style';
+import { DARKHEADER, SECONDARY_LITE } from '~/global/variables';
+import { addContact, searchUsers } from '~/store/actions/user';
+import { UserData } from '~/store/reducers/user';
+import { RootState, store } from '~/store/store';
 
 export default function AddContact(props: StackScreenProps<HomeStackParamList, 'AddContact'>) {
     const { navigation } = props;

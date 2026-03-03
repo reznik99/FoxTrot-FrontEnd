@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+
 import { DARKHEADER, DIVIDER, ERROR_RED, SECONDARY, SECONDARY_LITE } from '~/global/variables';
 
 const styles = StyleSheet.create({

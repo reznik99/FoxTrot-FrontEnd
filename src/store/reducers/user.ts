@@ -1,11 +1,12 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { CryptoKey } from 'react-native-quick-crypto/src/keys/classes';
 import type { WebCryptoKeyPair } from 'react-native-quick-crypto';
+import type { CryptoKey } from 'react-native-quick-crypto/src/keys/classes';
 import { RTCIceCandidate } from 'react-native-webrtc';
+
+import { dbMarkMessagesSeen, dbSaveConversation, dbSaveMessage, dbUpdateMessageDecrypted } from '~/global/database';
 import { getAvatar } from '~/global/helper';
-import { writeToStorage } from '~/global/storage';
 import { logger } from '~/global/logger';
-import { dbSaveMessage, dbSaveConversation, dbUpdateMessageDecrypted, dbMarkMessagesSeen } from '~/global/database';
+import { writeToStorage } from '~/global/storage';
 
 export interface State {
     tokenValid: boolean;

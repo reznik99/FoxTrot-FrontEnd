@@ -3,7 +3,24 @@
  * Tests that data is correctly stored and retrieved from SQLite.
  */
 import initSqlJs, { Database } from 'sql.js';
+
 import { CallRecord, message, UserData } from '~/store/reducers/user';
+
+import {
+    dbClearCallHistory,
+    dbGetCallHistory,
+    dbGetConversation,
+    dbGetConversations,
+    dbGetMessages,
+    dbGetUnseenCallCount,
+    dbMarkAllCallsSeen,
+    dbSaveCallRecord,
+    dbSaveConversation,
+    dbSaveMessage,
+    dbSaveMessages,
+    dbUpdateMessageDecrypted,
+    setDb,
+} from '../database';
 
 // Adapter to make sql.js match op-sqlite's executeSync API
 function createOpSqliteAdapter(sqlJsDb: Database) {
@@ -41,22 +58,6 @@ jest.mock('react-native-quick-crypto', () => ({
         return arr;
     },
 }));
-
-import {
-    setDb,
-    dbSaveMessage,
-    dbSaveMessages,
-    dbGetMessages,
-    dbSaveConversation,
-    dbGetConversations,
-    dbGetConversation,
-    dbUpdateMessageDecrypted,
-    dbSaveCallRecord,
-    dbGetCallHistory,
-    dbClearCallHistory,
-    dbGetUnseenCallCount,
-    dbMarkAllCallsSeen,
-} from '../database';
 
 // Sample test data
 const testUser: UserData = {

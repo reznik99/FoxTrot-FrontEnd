@@ -1,18 +1,18 @@
 import React, { PureComponent } from 'react';
-import { StyleSheet, Text, Pressable, View, Linking, ToastAndroid, Image } from 'react-native';
-import { ActivityIndicator, Icon } from 'react-native-paper';
+import { Image, Linking, Pressable, StyleSheet, Text, ToastAndroid, View } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import RNFS from 'react-native-fs';
-import Toast from 'react-native-toast-message';
 import Sound from 'react-native-nitro-sound';
+import { ActivityIndicator, Icon } from 'react-native-paper';
+import Toast from 'react-native-toast-message';
 
 import AudioPlayer from '~/components/AudioPlayer';
-import { TEXT_MUTED, TEXT_SECONDARY } from '~/global/variables';
 import { decrypt } from '~/global/crypto';
-import { message, UserData, UPDATE_MESSAGE_DECRYPTED } from '~/store/reducers/user';
-import { store } from '~/store/store';
-import { downloadMedia, getMediaCachePath } from '~/store/actions/media';
 import { logger } from '~/global/logger';
+import { TEXT_MUTED, TEXT_SECONDARY } from '~/global/variables';
+import { downloadMedia, getMediaCachePath } from '~/store/actions/media';
+import { message, UPDATE_MESSAGE_DECRYPTED, UserData } from '~/store/reducers/user';
+import { store } from '~/store/store';
 
 const todaysDate = new Date().toLocaleDateString();
 

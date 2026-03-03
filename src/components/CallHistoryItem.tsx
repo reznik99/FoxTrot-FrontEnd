@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Avatar, Checkbox, Icon, useTheme } from 'react-native-paper';
 
-import { DARKHEADER, ERROR_RED, SECONDARY_LITE } from '~/global/variables';
-import { CallRecord } from '~/store/reducers/user';
-import { RootNavigation } from '~/store/actions/auth';
 import { humanTime } from '~/global/helper';
 import globalStyle from '~/global/style';
+import { DARKHEADER, ERROR_RED, SECONDARY_LITE } from '~/global/variables';
+import { RootNavigation } from '~/store/actions/auth';
+import { CallRecord } from '~/store/reducers/user';
 
 function getDirectionIcon(record: CallRecord): { icon: string; color: string } {
     if (record.status === 'missed') {

@@ -1,12 +1,12 @@
-import axios from 'axios';
 import { Buffer } from 'buffer';
-import RNFS from 'react-native-fs';
 import { createAsyncThunk } from '@reduxjs/toolkit';
+import axios from 'axios';
+import RNFS from 'react-native-fs';
 
-import { API_URL } from '~/global/variables';
-import { encryptFile, decryptFile } from '~/global/crypto';
+import { decryptFile, encryptFile } from '~/global/crypto';
 import { formatBytes } from '~/global/helper';
 import { logger } from '~/global/logger';
+import { API_URL } from '~/global/variables';
 import { AppDispatch, RootState } from '~/store/store';
 
 const createDefaultAsyncThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: AppDispatch }>();

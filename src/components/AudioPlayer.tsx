@@ -12,10 +12,12 @@ type IProps = {
     audioData?: string;
     audioUri?: string;
     audioDuration: number;
+    isSent?: boolean;
 };
 
 export default function AudioPlayer(props: IProps) {
     const { colors } = useTheme();
+    const iconColor = props.isSent ? '#ffffffcc' : colors.primary;
     const [audioPlaybackTime, setAudioPlaybackTime] = useState(0);
     const [playingAudio, setPlayingAudio] = useState(false);
     const audioFilePathRef = useRef('');
@@ -64,16 +66,16 @@ export default function AudioPlayer(props: IProps) {
             <View style={styles.inputContainer}>
                 {playingAudio ? (
                     <TouchableOpacity style={styles.button} onPress={stopAudio}>
-                        <Icon source="pause" color={colors.primary} size={28} />
+                        <Icon source="pause" color={iconColor} size={28} />
                     </TouchableOpacity>
                 ) : (
                     <TouchableOpacity style={styles.button} onPress={playAudio}>
-                        <Icon source="play" color={colors.primary} size={28} />
+                        <Icon source="play" color={iconColor} size={28} />
                     </TouchableOpacity>
                 )}
                 <View style={styles.progressContainer}>
                     <View style={styles.progressTrack}>
-                        <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: colors.primary }]} />
+                        <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: iconColor }]} />
                     </View>
                     <Text style={styles.duration}>
                         {Sound.mmssss(audioPlaybackTime ? ~~audioPlaybackTime : ~~props.audioDuration)}

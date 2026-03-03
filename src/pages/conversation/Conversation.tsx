@@ -416,7 +416,7 @@ class Message extends PureComponent<MProps, MState> {
                     </View>
                 );
             }
-            case 'MSG':
+            case 'MSG': {
                 if (!item.message) return null;
                 const messageChunks = item.message.split(' ');
                 const linkIndex = messageChunks.findIndex(
@@ -442,6 +442,7 @@ class Message extends PureComponent<MProps, MState> {
                         <Text selectable>{messageChunks.slice(linkIndex + 1, messageChunks.length).join(' ')}</Text>
                     </Text>
                 );
+            }
             case 'AUDIO': {
                 // Legacy inline base64 audio
                 if (item.message) {
@@ -450,6 +451,7 @@ class Message extends PureComponent<MProps, MState> {
                             messageId={this.props.item.id}
                             audioData={item.message}
                             audioDuration={item.duration || 10}
+                            isSent={this.props.isSent}
                         />
                     );
                 }
@@ -461,12 +463,17 @@ class Message extends PureComponent<MProps, MState> {
                                 messageId={this.props.item.id}
                                 audioUri={this.state.mediaUri}
                                 audioDuration={item.duration || 10}
+                                isSent={this.props.isSent}
                             />
                         );
                     }
                     return (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 200 }}>
-                            <Icon source="download" color={this.props.primaryColor} size={28} />
+                            <Icon
+                                source="download"
+                                color={this.props.isSent ? '#ffffffcc' : this.props.primaryColor}
+                                size={28}
+                            />
                             <View>
                                 <Text style={styles.text}>Audio message</Text>
                                 <Text style={{ color: TEXT_MUTED, fontSize: 12 }}>

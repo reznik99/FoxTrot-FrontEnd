@@ -70,6 +70,8 @@ export default class Message extends PureComponent<MProps, MState> {
         }
     }
 
+    onPress = () => this.handleClick(this.props.item);
+
     copyMessage = () => {
         if (!this.state.decryptedMessage) {
             return;
@@ -359,8 +361,8 @@ export default class Message extends PureComponent<MProps, MState> {
                     styles.messageContainer,
                     isSent ? [styles.sent, { backgroundColor: this.props.primaryColor }] : styles.received,
                 ]}
-                onPress={() => this.handleClick(item)}
-                onLongPress={() => this.copyMessage()}
+                onPress={this.onPress}
+                onLongPress={this.copyMessage}
             >
                 <View style={[styles.message]}>
                     {/* Loader */}
@@ -369,7 +371,7 @@ export default class Message extends PureComponent<MProps, MState> {
                     {isEncrypted && (
                         <View style={styles.encryptedPlaceholder}>
                             <Icon source="shield-lock" color={isSent ? '#ffffffcc' : this.props.primaryColor} size={20} />
-                            <Text style={{ color: isSent ? '#ffffffcc' : TEXT_SECONDARY, fontSize: 14 }}>
+                            <Text style={isSent ? styles.encryptedTextSent : styles.encryptedTextReceived}>
                                 Tap to decrypt
                             </Text>
                         </View>
@@ -469,5 +471,13 @@ const styles = StyleSheet.create({
     audioDuration: {
         color: TEXT_MUTED,
         fontSize: 12,
+    },
+    encryptedTextSent: {
+        color: '#ffffffcc',
+        fontSize: 14,
+    },
+    encryptedTextReceived: {
+        color: TEXT_SECONDARY,
+        fontSize: 14,
     },
 });

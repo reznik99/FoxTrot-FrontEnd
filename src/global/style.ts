@@ -11,9 +11,6 @@ const globalStyle = StyleSheet.create({
     textInfo: {
         color: '#e3e1e1',
     },
-    searchContainer: {
-        alignItems: 'center',
-    },
     errorMsg: {
         color: ERROR_RED,
         textAlign: 'center',

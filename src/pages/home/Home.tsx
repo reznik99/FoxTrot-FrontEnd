@@ -27,6 +27,21 @@ export default function Home() {
         (state: RootState) => state.userReducer,
     );
     const [loadingMsg, setLoadingMsg] = useState('');
+
+    const onRefresh = useCallback(() => {
+        loadMessagesAndContacts().finally(() => setLoadingMsg(''));
+    }, []);
+
+    const renderListEmpty = useCallback(
+        () => (
+            <View style={styles.emptyContainer}>
+                <Icon source="message-text-outline" size={64} color={SECONDARY_LITE} />
+                <Text style={styles.emptyText}>No conversations yet</Text>
+            </View>
+        ),
+        [],
+    );
+
     const convos: Array<Conversation> = useMemo(() => {
         return [...conversations.values()].sort((a, b) => {
             const aTime = a.messages?.[0]?.sent_at ? new Date(a.messages[0].sent_at).getTime() : 0;
@@ -131,14 +146,14 @@ export default function Home() {
     return (
         <View style={globalStyle.wrapper}>
             {socketStatus === 'reconnecting' && (
-                <Snackbar visible={true} style={{ zIndex: 100 }} onDismiss={() => {}}>
+                <Snackbar visible={true} style={styles.snackbar} onDismiss={() => {}}>
                     Reconnecting to server...
                 </Snackbar>
             )}
             {socketStatus === 'disconnected' && !!socketErr && (
                 <Snackbar
                     visible={true}
-                    style={{ zIndex: 100 }}
+                    style={styles.snackbar}
                     onDismiss={() => {}}
                     action={{
                         label: 'Reconnect',
@@ -149,8 +164,8 @@ export default function Home() {
                 </Snackbar>
             )}
             {loading || loadingMsg ? (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    <Text style={[globalStyle.errorMsg, { color: 'white', marginBottom: 10 }]}>{loadingMsg}</Text>
+                <View style={styles.loadingContainer}>
+                    <Text style={styles.loadingText}>{loadingMsg}</Text>
                     <ActivityIndicator size="large" />
                 </View>
             ) : (
@@ -162,21 +177,9 @@ export default function Home() {
                         renderItem={({ item }) => <ConversationPeek data={item} navigation={navigation} />}
                         ItemSeparatorComponent={Divider}
                         refreshControl={
-                            <RefreshControl
-                                refreshing={refreshing}
-                                onRefresh={() => {
-                                    loadMessagesAndContacts().finally(() => setLoadingMsg(''));
-                                }}
-                            />
+                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
                         }
-                        ListEmptyComponent={
-                            <View style={{ alignItems: 'center', marginTop: 80 }}>
-                                <Icon source="message-text-outline" size={64} color={SECONDARY_LITE} />
-                                <Text style={{ color: SECONDARY_LITE, fontSize: 16, marginTop: 12 }}>
-                                    No conversations yet
-                                </Text>
-                            </View>
-                        }
+                        ListEmptyComponent={renderListEmpty}
                     />
 
                     <FAB
@@ -202,5 +205,29 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
         top: '40%',
         opacity: 0.08,
+    },
+    snackbar: {
+        zIndex: 100,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        color: 'white',
+        textAlign: 'center',
+        fontSize: 20,
+        paddingVertical: 20,
+        marginBottom: 10,
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        marginTop: 80,
+    },
+    emptyText: {
+        color: SECONDARY_LITE,
+        fontSize: 16,
+        marginTop: 12,
     },
 });

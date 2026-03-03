@@ -214,11 +214,10 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                 ListFooterComponent={renderListFooter}
                 renderItem={({ item }) => (
                     <Message
-                        key={item.id}
                         item={item}
                         peer={peer}
                         isSent={item.sender === user_data.phone_no}
-                        zoomMedia={data => setZoomMedia(data)}
+                        zoomMedia={setZoomMedia}
                         conversationId={peer.phone_no}
                         primaryColor={colors.primary}
                     />

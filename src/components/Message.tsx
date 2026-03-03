@@ -105,7 +105,7 @@ export default class Message extends PureComponent<MProps, MState> {
                     return (
                         <Image
                             source={{ uri: `data:image/jpeg;base64,${item.message}` }}
-                            style={{ width: 200, height: 'auto', aspectRatio: 1.5 }}
+                            style={styles.mediaImage}
                             resizeMode="contain"
                         />
                     );
@@ -121,7 +121,7 @@ export default class Message extends PureComponent<MProps, MState> {
                         <View>
                             <Image
                                 source={imgSource}
-                                style={{ width: 200, height: 'auto', aspectRatio: 1.5 }}
+                                style={styles.mediaImage}
                                 resizeMode="contain"
                                 blurRadius={this.state.mediaUri ? 0 : 1}
                             />
@@ -134,7 +134,7 @@ export default class Message extends PureComponent<MProps, MState> {
                     );
                 }
                 return (
-                    <View style={{ width: 200, aspectRatio: 1.5, justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={styles.mediaPlaceholder}>
                         <Icon source="image" color="#aaa" size={40} />
                         <Text style={styles.text}>Tap to load image</Text>
                     </View>
@@ -148,7 +148,7 @@ export default class Message extends PureComponent<MProps, MState> {
                         <View>
                             <Image
                                 source={{ uri: thumbUri }}
-                                style={{ width: 200, height: 'auto', aspectRatio: 1.5 }}
+                                style={styles.mediaImage}
                                 resizeMode="contain"
                                 blurRadius={downloaded ? 0 : 1}
                             />
@@ -163,7 +163,7 @@ export default class Message extends PureComponent<MProps, MState> {
                     );
                 }
                 return (
-                    <View style={{ width: 200, aspectRatio: 1.5, justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={styles.mediaPlaceholder}>
                         <Icon
                             source={downloaded ? 'play-circle' : 'video'}
                             color={downloaded ? '#fff' : '#aaa'}
@@ -191,7 +191,7 @@ export default class Message extends PureComponent<MProps, MState> {
                 return (
                     <Text style={styles.text}>
                         <Text selectable>{messageChunks.slice(0, linkIndex).join(' ')}</Text>
-                        <Text selectable style={{ color: '#82B1FF' }}>
+                        <Text selectable style={styles.linkText}>
                             {linkIndex > 0 ? ' ' : ''}
                             {messageChunks[linkIndex]}
                             {linkIndex < messageChunks.length - 1 ? ' ' : ''}
@@ -225,7 +225,7 @@ export default class Message extends PureComponent<MProps, MState> {
                         );
                     }
                     return (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 200 }}>
+                        <View style={styles.audioDownloadRow}>
                             <Icon
                                 source="download"
                                 color={this.props.isSent ? '#ffffffcc' : this.props.primaryColor}
@@ -233,9 +233,7 @@ export default class Message extends PureComponent<MProps, MState> {
                             />
                             <View>
                                 <Text style={styles.text}>Audio message</Text>
-                                <Text style={{ color: TEXT_MUTED, fontSize: 12 }}>
-                                    {Sound.mmssss(Math.floor(item.duration || 0))}
-                                </Text>
+                                <Text style={styles.audioDuration}>{Sound.mmssss(Math.floor(item.duration || 0))}</Text>
                             </View>
                         </View>
                     );
@@ -366,23 +364,10 @@ export default class Message extends PureComponent<MProps, MState> {
             >
                 <View style={[styles.message]}>
                     {/* Loader */}
-                    {this.state.loading && (
-                        <ActivityIndicator
-                            style={{ position: 'absolute', zIndex: 10, alignSelf: 'center', top: '40%' }}
-                            animating={true}
-                        />
-                    )}
+                    {this.state.loading && <ActivityIndicator style={styles.loader} animating={true} />}
                     {/* Encrypted placeholder */}
                     {isEncrypted && (
-                        <View
-                            style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                gap: 8,
-                                paddingVertical: 6,
-                                paddingHorizontal: 4,
-                            }}
-                        >
+                        <View style={styles.encryptedPlaceholder}>
                             <Icon source="shield-lock" color={isSent ? '#ffffffcc' : this.props.primaryColor} size={20} />
                             <Text style={{ color: isSent ? '#ffffffcc' : TEXT_SECONDARY, fontSize: 14 }}>
                                 Tap to decrypt
@@ -392,7 +377,7 @@ export default class Message extends PureComponent<MProps, MState> {
                     {/* Message */}
                     {this.renderMessage(this.state.decryptedMessage, isSent)}
                     {/* Footers of message */}
-                    <View style={{ flexDirection: 'row', alignSelf: 'stretch', justifyContent: 'flex-end' }}>
+                    <View style={styles.messageFooter}>
                         <Text style={styles.messageTime}>
                             {sent_at.toLocaleDateString() === todaysDate
                                 ? sent_at.toLocaleTimeString()
@@ -442,5 +427,47 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: 'rgba(0,0,0,0.25)',
+    },
+    mediaImage: {
+        width: 200,
+        height: 'auto' as any,
+        aspectRatio: 1.5,
+    },
+    mediaPlaceholder: {
+        width: 200,
+        aspectRatio: 1.5,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loader: {
+        position: 'absolute',
+        zIndex: 10,
+        alignSelf: 'center',
+        top: '40%',
+    },
+    encryptedPlaceholder: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingVertical: 6,
+        paddingHorizontal: 4,
+    },
+    messageFooter: {
+        flexDirection: 'row',
+        alignSelf: 'stretch',
+        justifyContent: 'flex-end',
+    },
+    audioDownloadRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        minWidth: 200,
+    },
+    linkText: {
+        color: '#82B1FF',
+    },
+    audioDuration: {
+        color: TEXT_MUTED,
+        fontSize: 12,
     },
 });

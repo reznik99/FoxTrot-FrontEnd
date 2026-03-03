@@ -10,7 +10,7 @@ import { RootState } from '~/store/store';
 import { DARKHEADER, SECONDARY_LITE } from '~/global/variables';
 import globalStyle from '~/global/style';
 import ContactPeek from '~/components/ContactPeek';
-import { HomeStackParamList } from '~/../App';
+import { HomeStackParamList } from '~/global/navigation';
 
 export default function NewConversation(props: StackScreenProps<HomeStackParamList, 'NewConversation'>) {
     const { colors } = useTheme();

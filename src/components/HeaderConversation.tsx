@@ -9,7 +9,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { publicKeyFingerprint } from '~/global/crypto';
 import { RootState } from '~/store/store';
 import { UserData } from '~/store/reducers/user';
-import { HomeStackParamList } from '../../App';
+import { HomeStackParamList } from '~/global/navigation';
 import AvatarWithStatus from '~/components/AvatarWithStatus';
 import { DARKHEADER, TEXT_MUTED } from '~/global/variables';
 import { logger } from '~/global/logger';

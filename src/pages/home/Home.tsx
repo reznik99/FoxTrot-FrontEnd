@@ -20,27 +20,16 @@ import { logger } from '~/global/logger';
 import globalStyle from '~/global/style';
 
 export default function Home() {
-    const { colors } = useTheme();
     const navigation = useNavigation<RootNavigation>();
     const insets = useSafeAreaInsets();
-    const { conversations, loading, refreshing, socketStatus, socketErr } = useSelector(
-        (state: RootState) => state.userReducer,
-    );
+    const { colors } = useTheme();
     const [loadingMsg, setLoadingMsg] = useState('');
 
-    const onRefresh = useCallback(() => {
-        loadMessagesAndContacts().finally(() => setLoadingMsg(''));
-    }, []);
-
-    const renderListEmpty = useCallback(
-        () => (
-            <View style={styles.emptyContainer}>
-                <Icon source="message-text-outline" size={64} color={SECONDARY_LITE} />
-                <Text style={styles.emptyText}>No conversations yet</Text>
-            </View>
-        ),
-        [],
-    );
+    const conversations = useSelector((state: RootState) => state.userReducer.conversations);
+    const loading = useSelector((state: RootState) => state.userReducer.loading);
+    const refreshing = useSelector((state: RootState) => state.userReducer.refreshing);
+    const socketStatus = useSelector((state: RootState) => state.userReducer.socketStatus);
+    const socketErr = useSelector((state: RootState) => state.userReducer.socketErr);
 
     const convos: Array<Conversation> = useMemo(() => {
         return [...conversations.values()].sort((a, b) => {
@@ -143,6 +132,31 @@ export default function Home() {
         };
     }, [navigation]);
 
+    const onRefresh = useCallback(() => {
+        loadMessagesAndContacts().finally(() => setLoadingMsg(''));
+    }, [loadMessagesAndContacts]);
+
+    const renderListEmpty = useCallback(
+        () => (
+            <View style={styles.emptyContainer}>
+                <Icon source="message-text-outline" size={64} color={SECONDARY_LITE} />
+                <Text style={styles.emptyText}>No conversations yet</Text>
+            </View>
+        ),
+        [],
+    );
+
+    if (loading || loadingMsg) {
+        return (
+            <View style={globalStyle.wrapper}>
+                <View style={styles.loadingContainer}>
+                    <Text style={styles.loadingText}>{loadingMsg}</Text>
+                    <ActivityIndicator size="large" />
+                </View>
+            </View>
+        );
+    }
+
     return (
         <View style={globalStyle.wrapper}>
             {socketStatus === 'reconnecting' && (
@@ -163,36 +177,26 @@ export default function Home() {
                     Connection to servers lost! Please try again later
                 </Snackbar>
             )}
-            {loading || loadingMsg ? (
-                <View style={styles.loadingContainer}>
-                    <Text style={styles.loadingText}>{loadingMsg}</Text>
-                    <ActivityIndicator size="large" />
-                </View>
-            ) : (
-                <>
-                    <Image source={require('../../../assets/bootsplash/logo.png')} style={styles.watermark} />
-                    <FlatList
-                        data={convos}
-                        keyExtractor={(item, index) => item.other_user.phone_no || String(index)}
-                        renderItem={({ item }) => <ConversationPeek data={item} navigation={navigation} />}
-                        ItemSeparatorComponent={Divider}
-                        refreshControl={
-                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-                        }
-                        ListEmptyComponent={renderListEmpty}
-                    />
 
-                    <FAB
-                        color="#fff"
-                        style={[
-                            globalStyle.fab,
-                            { backgroundColor: colors.primary, marginBottom: globalStyle.fab.margin + insets.bottom },
-                        ]}
-                        onPress={() => navigation.navigate('NewConversation')}
-                        icon="pencil"
-                    />
-                </>
-            )}
+            <Image source={require('../../../assets/bootsplash/logo.png')} style={styles.watermark} />
+            <FlatList
+                data={convos}
+                keyExtractor={(item, index) => item.other_user.phone_no || String(index)}
+                renderItem={({ item }) => <ConversationPeek data={item} navigation={navigation} />}
+                ItemSeparatorComponent={Divider}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                ListEmptyComponent={renderListEmpty}
+            />
+
+            <FAB
+                color="#fff"
+                style={[
+                    globalStyle.fab,
+                    { backgroundColor: colors.primary, marginBottom: globalStyle.fab.margin + insets.bottom },
+                ]}
+                onPress={() => navigation.navigate('NewConversation')}
+                icon="pencil"
+            />
         </View>
     );
 }

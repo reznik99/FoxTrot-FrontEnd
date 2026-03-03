@@ -25,7 +25,7 @@ import { dbSaveCallRecord } from '~/global/database';
 import { resetCallState, SocketData } from '~/store/actions/websocket';
 import { UserData } from '~/store/reducers/user';
 import { RootState } from '~/store/store';
-import { HomeStackParamList } from '~/../App';
+import { HomeStackParamList } from '~/global/navigation';
 import { logger } from '~/global/logger';
 
 class Call extends React.Component<Props, State> {

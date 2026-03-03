@@ -9,8 +9,7 @@ import { getAvatar } from '~/global/helper';
 import { deleteFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { logger } from '~/global/logger';
 import { LOGGED_IN, LOGIN_ERROR_MSG, LOGOUT, SET_LOADING, SIGNED_UP, SIGNUP_ERROR_MSG } from '../reducers/user';
-import { AuthStackParamList, HomeStackParamList, RootDrawerParamList } from '~/../App';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { RootNavigation } from '~/global/navigation';
 
 type logInParams = { username: string; password: string };
 export const logIn = createAsyncThunk('logIn', async ({ username, password }: logInParams, thunkAPI) => {
@@ -100,11 +99,7 @@ export const signUp = createAsyncThunk(
     },
 );
 
-export type RootNavigation = StackNavigationProp<
-    HomeStackParamList & AuthStackParamList & RootDrawerParamList,
-    'FoxTrot',
-    undefined
->;
+export type { RootNavigation } from '~/global/navigation';
 export const logOut = createAsyncThunk('logOut', async ({ navigation }: { navigation: RootNavigation }, thunkAPI) => {
     logger.debug('Logging out');
     // Clear redux state

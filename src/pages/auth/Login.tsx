@@ -13,7 +13,7 @@ import { milliseconds, millisecondsSince } from '~/global/helper';
 import PasswordInput from '~/components/PasswordInput';
 import { RootState, store } from '~/store/store';
 import { logger } from '~/global/logger';
-import { AuthStackParamList } from '~/../App';
+import { AuthStackParamList } from '~/global/navigation';
 import styles from './style';
 
 type Credentials = {

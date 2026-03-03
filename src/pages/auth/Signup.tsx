@@ -9,7 +9,7 @@ import { AppDispatch, RootState } from '~/store/store';
 import { signUp } from '~/store/actions/auth';
 import { SECONDARY_LITE } from '~/global/variables';
 import { logger } from '~/global/logger';
-import { AuthStackParamList } from '~/../App';
+import { AuthStackParamList } from '~/global/navigation';
 import styles from './style';
 
 export default function Signup(props: StackScreenProps<AuthStackParamList, 'Signup'>) {

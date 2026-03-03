@@ -16,7 +16,7 @@ import { RootState, store } from '~/store/store';
 import { sendMessage } from '~/store/actions/user';
 import { uploadMedia } from '~/store/actions/media';
 import { dbGetMessages } from '~/global/database';
-import { HomeStackParamList } from '~/../App';
+import { HomeStackParamList } from '~/global/navigation';
 import { logger } from '~/global/logger';
 
 export default function Conversation(props: StackScreenProps<HomeStackParamList, 'Conversation'>) {

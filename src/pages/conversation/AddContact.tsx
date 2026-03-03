@@ -10,7 +10,7 @@ import { DARKHEADER, SECONDARY_LITE } from '~/global/variables';
 import { RootState, store } from '~/store/store';
 import { UserData } from '~/store/reducers/user';
 import ContactPeek from '~/components/ContactPeek';
-import { HomeStackParamList } from '~/../App';
+import { HomeStackParamList } from '~/global/navigation';
 
 export default function AddContact(props: StackScreenProps<HomeStackParamList, 'AddContact'>) {
     const { navigation } = props;

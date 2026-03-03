@@ -17,7 +17,7 @@ import { DARKHEADER, SECONDARY, SECONDARY_LITE } from '~/global/variables';
 import { sendMessage } from '~/store/actions/user';
 import { uploadMedia } from '~/store/actions/media';
 import { logger } from '~/global/logger';
-import { HomeStackParamList } from '~/../App';
+import { HomeStackParamList } from '~/global/navigation';
 import { AppDispatch } from '~/store/store';
 
 export default function CameraView(props: StackScreenProps<HomeStackParamList, 'CameraView'>) {

@@ -15,7 +15,7 @@ import { FlagSecure } from '~/global/native';
 import globalStyle from '~/global/style';
 import { logOut } from '~/store/actions/auth';
 import { AppDispatch, RootState } from '~/store/store';
-import { HomeStackParamList } from '~/../App';
+import { HomeStackParamList } from '~/global/navigation';
 
 export default function Settings(props: StackScreenProps<HomeStackParamList, 'Settings'>) {
     const dispatch = useDispatch<AppDispatch>();

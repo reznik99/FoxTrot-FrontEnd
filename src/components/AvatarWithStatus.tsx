@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Avatar, Badge } from 'react-native-paper';
 
 import { onlineStatus } from '~/global/helper';

@@ -1,16 +1,16 @@
+import { Alert } from 'react-native';
+import { createAsyncThunk } from '@reduxjs/toolkit';
 import axios, { AxiosError } from 'axios';
 import * as Keychain from 'react-native-keychain';
 import Toast from 'react-native-toast-message';
-import { createAsyncThunk } from '@reduxjs/toolkit';
-import { Alert } from 'react-native';
 
-import { API_URL, KeychainOpts } from '~/global/variables';
 import { getAvatar } from '~/global/helper';
-import { deleteFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { logger } from '~/global/logger';
+import { RootNavigation } from '~/global/navigation';
+import { deleteFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
+import { API_URL, KeychainOpts } from '~/global/variables';
+
 import { LOGGED_IN, LOGIN_ERROR_MSG, LOGOUT, SET_LOADING, SIGNED_UP, SIGNUP_ERROR_MSG } from '../reducers/user';
-import { AuthStackParamList, HomeStackParamList, RootDrawerParamList } from '~/../App';
-import { StackNavigationProp } from '@react-navigation/stack';
 
 type logInParams = { username: string; password: string };
 export const logIn = createAsyncThunk('logIn', async ({ username, password }: logInParams, thunkAPI) => {
@@ -100,11 +100,7 @@ export const signUp = createAsyncThunk(
     },
 );
 
-export type RootNavigation = StackNavigationProp<
-    HomeStackParamList & AuthStackParamList & RootDrawerParamList,
-    'FoxTrot',
-    undefined
->;
+export type { RootNavigation } from '~/global/navigation';
 export const logOut = createAsyncThunk('logOut', async ({ navigation }: { navigation: RootNavigation }, thunkAPI) => {
     logger.debug('Logging out');
     // Clear redux state

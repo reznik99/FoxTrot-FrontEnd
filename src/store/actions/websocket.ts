@@ -1,15 +1,16 @@
 import { AppState, NativeEventSubscription } from 'react-native';
-import NetInfo, { NetInfoSubscription, NetInfoState } from '@react-native-community/netinfo';
-import { VibratePattern, WEBSOCKET_URL } from '~/global/variables';
-import PushNotification from 'react-native-push-notification';
-import InCallManager from 'react-native-incall-manager';
+import NetInfo, { NetInfoState, NetInfoSubscription } from '@react-native-community/netinfo';
 import RNNotificationCall from 'react-native-full-screen-notification-incoming-call';
+import InCallManager from 'react-native-incall-manager';
+import PushNotification from 'react-native-push-notification';
 import QuickCrypto from 'react-native-quick-crypto';
 import Toast from 'react-native-toast-message';
 
-import { AppDispatch, GetState } from '../store';
 import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
+import { VibratePattern, WEBSOCKET_URL } from '~/global/variables';
+
+import { AppDispatch, GetState } from '../store';
 
 export interface SocketData {
     cmd: 'MSG' | 'CALL_OFFER' | 'CALL_ICE_CANDIDATE' | 'CALL_ANSWER';

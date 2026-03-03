@@ -1,11 +1,11 @@
-import QuickCrypto from 'react-native-quick-crypto';
-import RNFS from 'react-native-fs';
 import { Buffer } from 'buffer';
+import RNFS from 'react-native-fs';
+import QuickCrypto from 'react-native-quick-crypto';
 
-import { SaltLenPBKDF2, SaltLenGCM, PBKDF2Iterations } from '~/global/variables';
-import { getWriteExtPermission } from '~/global/permissions';
 import { deriveKeyFromPassword, exportKeypair } from '~/global/crypto';
 import { logger } from '~/global/logger';
+import { getWriteExtPermission } from '~/global/permissions';
+import { PBKDF2Iterations, SaltLenGCM, SaltLenPBKDF2 } from '~/global/variables';
 import { store } from '~/store/store';
 
 /**

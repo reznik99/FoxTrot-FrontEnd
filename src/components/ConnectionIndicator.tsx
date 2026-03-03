@@ -2,6 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { ActivityIndicator, Icon } from 'react-native-paper';
 import { useSelector } from 'react-redux';
+
 import { RootState } from '~/store/store';
 
 const STATUS_COLORS: Record<string, string> = {

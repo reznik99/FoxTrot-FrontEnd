@@ -1,15 +1,15 @@
-import { open, DB } from '@op-engineering/op-sqlite';
-
+import { Buffer } from 'buffer';
+import { DB, open } from '@op-engineering/op-sqlite';
 import * as Keychain from 'react-native-keychain';
 import QuickCrypto from 'react-native-quick-crypto';
-import { Buffer } from 'buffer';
 
-import { CallRecord, message, UserData } from '~/store/reducers/user';
-import { DB_MSG_PAGE_SIZE } from './variables';
 import { logger } from '~/global/logger';
+import { CallRecord, message, UserData } from '~/store/reducers/user';
+
+import { DB_MSG_PAGE_SIZE } from './variables';
 
 const DB_NAME = 'foxtrot.db';
-const DB_KEY_SERVICE = 'foxtrot-db-key';
+export const DB_KEY_SERVICE = 'foxtrot-db-key';
 const SCHEMA_VERSION = 2;
 
 // SQLite database is encrypted using SQLCipher (AES-256-CBC with HMAC-SHA512).
@@ -83,6 +83,14 @@ export function closeDb(): void {
         db.close();
         db = null;
         logger.debug('Database closed');
+    }
+}
+
+export function deleteDb(): void {
+    if (db) {
+        db.delete();
+        db = null;
+        logger.debug('Database deleted');
     }
 }
 
@@ -234,6 +242,11 @@ export function dbMarkMessagesSeen(messageIds: number[]): void {
     const database = requireDb();
     const placeholders = messageIds.map(() => '?').join(', ');
     database.executeSync(`UPDATE messages SET seen = 1 WHERE id IN (${placeholders})`, messageIds);
+}
+
+export function dbDeleteMessage(messageId: number): void {
+    const database = requireDb();
+    database.executeSync('DELETE FROM messages WHERE id = ?', [messageId]);
 }
 
 // Conversations

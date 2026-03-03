@@ -1,10 +1,11 @@
 // Crypto
 import { Buffer } from 'buffer';
 import QuickCrypto from 'react-native-quick-crypto';
+import type { RandomTypedArrays, WebCryptoKeyPair } from 'react-native-quick-crypto';
 import type { CryptoKey } from 'react-native-quick-crypto/src/keys/classes';
-import type { WebCryptoKeyPair, RandomTypedArrays } from 'react-native-quick-crypto';
-import { KeypairAlgorithm, LegacySymmetricAlgorithm, SaltLenCBC, SaltLenGCM, SymmetricAlgorithm } from '~/global/variables';
+
 import { logger } from '~/global/logger';
+import { KeypairAlgorithm, LegacySymmetricAlgorithm, SaltLenCBC, SaltLenGCM, SymmetricAlgorithm } from '~/global/variables';
 
 interface exportedKeypair {
     privateKey: string;
@@ -112,7 +113,7 @@ export async function publicKeyFingerprint(peerPublic: string): Promise<string> 
 }
 
 export interface EncryptedFileResult {
-    encrypted: Buffer;
+    encrypted: Buffer<ArrayBuffer>;
     keyBase64: string;
     ivBase64: string;
 }

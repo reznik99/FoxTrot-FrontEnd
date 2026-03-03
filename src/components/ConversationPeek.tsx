@@ -1,17 +1,17 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Dialog, Icon, Portal, Text } from 'react-native-paper';
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
 import AvatarWithStatus from '~/components/AvatarWithStatus';
+import { dbDeleteConversation } from '~/global/database';
 import { humanTime } from '~/global/helper';
 import globalStyle from '~/global/style';
-import { addContact } from '~/store/actions/user';
-import { dbDeleteConversation } from '~/global/database';
 import { ERROR_RED, SECONDARY, SECONDARY_LITE } from '~/global/variables';
+import { RootNavigation } from '~/store/actions/auth';
+import { addContact } from '~/store/actions/user';
 import { Conversation, DELETE_CONVERSATION, message } from '~/store/reducers/user';
 import { AppDispatch, RootState } from '~/store/store';
-import { RootNavigation } from '~/store/actions/auth';
 
 interface MessagePreview {
     text: string;

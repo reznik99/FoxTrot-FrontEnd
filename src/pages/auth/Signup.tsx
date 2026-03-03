@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { View, ScrollView } from 'react-native';
-import { Button, TextInput, Text, Icon, useTheme } from 'react-native-paper';
-import { useSelector, useDispatch } from 'react-redux';
+import { ScrollView, View } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
+import { Button, Icon, Text, TextInput, useTheme } from 'react-native-paper';
+import { useDispatch, useSelector } from 'react-redux';
 
 import PasswordInput from '~/components/PasswordInput';
-import { AppDispatch, RootState } from '~/store/store';
-import { signUp } from '~/store/actions/auth';
-import { SECONDARY_LITE } from '~/global/variables';
 import { logger } from '~/global/logger';
-import { AuthStackParamList } from '~/../App';
+import { AuthStackParamList } from '~/global/navigation';
+import { SECONDARY_LITE } from '~/global/variables';
+import { signUp } from '~/store/actions/auth';
+import { AppDispatch, RootState } from '~/store/store';
+
 import styles from './style';
 
 export default function Signup(props: StackScreenProps<AuthStackParamList, 'Signup'>) {

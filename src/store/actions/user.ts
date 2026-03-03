@@ -1,34 +1,33 @@
+import { getMessaging, getToken, registerDeviceForRemoteMessages } from '@react-native-firebase/messaging'; // Push Notifications
+import { createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import * as Keychain from 'react-native-keychain';
 import Toast from 'react-native-toast-message';
-import { getMessaging, getToken, registerDeviceForRemoteMessages } from '@react-native-firebase/messaging'; // Push Notifications
-import { createAsyncThunk } from '@reduxjs/toolkit';
 
+import { encrypt, exportKeypair, generateIdentityKeypair, generateSessionKeyECDH, importKeypair } from '~/global/crypto';
+import { dbGetConversation, dbGetConversations, dbSaveConversation, dbSaveMessage, getDb } from '~/global/database';
+import { getAvatar } from '~/global/helper';
+import { logger } from '~/global/logger';
+import { getPushNotificationPermission } from '~/global/permissions';
+import { readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
+import { API_URL, KeypairAlgorithm } from '~/global/variables';
 import { evictMediaCache } from '~/store/actions/media';
-
 import {
-    Conversation,
-    message,
     ADD_CONTACT_SUCCESS,
+    Conversation,
     KEY_LOAD,
     LOAD_CONTACTS,
     LOAD_CONVERSATIONS,
+    message,
     SEND_MESSAGE,
     SET_LOADING,
     SET_REFRESHING,
     SYNC_FROM_STORAGE,
     TOKEN_VALID,
-    UserData,
     TURN_CREDS,
+    UserData,
 } from '~/store/reducers/user';
-import { importKeypair, exportKeypair, generateSessionKeyECDH, encrypt, generateIdentityKeypair } from '~/global/crypto';
-import { readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
-import { getPushNotificationPermission } from '~/global/permissions';
-import { getDb, dbGetConversations, dbGetConversation, dbSaveMessage, dbSaveConversation } from '~/global/database';
-import { API_URL, KeypairAlgorithm } from '~/global/variables';
 import { AppDispatch, RootState } from '~/store/store';
-import { getAvatar } from '~/global/helper';
-import { logger } from '~/global/logger';
 
 const createDefaultAsyncThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: AppDispatch }>();
 

@@ -1,16 +1,16 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, SectionList, BackHandler, StyleSheet } from 'react-native';
-import { Divider, Button, Dialog, FAB, Icon, Portal, Text } from 'react-native-paper';
+import React, { useCallback, useMemo, useState } from 'react';
+import { BackHandler, SectionList, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { Button, Dialog, Divider, FAB, Icon, Portal, Text } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import CallHistoryItem from '~/components/CallHistoryItem';
-import { dbGetCallHistory, dbClearCallHistory, dbDeleteCalls, dbMarkAllCallsSeen } from '~/global/database';
-import { CallRecord } from '~/store/reducers/user';
-import { DARKHEADER, ERROR_RED, SECONDARY_LITE } from '~/global/variables';
+import { dbClearCallHistory, dbDeleteCalls, dbGetCallHistory, dbMarkAllCallsSeen } from '~/global/database';
 import { milliseconds } from '~/global/helper';
 import { logger } from '~/global/logger';
 import globalStyle from '~/global/style';
+import { DARKHEADER, ERROR_RED, SECONDARY_LITE } from '~/global/variables';
+import { CallRecord } from '~/store/reducers/user';
 
 function groupByDay(records: CallRecord[]): { title: string; data: CallRecord[] }[] {
     const now = new Date();

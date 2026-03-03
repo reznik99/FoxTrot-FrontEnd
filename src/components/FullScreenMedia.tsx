@@ -1,13 +1,13 @@
 import React, { useCallback, useState } from 'react';
 import { StyleSheet, ToastAndroid, View } from 'react-native';
-import { Divider, IconButton, Menu } from 'react-native-paper';
 import { ImageZoom } from '@likashefqet/react-native-image-zoom';
-import Video from 'react-native-video';
 import RNFS from 'react-native-fs';
-
-import { DARKHEADER } from '~/global/variables';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Divider, IconButton, Menu } from 'react-native-paper';
+import Video from 'react-native-video';
+
 import { getWriteExtPermission } from '~/global/permissions';
+import { DARKHEADER } from '~/global/variables';
 
 interface IProps {
     media: string;

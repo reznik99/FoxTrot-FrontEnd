@@ -1,18 +1,18 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { StyleSheet, View, ToastAndroid, Linking } from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
-import { Avatar, Button, Dialog, Icon, Portal, Text, TouchableRipple, useTheme } from 'react-native-paper';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Linking, StyleSheet, ToastAndroid, View } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
 import { DrawerContentComponentProps } from '@react-navigation/drawer/lib/typescript/src/types';
-import Clipboard from '@react-native-clipboard/clipboard';
 import DeviceInfo from 'react-native-device-info';
 import RNFS from 'react-native-fs';
+import { Avatar, Button, Dialog, Icon, Portal, Text, TouchableRipple, useTheme } from 'react-native-paper';
+import { useDispatch, useSelector } from 'react-redux';
 
-import { KeypairAlgorithm, SECONDARY, SECONDARY_LITE, DARKHEADER, DIVIDER } from '~/global/variables';
-import { logOut } from '~/store/actions/auth';
 import { publicKeyFingerprint } from '~/global/crypto';
 import { formatBytes, getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
+import { DARKHEADER, DIVIDER, KeypairAlgorithm, SECONDARY, SECONDARY_LITE } from '~/global/variables';
+import { logOut } from '~/store/actions/auth';
 import { AppDispatch, RootState } from '~/store/store';
 
 const GITHUB_URL = 'https://github.com/reznik99/FoxTrot-FrontEnd';

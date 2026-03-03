@@ -1,11 +1,11 @@
 {
     "name": "foxtrot",
-    "version": "1.19.12",
+    "version": "1.19.13",
     "private": true,
     "scripts": {
         "android": "react-native run-android --no-packager && react-native start",
         "ios": "react-native run-ios",
-        "lint": "prettier --write \"src/**/*.{js,ts,tsx}\" \"*.{js,ts}\" && eslint . --fix",
+        "lint": "prettier --write \"src/**/*.{js,ts,tsx}\" \"*.{js,ts,tsx}\" && eslint . --fix",
         "start": "react-native start",
         "test": "jest",
         "test:watch": "jest --watch",
@@ -64,6 +64,7 @@
         "@babel/preset-env": "~7.29.0",
         "@babel/preset-typescript": "^7.28.5",
         "@babel/runtime": "~7.28.6",
+        "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
         "@react-native-community/cli": "~19.1.2",
         "@react-native-community/cli-platform-android": "~19.1.2",
         "@react-native-community/cli-platform-ios": "~19.1.2",

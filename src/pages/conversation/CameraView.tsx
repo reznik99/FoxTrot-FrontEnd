@@ -1,23 +1,23 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { ActivityIndicator, Button, Text } from 'react-native-paper';
-import { Camera, Templates, useCameraDevice, useCameraFormat } from 'react-native-vision-camera';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { StackScreenProps } from '@react-navigation/stack';
-import { View, Image, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Image, StyleSheet, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
-import Video from 'react-native-video';
+import { StackScreenProps } from '@react-navigation/stack';
 import { Image as ImageCompressor, Video as VideoCompressor } from 'react-native-compressor';
 import { createThumbnail } from 'react-native-create-thumbnail';
-import Toast from 'react-native-toast-message';
 import RNFS from 'react-native-fs';
+import { ActivityIndicator, Button, Text } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
+import Video from 'react-native-video';
+import { Camera, Templates, useCameraDevice, useCameraFormat } from 'react-native-vision-camera';
 import { useDispatch } from 'react-redux';
 
+import { logger } from '~/global/logger';
+import { HomeStackParamList } from '~/global/navigation';
 import { getCameraAndMicrophonePermissions } from '~/global/permissions';
 import { DARKHEADER, SECONDARY, SECONDARY_LITE } from '~/global/variables';
-import { sendMessage } from '~/store/actions/user';
 import { uploadMedia } from '~/store/actions/media';
-import { logger } from '~/global/logger';
-import { HomeStackParamList } from '~/../App';
+import { sendMessage } from '~/store/actions/user';
 import { AppDispatch } from '~/store/store';
 
 export default function CameraView(props: StackScreenProps<HomeStackParamList, 'CameraView'>) {

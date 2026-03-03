@@ -1,32 +1,36 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, FlatList, RefreshControl, Text, Image, StyleSheet } from 'react-native';
-import { Divider, FAB, ActivityIndicator, Snackbar, Icon, useTheme } from 'react-native-paper';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import RNNotificationCall from 'react-native-full-screen-notification-incoming-call';
 import InCallManager from 'react-native-incall-manager';
-import { useSelector } from 'react-redux';
-import { useNavigation } from '@react-navigation/native';
+import { ActivityIndicator, Divider, FAB, Icon, Snackbar, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 
 import ConversationPeek from '~/components/ConversationPeek';
-import { loadMessages, loadContacts, loadKeys, registerPushNotifications, getTURNServerCreds } from '~/store/actions/user';
-import { startWebsocketManager, SocketMessage } from '~/store/actions/websocket';
-import { Conversation, UserData } from '~/store/reducers/user';
-import { setupInterceptors, RootNavigation } from '~/store/actions/auth';
-import { RootState, store } from '~/store/store';
-import { popFromStorage, StorageKeys } from '~/global/storage';
 import { dbSaveCallRecord } from '~/global/database';
-import { SECONDARY_LITE } from '~/global/variables';
 import { logger } from '~/global/logger';
+import { popFromStorage, StorageKeys } from '~/global/storage';
 import globalStyle from '~/global/style';
+import { SECONDARY_LITE } from '~/global/variables';
+import { RootNavigation, setupInterceptors } from '~/store/actions/auth';
+import { getTURNServerCreds, loadContacts, loadKeys, loadMessages, registerPushNotifications } from '~/store/actions/user';
+import { SocketMessage, startWebsocketManager } from '~/store/actions/websocket';
+import { Conversation, UserData } from '~/store/reducers/user';
+import { RootState, store } from '~/store/store';
 
 export default function Home() {
-    const { colors } = useTheme();
     const navigation = useNavigation<RootNavigation>();
     const insets = useSafeAreaInsets();
-    const { conversations, loading, refreshing, socketStatus, socketErr } = useSelector(
-        (state: RootState) => state.userReducer,
-    );
+    const { colors } = useTheme();
     const [loadingMsg, setLoadingMsg] = useState('');
+
+    const conversations = useSelector((state: RootState) => state.userReducer.conversations);
+    const loading = useSelector((state: RootState) => state.userReducer.loading);
+    const refreshing = useSelector((state: RootState) => state.userReducer.refreshing);
+    const socketStatus = useSelector((state: RootState) => state.userReducer.socketStatus);
+    const socketErr = useSelector((state: RootState) => state.userReducer.socketErr);
+
     const convos: Array<Conversation> = useMemo(() => {
         return [...conversations.values()].sort((a, b) => {
             const aTime = a.messages?.[0]?.sent_at ? new Date(a.messages[0].sent_at).getTime() : 0;
@@ -128,17 +132,42 @@ export default function Home() {
         };
     }, [navigation]);
 
+    const onRefresh = useCallback(() => {
+        loadMessagesAndContacts().finally(() => setLoadingMsg(''));
+    }, [loadMessagesAndContacts]);
+
+    const renderListEmpty = useCallback(
+        () => (
+            <View style={styles.emptyContainer}>
+                <Icon source="message-text-outline" size={64} color={SECONDARY_LITE} />
+                <Text style={styles.emptyText}>No conversations yet</Text>
+            </View>
+        ),
+        [],
+    );
+
+    if (loading || loadingMsg) {
+        return (
+            <View style={globalStyle.wrapper}>
+                <View style={styles.loadingContainer}>
+                    <Text style={styles.loadingText}>{loadingMsg}</Text>
+                    <ActivityIndicator size="large" />
+                </View>
+            </View>
+        );
+    }
+
     return (
         <View style={globalStyle.wrapper}>
             {socketStatus === 'reconnecting' && (
-                <Snackbar visible={true} style={{ zIndex: 100 }} onDismiss={() => {}}>
+                <Snackbar visible={true} style={styles.snackbar} onDismiss={() => {}}>
                     Reconnecting to server...
                 </Snackbar>
             )}
             {socketStatus === 'disconnected' && !!socketErr && (
                 <Snackbar
                     visible={true}
-                    style={{ zIndex: 100 }}
+                    style={styles.snackbar}
                     onDismiss={() => {}}
                     action={{
                         label: 'Reconnect',
@@ -148,48 +177,26 @@ export default function Home() {
                     Connection to servers lost! Please try again later
                 </Snackbar>
             )}
-            {loading || loadingMsg ? (
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    <Text style={[globalStyle.errorMsg, { color: 'white', marginBottom: 10 }]}>{loadingMsg}</Text>
-                    <ActivityIndicator size="large" />
-                </View>
-            ) : (
-                <>
-                    <Image source={require('../../../assets/bootsplash/logo.png')} style={styles.watermark} />
-                    <FlatList
-                        data={convos}
-                        keyExtractor={(item, index) => item.other_user.phone_no || String(index)}
-                        renderItem={({ item }) => <ConversationPeek data={item} navigation={navigation} />}
-                        ItemSeparatorComponent={Divider}
-                        refreshControl={
-                            <RefreshControl
-                                refreshing={refreshing}
-                                onRefresh={() => {
-                                    loadMessagesAndContacts().finally(() => setLoadingMsg(''));
-                                }}
-                            />
-                        }
-                        ListEmptyComponent={
-                            <View style={{ alignItems: 'center', marginTop: 80 }}>
-                                <Icon source="message-text-outline" size={64} color={SECONDARY_LITE} />
-                                <Text style={{ color: SECONDARY_LITE, fontSize: 16, marginTop: 12 }}>
-                                    No conversations yet
-                                </Text>
-                            </View>
-                        }
-                    />
 
-                    <FAB
-                        color="#fff"
-                        style={[
-                            globalStyle.fab,
-                            { backgroundColor: colors.primary, marginBottom: globalStyle.fab.margin + insets.bottom },
-                        ]}
-                        onPress={() => navigation.navigate('NewConversation')}
-                        icon="pencil"
-                    />
-                </>
-            )}
+            <Image source={require('../../../assets/bootsplash/logo.png')} style={styles.watermark} />
+            <FlatList
+                data={convos}
+                keyExtractor={(item, index) => item.other_user.phone_no || String(index)}
+                renderItem={({ item }) => <ConversationPeek data={item} navigation={navigation} />}
+                ItemSeparatorComponent={Divider}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                ListEmptyComponent={renderListEmpty}
+            />
+
+            <FAB
+                color="#fff"
+                style={[
+                    globalStyle.fab,
+                    { backgroundColor: colors.primary, marginBottom: globalStyle.fab.margin + insets.bottom },
+                ]}
+                onPress={() => navigation.navigate('NewConversation')}
+                icon="pencil"
+            />
         </View>
     );
 }
@@ -202,5 +209,29 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
         top: '40%',
         opacity: 0.08,
+    },
+    snackbar: {
+        zIndex: 100,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        color: 'white',
+        textAlign: 'center',
+        fontSize: 20,
+        paddingVertical: 20,
+        marginBottom: 10,
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        marginTop: 80,
+    },
+    emptyText: {
+        color: SECONDARY_LITE,
+        fontSize: 16,
+        marginTop: 12,
     },
 });

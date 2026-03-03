@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Modal, View, ScrollView, StyleSheet, ToastAndroid } from 'react-native';
-import { Button, Text } from 'react-native-paper';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Modal, ScrollView, StyleSheet, ToastAndroid, View } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import DeviceInfo from 'react-native-device-info';
+import { Button, Text } from 'react-native-paper';
 
-import { getEntries, getFormattedLogs, registerPortalCallback, LogEntry } from '~/global/logger';
+import { getEntries, getFormattedLogs, LogEntry, registerPortalCallback } from '~/global/logger';
 import { DARKHEADER } from '~/global/variables';
 
 const LEVEL_COLORS: Record<string, string> = {

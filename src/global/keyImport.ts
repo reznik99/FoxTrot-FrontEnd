@@ -1,14 +1,14 @@
+import { Buffer } from 'buffer';
 import { pick, types } from '@react-native-documents/picker';
+import RNFS from 'react-native-fs';
 import * as Keychain from 'react-native-keychain';
 import QuickCrypto from 'react-native-quick-crypto';
-import RNFS from 'react-native-fs';
-import { Buffer } from 'buffer';
 
-import { API_URL } from '~/global/variables';
-import { getReadExtPermission } from '~/global/permissions';
 import { deriveKeyFromPassword } from '~/global/crypto';
-import { loadContacts, loadKeys } from '~/store/actions/user';
 import { logger } from '~/global/logger';
+import { getReadExtPermission } from '~/global/permissions';
+import { API_URL } from '~/global/variables';
+import { loadContacts, loadKeys } from '~/store/actions/user';
 import { store } from '~/store/store';
 
 /**

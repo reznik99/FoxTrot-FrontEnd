@@ -1,53 +1,49 @@
 import 'react-native-gesture-handler';
-import { Buffer } from 'buffer';
-global.Buffer = global.Buffer || Buffer;
-import React, { createContext, useMemo, useState, useCallback, useEffect } from 'react';
-import { StatusBar } from 'react-native';
-import { Provider } from 'react-redux';
-import { Provider as PaperProvider, MD3DarkTheme, Icon, useTheme } from 'react-native-paper';
-import { NavigationContainer, DarkTheme as NavDarkTheme, RouteProp } from '@react-navigation/native';
-import { createDrawerNavigator, DrawerContentComponentProps, DrawerNavigationOptions } from '@react-navigation/drawer';
-import RNNotificationCall, { DeclinePayload } from 'react-native-full-screen-notification-incoming-call';
-import { getMessaging, setBackgroundMessageHandler } from '@react-native-firebase/messaging';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import PushNotification from 'react-native-push-notification';
-import InCallManager from 'react-native-incall-manager';
-import QuickCrypto from 'react-native-quick-crypto';
-import Toast from 'react-native-toast-message';
-import {
-    createStackNavigator,
-    CardStyleInterpolators,
-    StackNavigationOptions,
-    StackHeaderProps,
-} from '@react-navigation/stack';
+import '~/global/buffer';
+import '~/global/backgroundHandler';
 
-// App
-import { PRIMARY, SECONDARY, SECONDARY_LITE, ACCENT, DARKHEADER, DIVIDER, ERROR_RED, VibratePattern } from '~/global/variables';
-import { deleteFromStorage, readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
-import { getDb, dbSaveCallRecord, dbGetUnseenCallCount } from '~/global/database';
-import { logger, showErrorPortal } from '~/global/logger';
-import { getAvatar } from '~/global/helper';
-import { FlagSecure } from '~/global/native';
-import { SocketMessage, startWebsocketManager, stopWebsocketManager } from '~/store/actions/websocket';
-import { UserData } from '~/store/reducers/user';
-import { store } from '~/store/store';
+import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import { StatusBar } from 'react-native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createDrawerNavigator, DrawerContentComponentProps, DrawerNavigationOptions } from '@react-navigation/drawer';
+import { DarkTheme as NavDarkTheme, NavigationContainer, RouteProp } from '@react-navigation/native';
+import {
+    CardStyleInterpolators,
+    createStackNavigator,
+    StackHeaderProps,
+    StackNavigationOptions,
+} from '@react-navigation/stack';
+import { Icon, MD3DarkTheme, Provider as PaperProvider, useTheme } from 'react-native-paper';
+import Toast from 'react-native-toast-message';
+import { Provider } from 'react-redux';
+
 import ConnectionIndicator from '~/components/ConnectionIndicator';
+import Drawer from '~/components/Drawer';
 import ErrorBoundary from '~/components/ErrorBoundary';
 import ErrorPortal from '~/components/ErrorPortal';
 import HeaderConversation from '~/components/HeaderConversation';
-import Drawer from '~/components/Drawer';
+import { dbGetUnseenCallCount } from '~/global/database';
+import { logger, showErrorPortal } from '~/global/logger';
+import { FlagSecure } from '~/global/native';
+import { AuthStackParamList, HomeStackParamList, HomeTabParamList, RootDrawerParamList } from '~/global/navigation';
+import { readFromStorage, StorageKeys } from '~/global/storage';
+// App
+import { ACCENT, DARKHEADER, DIVIDER, ERROR_RED, PRIMARY, SECONDARY, SECONDARY_LITE } from '~/global/variables';
+import { startWebsocketManager, stopWebsocketManager } from '~/store/actions/websocket';
+import { store } from '~/store/store';
+
 import {
-    Login,
-    Signup,
-    Home,
-    Conversation,
-    NewConversation,
     AddContact,
     Call,
-    CameraView,
-    Settings,
     CallHistory,
+    CameraView,
+    Conversation,
+    Home,
     KeySetup,
+    Login,
+    NewConversation,
+    Settings,
+    Signup,
 } from './src';
 
 const defaultHeaderOptions: StackNavigationOptions & DrawerNavigationOptions = {
@@ -67,10 +63,6 @@ const animationDefaults: StackNavigationOptions = {
 };
 
 // Bottom tabs inside the drawer
-export type HomeTabParamList = {
-    Messages: undefined;
-    Calls: undefined;
-};
 const Tab = createBottomTabNavigator<HomeTabParamList>();
 const renderMessagesIcon = ({ color, size }: { color: string; size: number }) => (
     <Icon source="message-text" color={color} size={size} />
@@ -121,9 +113,6 @@ const HomeTabs = () => {
     );
 };
 
-export type RootDrawerParamList = {
-    FoxTrot: undefined;
-};
 const renderConnectionIndicator = () => <ConnectionIndicator />;
 
 const AppNavigator = createDrawerNavigator<RootDrawerParamList>();
@@ -140,16 +129,6 @@ const AppDrawer = () => {
 };
 const renderDrawerContent = (props: DrawerContentComponentProps) => <Drawer {...props} />;
 
-export type HomeStackParamList = {
-    Home: undefined;
-    Conversation: { data: { peer_user: UserData } };
-    NewConversation: undefined;
-    AddContact: undefined;
-    Call: { data: { peer_user: UserData; video_enabled: boolean } };
-    CameraView: { data: { peer: UserData; mediaPath: string; mediaType?: 'image' | 'video' } };
-    Settings: undefined;
-    KeySetup: undefined;
-};
 const HomeStack = createStackNavigator<HomeStackParamList>();
 const HomeNavigator = () => {
     useEffect(() => {
@@ -186,11 +165,6 @@ const renderHeaderConversation = ({
     ),
 });
 
-export type AuthStackParamList = {
-    Login: { data: { errorMsg: string; loggedOut: boolean } };
-    Signup: undefined;
-    App: undefined;
-};
 const AuthStack = createStackNavigator<AuthStackParamList>();
 const AuthNavigator = () => {
     return (
@@ -205,95 +179,6 @@ const AuthNavigator = () => {
 };
 
 export const PrimaryColorContext = createContext<(color: string) => void>(() => {});
-
-// Register background handler
-const messaging = getMessaging();
-setBackgroundMessageHandler(messaging, async remoteMessage => {
-    logger.info('Message handled in the background!', remoteMessage);
-    // Stop duplicate ringtones
-    InCallManager.stopRingtone();
-    // Parse event & caller data
-    const caller = JSON.parse((remoteMessage.data?.caller as string) || '{}') as UserData;
-    if (Object.keys(caller).length === 0) {
-        return logger.error('Caller data is not defined');
-    }
-    const eventData = JSON.parse((remoteMessage.data?.data as string) || '{}') as SocketMessage;
-    if (Object.keys(eventData).length === 0) {
-        return logger.error('Event data is not defined');
-    }
-    // Register call event listeners
-    RNNotificationCall.addEventListener('answer', async info => {
-        logger.debug('RNNotificationCall: User answered call', info.callUUID);
-        RNNotificationCall.backToApp();
-        if (!info.payload) {
-            logger.error('Background notification data is not defined after call-screen passthrough:', info);
-            return;
-        }
-        // Write caller info to special storage key that is checked after app login
-        await writeToStorage(StorageKeys.CALL_ANSWERED_IN_BACKGROUND, info.payload);
-        // User will be opening app and authenticating after this...
-    });
-    RNNotificationCall.addEventListener('endCall', async info => {
-        logger.debug('RNNotificationCall: User ended call', info.callUUID);
-        // Stop ringing
-        InCallManager.stopRingtone();
-
-        const data = info as DeclinePayload;
-        if (data.endAction === 'ACTION_HIDE_CALL') {
-            // If call was missed, show push notification of missed call
-            const callChannelOpts = {
-                channelId: 'Calls',
-                channelName: 'Notifications for missed calls',
-                channelDescription: 'Notifications for missed calls',
-            };
-            PushNotification.createChannel(callChannelOpts, () => {});
-            PushNotification.localNotification({
-                channelId: 'Calls',
-                title: 'Missed Call',
-                message: `You missed a call from ${caller.phone_no}`,
-                when: Date.now() - 20000,
-                visibility: 'private',
-                picture: caller.pic || getAvatar(caller.id),
-                largeIcon: 'foxtrot',
-                smallIcon: 'foxtrot',
-            });
-        }
-        // endCall only fires when the call is declined or times out (never after answer)
-        try {
-            await getDb();
-            dbSaveCallRecord({
-                peer_phone: caller.phone_no,
-                peer_id: String(caller.id),
-                peer_pic: caller.pic,
-                direction: 'incoming',
-                call_type: eventData.type || 'audio',
-                status: 'missed',
-                duration: 0,
-                started_at: new Date().toISOString(),
-            });
-        } catch (err) {
-            logger.error('Failed to save missed call record to db:', err);
-        }
-        // Delete storage info about caller so they don't get routed to call screen on next app open
-        await deleteFromStorage(StorageKeys.CALL_ANSWERED_IN_BACKGROUND);
-    });
-    InCallManager.startRingtone('_DEFAULT_', VibratePattern, '', 20);
-
-    RNNotificationCall.displayNotification(QuickCrypto.randomUUID(), caller.pic || getAvatar(caller.id), 20000, {
-        channelId: 'com.foxtrot.callNotifications',
-        channelName: 'Notifications for incoming calls',
-        notificationIcon: 'foxtrot',
-        notificationTitle: caller.phone_no || 'Unknown User',
-        notificationBody: `Incoming ${eventData.type || 'audio'} call`,
-        answerText: 'Answer',
-        declineText: 'Decline',
-        notificationColor: 'colorAccent',
-        payload: { caller: caller, data: eventData },
-        isVideo: eventData.type === 'video',
-        // notificationSound: 'skype_ring',
-        // mainComponent: "CallScreen"
-    });
-});
 
 export default function App() {
     const [primaryColor, setPrimaryColor] = useState(PRIMARY);

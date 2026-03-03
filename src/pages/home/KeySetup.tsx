@@ -1,18 +1,18 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
-import { Button, Text, Icon, ActivityIndicator, useTheme } from 'react-native-paper';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useSelector } from 'react-redux';
+import { ActivityIndicator, Button, Icon, Text, useTheme } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
+import { useSelector } from 'react-redux';
 
-import { SECONDARY, SECONDARY_LITE } from '~/global/variables';
-import { importKeysFromFile } from '~/global/keyImport';
+import PasswordInput from '~/components/PasswordInput';
 import { exportKeysToFile } from '~/global/keyExport';
+import { importKeysFromFile } from '~/global/keyImport';
 import { logger } from '~/global/logger';
+import { SECONDARY, SECONDARY_LITE } from '~/global/variables';
+import { RootNavigation } from '~/store/actions/auth';
 import { generateAndSyncKeys } from '~/store/actions/user';
 import { RootState, store } from '~/store/store';
-import { RootNavigation } from '~/store/actions/auth';
-import PasswordInput from '~/components/PasswordInput';
 
 export default function KeySetup() {
     const { colors } = useTheme();

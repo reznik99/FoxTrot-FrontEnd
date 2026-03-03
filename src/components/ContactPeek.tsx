@@ -1,9 +1,9 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { IconButton, MD2Colors as Colors, ActivityIndicator, useTheme } from 'react-native-paper';
+import { ActivityIndicator, MD2Colors as Colors, IconButton, useTheme } from 'react-native-paper';
 
 import AvatarWithStatus from '~/components/AvatarWithStatus';
-import globalStyle from '../global/style';
+import globalStyle from '~/global/style';
 import { SECONDARY } from '~/global/variables';
 import { UserData } from '~/store/reducers/user';
 

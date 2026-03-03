@@ -1,32 +1,32 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Image } from 'react-native';
-import { connect, ConnectedProps } from 'react-redux';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StackScreenProps } from '@react-navigation/stack';
+import InCallManager from 'react-native-incall-manager';
 import { ActivityIndicator, Icon } from 'react-native-paper';
+import { withSafeAreaInsets, WithSafeAreaInsetsProps } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 import { mediaDevices, MediaStream, RTCPeerConnection, RTCSessionDescription, RTCView } from 'react-native-webrtc';
+import MessageEvent from 'react-native-webrtc/lib/typescript/MessageEvent';
 import RTCDataChannel from 'react-native-webrtc/lib/typescript/RTCDataChannel';
 import { RTCOfferOptions } from 'react-native-webrtc/lib/typescript/RTCUtil';
-import MessageEvent from 'react-native-webrtc/lib/typescript/MessageEvent';
-import InCallManager from 'react-native-incall-manager';
-import Toast from 'react-native-toast-message';
-import { StackScreenProps } from '@react-navigation/stack';
-import { withSafeAreaInsets, WithSafeAreaInsetsProps } from 'react-native-safe-area-context';
+import { connect, ConnectedProps } from 'react-redux';
 
+import { dbSaveCallRecord } from '~/global/database';
+import { logger } from '~/global/logger';
+import { HomeStackParamList } from '~/global/navigation';
+import { readFromStorage, StorageKeys } from '~/global/storage';
+import { DARKHEADER, DIVIDER, ERROR_RED } from '~/global/variables';
 import {
     CandidatePair,
-    LocalCandidate,
-    WebRTCMessage,
     getConnStats,
     getIconForConnType,
     getRTCConfiguration,
+    LocalCandidate,
+    WebRTCMessage,
 } from '~/global/webrtc';
-import { DARKHEADER, DIVIDER, ERROR_RED } from '~/global/variables';
-import { readFromStorage, StorageKeys } from '~/global/storage';
-import { dbSaveCallRecord } from '~/global/database';
 import { resetCallState, SocketData } from '~/store/actions/websocket';
 import { UserData } from '~/store/reducers/user';
 import { RootState } from '~/store/store';
-import { HomeStackParamList } from '~/../App';
-import { logger } from '~/global/logger';
 
 class Call extends React.Component<Props, State> {
     callTimer: NodeJS.Timeout | undefined;

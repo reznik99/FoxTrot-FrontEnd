@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Text, View, ScrollView } from 'react-native';
-import { Searchbar, FAB, ActivityIndicator, Icon, useTheme } from 'react-native-paper';
-import { useSelector } from 'react-redux';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, Text, View } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
+import { ActivityIndicator, FAB, Icon, Searchbar, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 
+import ContactPeek from '~/components/ContactPeek';
+import { HomeStackParamList } from '~/global/navigation';
+import globalStyle from '~/global/style';
+import { DARKHEADER, SECONDARY_LITE } from '~/global/variables';
 import { UserData } from '~/store/reducers/user';
 import { RootState } from '~/store/store';
-import { DARKHEADER, SECONDARY_LITE } from '~/global/variables';
-import globalStyle from '~/global/style';
-import ContactPeek from '~/components/ContactPeek';
-import { HomeStackParamList } from '~/../App';
 
 export default function NewConversation(props: StackScreenProps<HomeStackParamList, 'NewConversation'>) {
     const { colors } = useTheme();

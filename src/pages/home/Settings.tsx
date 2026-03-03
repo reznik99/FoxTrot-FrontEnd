@@ -1,21 +1,29 @@
-import React, { useContext, useEffect, useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { Button, Dialog, Icon, Portal, Chip, Text, Divider, Switch, useTheme } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
-import { useDispatch, useSelector } from 'react-redux';
-import * as Keychain from 'react-native-keychain';
-
-import { API_URL, COLOR_PRESETS, DARKHEADER, KeychainOpts } from '~/global/variables';
-import { PrimaryColorContext } from '~/../App';
-import { logger, showErrorPortal } from '~/global/logger';
 import DeviceInfo from 'react-native-device-info';
-import { deleteFromStorage, getAllStorageKeys, readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
+import * as Keychain from 'react-native-keychain';
+import { Button, Chip, Dialog, Divider, Icon, Portal, Switch, Text, useTheme } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDispatch, useSelector } from 'react-redux';
+
+import { PrimaryColorContext } from '~/../App';
+import { DB_KEY_SERVICE, deleteDb } from '~/global/database';
+import { logger, showErrorPortal } from '~/global/logger';
 import { FlagSecure } from '~/global/native';
+import { HomeStackParamList } from '~/global/navigation';
+import {
+    deleteFromStorage,
+    getAllStorageKeys,
+    MMKV_KEY_SERVICE,
+    readFromStorage,
+    StorageKeys,
+    writeToStorage,
+} from '~/global/storage';
 import globalStyle from '~/global/style';
+import { API_URL, COLOR_PRESETS, DARKHEADER, KeychainOpts } from '~/global/variables';
 import { logOut } from '~/store/actions/auth';
 import { AppDispatch, RootState } from '~/store/store';
-import { HomeStackParamList } from '~/../App';
 
 export default function Settings(props: StackScreenProps<HomeStackParamList, 'Settings'>) {
     const dispatch = useDispatch<AppDispatch>();
@@ -73,7 +81,11 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
             ...allKeys.map(key => deleteFromStorage(key)),
             Keychain.resetInternetCredentials({ server: API_URL, service: `${user_data?.phone_no}-keys` }),
             Keychain.resetGenericPassword({ server: API_URL, service: `${user_data?.phone_no}-credentials` }),
+            Keychain.resetGenericPassword({ service: MMKV_KEY_SERVICE }),
+            Keychain.resetGenericPassword({ service: DB_KEY_SERVICE }),
         ]);
+        // Close and delete SQLite database file (messages, conversations, calls)
+        deleteDb();
         dispatch(logOut({ navigation: props.navigation as any }));
     }, [user_data, props.navigation, dispatch]);
 

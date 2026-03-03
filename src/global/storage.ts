@@ -1,10 +1,11 @@
-import { createMMKV, type MMKV } from 'react-native-mmkv';
-import * as Keychain from 'react-native-keychain';
-import QuickCrypto from 'react-native-quick-crypto';
 import { Buffer } from 'buffer';
+import * as Keychain from 'react-native-keychain';
+import { createMMKV, type MMKV } from 'react-native-mmkv';
+import QuickCrypto from 'react-native-quick-crypto';
+
 import { logger } from '~/global/logger';
 
-const MMKV_KEY_SERVICE = 'foxtrot-mmkv-key';
+export const MMKV_KEY_SERVICE = 'foxtrot-mmkv-key';
 
 // MMKV storage is encrypted using AES-CFB-128.
 // Key: 16 bytes (128-bit), stored in device Keychain.

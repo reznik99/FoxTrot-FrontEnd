@@ -17,6 +17,7 @@ import { Icon, MD3DarkTheme, Provider as PaperProvider, useTheme } from 'react-n
 import Toast from 'react-native-toast-message';
 import { Provider } from 'react-redux';
 
+import ActiveCallBanner from '~/components/ActiveCallBanner';
 import ConnectionIndicator from '~/components/ConnectionIndicator';
 import Drawer from '~/components/Drawer';
 import ErrorBoundary from '~/components/ErrorBoundary';
@@ -25,7 +26,13 @@ import HeaderConversation from '~/components/HeaderConversation';
 import { dbGetUnseenCallCount } from '~/global/database';
 import { logger, showErrorPortal } from '~/global/logger';
 import { FlagSecure } from '~/global/native';
-import { AuthStackParamList, HomeStackParamList, HomeTabParamList, RootDrawerParamList } from '~/global/navigation';
+import {
+    AuthStackParamList,
+    HomeStackParamList,
+    HomeTabParamList,
+    navigationRef,
+    RootDrawerParamList,
+} from '~/global/navigation';
 import { readFromStorage, StorageKeys } from '~/global/storage';
 // App
 import { ACCENT, DARKHEADER, DIVIDER, ERROR_RED, PRIMARY, SECONDARY, SECONDARY_LITE } from '~/global/variables';
@@ -168,7 +175,7 @@ const renderHeaderConversation = ({
 const AuthStack = createStackNavigator<AuthStackParamList>();
 const AuthNavigator = () => {
     return (
-        <NavigationContainer theme={NavDarkTheme}>
+        <NavigationContainer ref={navigationRef} theme={NavDarkTheme}>
             <AuthStack.Navigator screenOptions={{ ...defaultHeaderOptions, ...animationDefaults }}>
                 <AuthStack.Screen name="Login" component={Login} options={{ headerShown: false }} />
                 <AuthStack.Screen name="Signup" component={Signup} />
@@ -225,6 +232,7 @@ export default function App() {
                     <ErrorBoundary>
                         <AuthNavigator />
                     </ErrorBoundary>
+                    <ActiveCallBanner />
                     <ErrorPortal />
                     <Toast />
                 </PrimaryColorContext.Provider>

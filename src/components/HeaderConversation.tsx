@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 
 import AvatarWithStatus from '~/components/AvatarWithStatus';
+import * as callManager from '~/global/callManager';
 import { publicKeyFingerprint } from '~/global/crypto';
 import { humanTime, onlineStatus } from '~/global/helper';
 import { logger } from '~/global/logger';
@@ -74,15 +75,23 @@ export default function HeaderConversation(props: IProps) {
             <View style={[styles.buttonContainer]}>
                 <TouchableOpacity
                     style={styles.button}
-                    onPress={() => navigation.navigate('Call', { data: { peer_user: data.peer_user, video_enabled: true } })}
+                    onPress={() => {
+                        if (callManager.isActive()) {
+                            ToastAndroid.show('A call is already in progress', ToastAndroid.SHORT);
+                        }
+                        navigation.navigate('Call', { data: { peer_user: data.peer_user, video_enabled: true } });
+                    }}
                 >
                     <Icon source="video" color={styles.topBarText.color} size={styles.topBarText.fontSize} />
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={styles.button}
-                    onPress={() =>
-                        navigation.navigate('Call', { data: { peer_user: data.peer_user, video_enabled: false } })
-                    }
+                    onPress={() => {
+                        if (callManager.isActive()) {
+                            ToastAndroid.show('A call is already in progress', ToastAndroid.SHORT);
+                        }
+                        navigation.navigate('Call', { data: { peer_user: data.peer_user, video_enabled: false } });
+                    }}
                 >
                     <Icon source="phone" color={styles.topBarText.color} size={styles.topBarText.fontSize} />
                 </TouchableOpacity>

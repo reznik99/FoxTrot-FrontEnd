@@ -1,4 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import { createNavigationContainerRef } from '@react-navigation/native';
 import type { StackNavigationProp, StackScreenProps } from '@react-navigation/stack';
 
 import type { UserData } from '~/store/reducers/user';
@@ -44,3 +45,6 @@ export type RootNavigation = StackNavigationProp<HomeStackParamList & AuthStackP
 // Re-export for screen component props
 export type HomeStackScreenProps<T extends keyof HomeStackParamList> = StackScreenProps<HomeStackParamList, T>;
 export type AuthStackScreenProps<T extends keyof AuthStackParamList> = StackScreenProps<AuthStackParamList, T>;
+
+// Global navigation ref for components outside the navigation tree (e.g. ActiveCallBanner)
+export const navigationRef = createNavigationContainerRef<AuthStackParamList>();

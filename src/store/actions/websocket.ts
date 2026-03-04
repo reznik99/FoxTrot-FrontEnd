@@ -6,6 +6,7 @@ import PushNotification from 'react-native-push-notification';
 import QuickCrypto from 'react-native-quick-crypto';
 import Toast from 'react-native-toast-message';
 
+import * as callManager from '~/global/callManager';
 import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { VibratePattern, WEBSOCKET_URL } from '~/global/variables';
@@ -322,10 +323,12 @@ function handleSocketMessage(data: any, dispatch: AppDispatch, getState: GetStat
             case 'CALL_ANSWER':
                 logger.debug('[Websocket] CALL_ANSWER Recieved', parsedData.data?.sender);
                 dispatch({ type: 'user/RECV_CALL_ANSWER', payload: parsedData.data?.answer });
+                callManager.onCallAnswer(parsedData.data?.answer);
                 break;
             case 'CALL_ICE_CANDIDATE':
                 logger.debug('[Websocket] RECV_CALL_ICE_CANDIDATE Recieved', parsedData.data?.sender);
                 dispatch({ type: 'user/RECV_CALL_ICE_CANDIDATE', payload: parsedData.data?.candidate });
+                callManager.onIceCandidate(parsedData.data?.candidate);
                 break;
             default:
                 logger.debug('[Websocket] RECV unknown command from', parsedData.data?.sender, parsedData.cmd);

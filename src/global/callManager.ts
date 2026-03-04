@@ -3,13 +3,14 @@ import Toast from 'react-native-toast-message';
 import { mediaDevices, MediaStream, RTCPeerConnection, RTCSessionDescription } from 'react-native-webrtc';
 import MessageEvent from 'react-native-webrtc/lib/typescript/MessageEvent';
 import RTCDataChannel from 'react-native-webrtc/lib/typescript/RTCDataChannel';
+import { RTCSessionDescriptionInit } from 'react-native-webrtc/lib/typescript/RTCSessionDescription';
 import { RTCOfferOptions } from 'react-native-webrtc/lib/typescript/RTCUtil';
 
 import { dbSaveCallRecord } from '~/global/database';
 import { logger } from '~/global/logger';
 import { readFromStorage, StorageKeys } from '~/global/storage';
 import { CandidatePair, getConnStats, getRTCConfiguration, LocalCandidate, WebRTCMessage } from '~/global/webrtc';
-import { resetCallState, SocketData } from '~/store/actions/websocket';
+import { SocketData } from '~/store/actions/websocket';
 import { TURNCredentials, UserData } from '~/store/reducers/user';
 import { store } from '~/store/store';
 
@@ -76,7 +77,8 @@ const internal = {
     callStatsTimer: null as ReturnType<typeof setInterval> | null,
     socketConn: null as WebSocket | null,
     userData: null as UserData | null,
-    callOffer: null as any,
+    callOffer: null as RTCSessionDescriptionInit | null,
+    pendingIceCandidates: [] as any[],
     listeners: new Set<(state: CallManagerState) => void>(),
     state: { ...initialState },
 };
@@ -136,7 +138,7 @@ export function answerCall(params: {
     socketConn: WebSocket;
     userData: UserData;
     turnCreds: TURNCredentials;
-    callOffer: any;
+    callOffer: RTCSessionDescriptionInit;
 }) {
     if (isActive()) {
         logger.warn('[CallManager] answerCall called while call is active');
@@ -208,10 +210,11 @@ export function endCall(isRemoteHangup: boolean = false) {
     internal.socketConn = null;
     internal.userData = null;
     internal.callOffer = null;
+    internal.pendingIceCandidates = [];
     internal.state = { ...initialState };
 
-    // Reset Redux call state
-    store.dispatch(resetCallState() as any);
+    // Reset Redux call offer so next Call screen mount doesn't see stale offer
+    store.dispatch({ type: 'user/RECV_CALL_OFFER', payload: undefined });
 
     emitState();
 }
@@ -278,23 +281,29 @@ export function toggleSpeaker() {
 // ============================================================================
 
 /** Called when peer answers our outgoing call */
-export function onCallAnswer(answer: any) {
+export function onCallAnswer(answer: RTCSessionDescriptionInit) {
     if (!internal.peerConnection || !answer) {
         return;
     }
     const offerDescription = new RTCSessionDescription(answer);
     internal.peerConnection.setRemoteDescription(offerDescription).then(() => {
-        const { iceCandidates } = store.getState().userReducer;
-        iceCandidates.forEach(iceCandidate => {
-            internal.peerConnection?.addIceCandidate(iceCandidate);
+        // Flush any ICE candidates that arrived before remote description was set
+        internal.pendingIceCandidates.forEach(candidate => {
+            internal.peerConnection?.addIceCandidate(candidate);
         });
+        internal.pendingIceCandidates = [];
     });
     setState({ phase: CallPhase.CONNECTING });
 }
 
 /** Called when we receive an ICE candidate from the peer */
 export function onIceCandidate(candidate: any) {
-    if (!internal.peerConnection || !candidate) {
+    if (!candidate) {
+        return;
+    }
+    if (!internal.peerConnection) {
+        // Buffer until connection is ready
+        internal.pendingIceCandidates.push(candidate);
         return;
     }
     internal.peerConnection.addIceCandidate(candidate);
@@ -310,7 +319,7 @@ async function setupStream(params: {
     socketConn: WebSocket;
     userData: UserData;
     turnCreds: TURNCredentials;
-    callOffer?: any;
+    callOffer?: RTCSessionDescriptionInit;
 }) {
     const { peerUser, videoEnabled, socketConn, userData, turnCreds, callOffer } = params;
 
@@ -447,7 +456,12 @@ async function initiateCall(peerUser: UserData, userData: UserData, socketConn: 
     setState({ callStatus: `${peerUser?.phone_no} : Dialing`, phase: CallPhase.DIALING });
 }
 
-async function answerIncomingCall(callOffer: any, peerUser: UserData, userData: UserData, socketConn: WebSocket) {
+async function answerIncomingCall(
+    callOffer: RTCSessionDescriptionInit,
+    peerUser: UserData,
+    userData: UserData,
+    socketConn: WebSocket,
+) {
     if (!internal.peerConnection) {
         return logger.debug('answerCall: Unable to answer call with null peerConnection');
     }
@@ -472,11 +486,11 @@ async function answerIncomingCall(callOffer: any, peerUser: UserData, userData: 
     };
     socketConn?.send(JSON.stringify(message));
 
-    // Add any buffered ICE candidates
-    const { iceCandidates } = store.getState().userReducer;
-    iceCandidates.forEach(iceCandidate => {
-        internal.peerConnection?.addIceCandidate(iceCandidate);
+    // Flush any buffered ICE candidates
+    internal.pendingIceCandidates.forEach(candidate => {
+        internal.peerConnection?.addIceCandidate(candidate);
     });
+    internal.pendingIceCandidates = [];
 
     setState({ phase: CallPhase.CONNECTING });
 }

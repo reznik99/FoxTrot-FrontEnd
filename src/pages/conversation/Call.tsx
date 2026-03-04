@@ -55,6 +55,22 @@ class Call extends React.Component<Props, State> {
         // For outgoing calls, user taps the call button (handled in render)
     };
 
+    componentDidUpdate = (prevProps: Props) => {
+        // callOffer can arrive after mount when answering from a killed app state
+        // (Call screen mounts from storage data before websocket delivers the offer)
+        if (!prevProps.callOffer && this.props.callOffer && !callManager.isActive()) {
+            const peerUser = this.props.route.params.data?.peer_user || this.props.caller;
+            callManager.answerCall({
+                peerUser,
+                videoEnabled: this.props.route.params.data?.video_enabled ?? false,
+                socketConn: this.props.socketConn!,
+                userData: this.props.userData,
+                turnCreds: this.props.turnServerCreds,
+                callOffer: this.props.callOffer,
+            });
+        }
+    };
+
     componentWillUnmount = () => {
         // Just unsubscribe — do NOT end the call
         this.unsubscribe?.();
@@ -217,8 +233,6 @@ class Call extends React.Component<Props, State> {
 
 const mapStateToProps = (state: RootState) => ({
     callOffer: state.userReducer.callOffer,
-    callAnswer: state.userReducer.callAnswer,
-    iceCandidates: state.userReducer.iceCandidates,
     userData: state.userReducer.user_data,
     caller: state.userReducer.caller,
     turnServerCreds: state.userReducer.turnServerCredentials,

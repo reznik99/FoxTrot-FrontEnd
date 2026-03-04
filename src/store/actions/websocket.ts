@@ -106,18 +106,6 @@ export function stopWebsocketManager() {
     };
 }
 
-export function resetCallState() {
-    return async (dispatch: AppDispatch) => {
-        try {
-            dispatch({ type: 'user/RESET_CALL_ICE_CANDIDATES', payload: undefined });
-            dispatch({ type: 'user/RECV_CALL_ANSWER', payload: undefined });
-            dispatch({ type: 'user/RECV_CALL_OFFER', payload: undefined });
-        } catch (err) {
-            logger.warn('Error resetCallState: ', err);
-        }
-    };
-}
-
 // --- connect & reconnect ---
 
 function connectWebsocket() {
@@ -191,8 +179,8 @@ async function scheduleReconnect(dispatch: AppDispatch) {
 
 function handleAppStateChange(nextState: string, dispatch: AppDispatch, getState: GetState) {
     if (nextState === 'background') {
-        const { socketConn, callOffer, callAnswer } = getState().userReducer;
-        if (callOffer || callAnswer) {
+        const { socketConn } = getState().userReducer;
+        if (callManager.isActive()) {
             logger.debug('App backgrounded, keeping socket open for active call');
             return;
         }
@@ -322,12 +310,10 @@ function handleSocketMessage(data: any, dispatch: AppDispatch, getState: GetStat
                 break;
             case 'CALL_ANSWER':
                 logger.debug('[Websocket] CALL_ANSWER Recieved', parsedData.data?.sender);
-                dispatch({ type: 'user/RECV_CALL_ANSWER', payload: parsedData.data?.answer });
                 callManager.onCallAnswer(parsedData.data?.answer);
                 break;
             case 'CALL_ICE_CANDIDATE':
                 logger.debug('[Websocket] RECV_CALL_ICE_CANDIDATE Recieved', parsedData.data?.sender);
-                dispatch({ type: 'user/RECV_CALL_ICE_CANDIDATE', payload: parsedData.data?.candidate });
                 callManager.onIceCandidate(parsedData.data?.candidate);
                 break;
             default:

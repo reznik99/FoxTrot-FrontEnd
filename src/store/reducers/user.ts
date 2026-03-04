@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { WebCryptoKeyPair } from 'react-native-quick-crypto';
 import type { CryptoKey } from 'react-native-quick-crypto/src/keys/classes';
-import { RTCIceCandidate } from 'react-native-webrtc';
+import { RTCSessionDescription } from 'react-native-webrtc';
 
 import {
     dbDeleteMessage,
@@ -26,8 +26,6 @@ export interface State {
     socketConn?: WebSocket;
     caller?: UserData;
     callOffer?: RTCSessionDescription;
-    callAnswer?: RTCSessionDescription;
-    iceCandidates: RTCIceCandidate[];
     turnServerCredentials: TURNCredentials;
     loading: boolean;
     refreshing: boolean;
@@ -98,8 +96,6 @@ const initialState: State = {
     socketConn: undefined,
     caller: undefined,
     callOffer: undefined,
-    callAnswer: undefined,
-    iceCandidates: [],
     turnServerCredentials: {
         username: '',
         credential: '',
@@ -278,15 +274,6 @@ export const userSlice = createSlice({
             state.callOffer = action.payload?.offer;
             state.caller = action.payload?.caller;
         },
-        RECV_CALL_ANSWER: (state, action: PayloadAction<RTCSessionDescription>) => {
-            state.callAnswer = action.payload;
-        },
-        RECV_CALL_ICE_CANDIDATE: (state, action: PayloadAction<RTCIceCandidate>) => {
-            state.iceCandidates.push(action.payload);
-        },
-        RESET_CALL_ICE_CANDIDATES: state => {
-            state.iceCandidates = [];
-        },
         TURN_CREDS: (state, action: PayloadAction<TURNCredentials>) => {
             state.turnServerCredentials = action.payload;
         },
@@ -328,9 +315,6 @@ export const {
     DELETE_MESSAGE,
     APPEND_OLDER_MESSAGES,
     RECV_CALL_OFFER,
-    RECV_CALL_ANSWER,
-    RECV_CALL_ICE_CANDIDATE,
-    RESET_CALL_ICE_CANDIDATES,
     TURN_CREDS,
     WEBSOCKET_CONNECT,
     WEBSOCKET_STATUS,

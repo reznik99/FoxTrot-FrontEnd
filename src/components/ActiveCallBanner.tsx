@@ -7,23 +7,6 @@ import * as callManager from '~/global/callManager';
 import { CallManagerState, CallPhase, formatCallTime } from '~/global/callManager';
 import { navigationRef } from '~/global/navigation';
 
-function getCurrentRouteName(): string | undefined {
-    if (!navigationRef.isReady()) {
-        return undefined;
-    }
-    let state = navigationRef.getState();
-    if (!state) {
-        return undefined;
-    }
-    // Walk nested navigators to find the deepest route
-    let route = state.routes[state.index];
-    while (route.state) {
-        const nestedState = route.state as any;
-        route = nestedState.routes[nestedState.index];
-    }
-    return route.name;
-}
-
 export default function ActiveCallBanner() {
     const [cm, setCm] = useState<CallManagerState>(callManager.getState);
     const insets = useSafeAreaInsets();
@@ -32,7 +15,7 @@ export default function ActiveCallBanner() {
         return callManager.subscribe(setCm);
     }, []);
 
-    if (cm.phase === CallPhase.IDLE || getCurrentRouteName() === 'Call') {
+    if (cm.phase === CallPhase.IDLE || navigationRef.getCurrentRoute()?.name === 'Call') {
         return null;
     }
 

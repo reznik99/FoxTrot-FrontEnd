@@ -46,7 +46,6 @@ class Call extends React.Component<Props, State> {
             callManager.answerCall({
                 peerUser,
                 videoEnabled: this.props.route.params.data?.video_enabled ?? false,
-                socketConn: this.props.socketConn!,
                 userData: this.props.userData,
                 turnCreds: this.props.turnServerCreds,
                 callOffer: this.props.callOffer,
@@ -63,7 +62,6 @@ class Call extends React.Component<Props, State> {
             callManager.answerCall({
                 peerUser,
                 videoEnabled: this.props.route.params.data?.video_enabled ?? false,
-                socketConn: this.props.socketConn!,
                 userData: this.props.userData,
                 turnCreds: this.props.turnServerCreds,
                 callOffer: this.props.callOffer,
@@ -81,7 +79,6 @@ class Call extends React.Component<Props, State> {
         callManager.startCall({
             peerUser,
             videoEnabled: this.props.route.params.data?.video_enabled ?? false,
-            socketConn: this.props.socketConn!,
             userData: this.props.userData,
             turnCreds: this.props.turnServerCreds,
         });
@@ -236,7 +233,6 @@ const mapStateToProps = (state: RootState) => ({
     userData: state.userReducer.user_data,
     caller: state.userReducer.caller,
     turnServerCreds: state.userReducer.turnServerCredentials,
-    socketConn: state.userReducer.socketConn,
 });
 
 const connector = connect(mapStateToProps);

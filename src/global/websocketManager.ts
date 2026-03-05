@@ -9,9 +9,10 @@ import Toast from 'react-native-toast-message';
 import * as callManager from '~/global/callManager';
 import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
+import { navigationRef } from '~/global/navigation';
 import { VibratePattern, WEBSOCKET_URL } from '~/global/variables';
-
-import { AppDispatch, GetState } from '../store';
+import { loadMessages } from '~/store/actions/user';
+import { store } from '~/store/store';
 
 export interface SocketData {
     cmd: 'MSG' | 'CALL_OFFER' | 'CALL_ICE_CANDIDATE' | 'CALL_ANSWER';
@@ -37,8 +38,9 @@ const MAX_RECONNECT_ATTEMPTS = 10;
 const BASE_DELAY_MS = 1000;
 const MAX_DELAY_MS = 30_000;
 
-// Module-level state (not Redux — timers, flags, subscriptions)
+// Module-level state — timers, flags, subscriptions
 const mgr = {
+    ws: null as WebSocket | null,
     intentionalClose: false,
     reconnectAttempt: 0,
     reconnectTimer: null as ReturnType<typeof setTimeout> | null,
@@ -49,9 +51,12 @@ const mgr = {
 
 // --- Helpers ---
 
-function isSocketDead(getState: GetState): boolean {
-    const sock = getState().userReducer.socketConn;
-    return !sock || sock.readyState === WebSocket.CLOSED || sock.readyState === WebSocket.CLOSING;
+function isSocketDead(): boolean {
+    return !mgr.ws || mgr.ws.readyState === WebSocket.CLOSED || mgr.ws.readyState === WebSocket.CLOSING;
+}
+
+export function wsSendMessage(data: SocketData) {
+    mgr.ws?.send(JSON.stringify(data));
 }
 
 function clearReconnectTimer() {
@@ -61,91 +66,86 @@ function clearReconnectTimer() {
     }
 }
 
-function reconnectNow(dispatch: AppDispatch) {
-    mgr.reconnectAttempt = 0;
-    clearReconnectTimer();
-    dispatch(connectWebsocket());
-}
-
 // --- Public API ---
 
-export function startWebsocketManager() {
-    return async (dispatch: AppDispatch, getState: GetState) => {
-        await dispatch(connectWebsocket());
+export async function start() {
+    await connectWebsocket();
 
-        mgr.appStateSub?.remove();
-        mgr.appStateSub = AppState.addEventListener('change', nextState => {
-            handleAppStateChange(nextState, dispatch, getState);
-        });
+    mgr.appStateSub?.remove();
+    mgr.appStateSub = AppState.addEventListener('change', nextState => {
+        handleAppStateChange(nextState);
+    });
 
-        mgr.netInfoSub?.();
-        mgr.netInfoSub = NetInfo.addEventListener(state => {
-            handleNetInfoChange(state, dispatch, getState);
-        });
-    };
+    mgr.netInfoSub?.();
+    mgr.netInfoSub = NetInfo.addEventListener(state => {
+        handleNetInfoChange(state);
+    });
 }
 
-export function stopWebsocketManager() {
-    return async (dispatch: AppDispatch, getState: GetState) => {
-        clearReconnectTimer();
+export async function stop() {
+    clearReconnectTimer();
 
-        mgr.appStateSub?.remove();
-        mgr.appStateSub = null;
-        mgr.netInfoSub?.();
-        mgr.netInfoSub = null;
-        mgr.lastNetConnected = null;
-        mgr.reconnectAttempt = 0;
+    mgr.appStateSub?.remove();
+    mgr.appStateSub = null;
+    mgr.netInfoSub?.();
+    mgr.netInfoSub = null;
+    mgr.lastNetConnected = null;
+    mgr.reconnectAttempt = 0;
 
-        mgr.intentionalClose = true;
-        const { socketConn } = getState().userReducer;
-        if (socketConn && socketConn.readyState !== WebSocket.CLOSED) {
-            socketConn.close();
-        }
-        dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: null });
-        dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
-    };
+    mgr.intentionalClose = true;
+    if (mgr.ws && mgr.ws.readyState !== WebSocket.CLOSED) {
+        mgr.ws.close();
+    }
+    mgr.ws = null;
+    store.dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
+}
+
+export function reconnect() {
+    mgr.reconnectAttempt = 0;
+    clearReconnectTimer();
+    connectWebsocket();
+    // Fetch any messages that arrived while disconnected
+    store.dispatch(loadMessages());
 }
 
 // --- connect & reconnect ---
 
-function connectWebsocket() {
-    return async (dispatch: AppDispatch, getState: GetState) => {
-        try {
-            const { token, socketConn } = getState().userReducer;
-            if (!token) {
-                throw new Error('Token is not present. Re-auth required');
-            }
-
-            // Close existing socket without triggering reconnect
-            if (socketConn && socketConn.readyState !== WebSocket.CLOSED) {
-                mgr.intentionalClose = true;
-                socketConn.close();
-            }
-
-            dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'connecting' });
-            const ws = new WebSocket(`${WEBSOCKET_URL}?token=${token}`);
-
-            const socketId: number = (ws as any)._socketId;
-            ws.onopen = () => handleSocketOpen(dispatch);
-            ws.onclose = () => handleSocketClose(dispatch, getState, socketId);
-            ws.onerror = (err: any) => handleSocketError(err, dispatch);
-            ws.onmessage = event => handleSocketMessage(event.data, dispatch, getState);
-            dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: ws });
-        } catch (err) {
-            logger.error('Error establishing websocket:', err);
-            dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'reconnecting' });
-            scheduleReconnect(dispatch);
+async function connectWebsocket() {
+    try {
+        const { token } = store.getState().userReducer;
+        if (!token) {
+            throw new Error('Token is not present. Re-auth required');
         }
-    };
+
+        // Close existing socket without triggering reconnect
+        if (mgr.ws && mgr.ws.readyState !== WebSocket.CLOSED) {
+            mgr.intentionalClose = true;
+            mgr.ws.close();
+        }
+
+        store.dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'connecting' });
+        const ws = new WebSocket(`${WEBSOCKET_URL}?token=${token}`);
+
+        const socketId: number = (ws as any)._socketId;
+        ws.onopen = () => handleSocketOpen();
+        ws.onclose = (event: any) => handleSocketClose(event.code, socketId);
+        ws.onerror = (err: any) => handleSocketError(err);
+        ws.onmessage = event => handleSocketMessage(event.data);
+        mgr.ws = ws;
+    } catch (err) {
+        logger.error('Error establishing websocket:', err);
+        store.dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'reconnecting' });
+        scheduleReconnect();
+    }
 }
 
-async function scheduleReconnect(dispatch: AppDispatch) {
+async function scheduleReconnect() {
     clearReconnectTimer();
 
     if (mgr.reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
         logger.warn('Max reconnect attempts reached');
-        dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
-        dispatch({ type: 'user/WEBSOCKET_ERROR', payload: 'Unable to reconnect. Please check your connection.' });
+        store.dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
+        store.dispatch({ type: 'user/WEBSOCKET_ERROR', payload: 'Unable to reconnect. Please check your connection.' });
         Toast.show({
             type: 'error',
             text1: 'Connection Lost',
@@ -171,33 +171,32 @@ async function scheduleReconnect(dispatch: AppDispatch) {
 
     mgr.reconnectTimer = setTimeout(() => {
         mgr.reconnectTimer = null;
-        dispatch(connectWebsocket());
+        connectWebsocket();
     }, finalDelay);
 }
 
 // --- AppState & NetInfo handlers ---
 
-function handleAppStateChange(nextState: string, dispatch: AppDispatch, getState: GetState) {
+function handleAppStateChange(nextState: string) {
     if (nextState === 'background') {
-        const { socketConn } = getState().userReducer;
         if (callManager.isActive()) {
             logger.debug('App backgrounded, keeping socket open for active call');
             return;
         }
         logger.debug('App backgrounded, closing socket');
-        if (socketConn && socketConn.readyState === WebSocket.OPEN) {
+        if (mgr.ws && mgr.ws.readyState === WebSocket.OPEN) {
             mgr.intentionalClose = true;
-            socketConn.close();
+            mgr.ws.close();
         }
     } else if (nextState === 'active') {
-        if (isSocketDead(getState)) {
+        if (isSocketDead()) {
             logger.debug('App foregrounded, reconnecting');
-            reconnectNow(dispatch);
+            reconnect();
         }
     }
 }
 
-function handleNetInfoChange(state: NetInfoState, dispatch: AppDispatch, getState: GetState) {
+function handleNetInfoChange(state: NetInfoState) {
     const wasConnected = mgr.lastNetConnected;
     mgr.lastNetConnected = state.isConnected;
 
@@ -206,19 +205,19 @@ function handleNetInfoChange(state: NetInfoState, dispatch: AppDispatch, getStat
         return;
     }
 
-    if (wasConnected === false && isSocketDead(getState)) {
+    if (wasConnected === false && isSocketDead()) {
         logger.debug('Network restored, reconnecting WebSocket');
-        reconnectNow(dispatch);
+        reconnect();
     }
 }
 
 // --- WebSocket event handlers ---
 
-function handleSocketOpen(dispatch: AppDispatch) {
+function handleSocketOpen() {
     logger.debug('[WebSocket] opened successfully');
     mgr.intentionalClose = false;
     mgr.reconnectAttempt = 0;
-    dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'connected' });
+    store.dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'connected' });
     PushNotification.createChannel(
         {
             channelId: 'Messages',
@@ -229,38 +228,55 @@ function handleSocketOpen(dispatch: AppDispatch) {
     );
 }
 
-function handleSocketClose(dispatch: AppDispatch, getState: GetState, closedSocketId: number) {
-    const currentSocket = getState().userReducer.socketConn;
-    if (currentSocket && (currentSocket as any)._socketId !== closedSocketId) {
+function handleSocketClose(code: number, closedSocketId: number) {
+    if (mgr.ws && (mgr.ws as any)._socketId !== closedSocketId) {
         logger.debug('[WebSocket] stale close event, ignoring');
         return;
     }
 
-    logger.debug('[WebSocket] closed');
-    dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: null });
+    logger.debug(`[WebSocket] closed (code: ${code})`);
+    mgr.ws = null;
 
-    if (mgr.intentionalClose) {
-        mgr.intentionalClose = false;
-        dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
+    if (code === 4401) {
+        logger.warn('[WebSocket] auth failed, redirecting to login');
+        clearReconnectTimer();
+        store.dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
+        if (navigationRef.isReady()) {
+            navigationRef.reset({
+                index: 0,
+                routes: [
+                    {
+                        name: 'Login',
+                        params: { data: { loggedOut: true, errorMsg: 'Session expired. Please re-authenticate.' } },
+                    },
+                ],
+            });
+        }
         return;
     }
 
-    dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'reconnecting' });
-    scheduleReconnect(dispatch);
+    if (mgr.intentionalClose) {
+        mgr.intentionalClose = false;
+        store.dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
+        return;
+    }
+
+    store.dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'reconnecting' });
+    scheduleReconnect();
 }
 
-function handleSocketError(err: any, dispatch: AppDispatch) {
+function handleSocketError(err: any) {
     const message = err?.message || err?.type || 'Connection error';
-    logger.error('[WebSocket] error:', message);
-    dispatch({ type: 'user/WEBSOCKET_ERROR', payload: message });
+    logger.error(`[WebSocket] error: ${message} (url: ${WEBSOCKET_URL})`);
+    store.dispatch({ type: 'user/WEBSOCKET_ERROR', payload: message });
 }
 
-function handleSocketMessage(data: any, dispatch: AppDispatch, getState: GetState) {
+function handleSocketMessage(data: any) {
     try {
         const parsedData: SocketData = JSON.parse(data);
         switch (parsedData.cmd) {
             case 'MSG':
-                dispatch({ type: 'user/RECV_MESSAGE', payload: parsedData.data });
+                store.dispatch({ type: 'user/RECV_MESSAGE', payload: parsedData.data });
                 PushNotification.localNotification({
                     channelId: 'Messages',
                     title: `Message from ${parsedData.data.sender}`,
@@ -275,7 +291,7 @@ function handleSocketMessage(data: any, dispatch: AppDispatch, getState: GetStat
             case 'CALL_OFFER':
                 logger.debug('[Websocket] CALL_OFFER Recieved', parsedData.data?.sender);
 
-                const userState = getState().userReducer;
+                const userState = store.getState().userReducer;
                 let caller = userState.contacts.find(con => con.phone_no === parsedData.data.sender);
                 if (!caller) {
                     caller = {
@@ -285,7 +301,7 @@ function handleSocketMessage(data: any, dispatch: AppDispatch, getState: GetStat
                         online: true,
                     };
                 }
-                dispatch({ type: 'user/RECV_CALL_OFFER', payload: { offer: parsedData.data?.offer, caller: caller } });
+                store.dispatch({ type: 'user/RECV_CALL_OFFER', payload: { offer: parsedData.data?.offer, caller: caller } });
 
                 // Don't ring if offer was cached and received after app open on answer event
                 if (parsedData.data.ring === false) {

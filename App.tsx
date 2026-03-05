@@ -36,7 +36,7 @@ import {
 import { readFromStorage, StorageKeys } from '~/global/storage';
 // App
 import { ACCENT, DARKHEADER, DIVIDER, ERROR_RED, PRIMARY, SECONDARY, SECONDARY_LITE } from '~/global/variables';
-import { startWebsocketManager, stopWebsocketManager } from '~/store/actions/websocket';
+import * as websocketManager from '~/global/websocketManager';
 import { store } from '~/store/store';
 
 import {
@@ -139,9 +139,9 @@ const renderDrawerContent = (props: DrawerContentComponentProps) => <Drawer {...
 const HomeStack = createStackNavigator<HomeStackParamList>();
 const HomeNavigator = () => {
     useEffect(() => {
-        store.dispatch(startWebsocketManager());
+        websocketManager.start();
         return () => {
-            store.dispatch(stopWebsocketManager());
+            websocketManager.stop();
         };
     }, []);
 

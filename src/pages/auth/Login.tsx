@@ -35,42 +35,43 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
     const [password, setPassword] = useState('');
     const [hasCreds, setHasCreds] = useState(false);
 
+    const loggedOut = props.route.params?.data?.loggedOut;
+
     useEffect(() => {
-        // Hide app splashscreen
         BootSplash.hide({ fade: true });
-        // Auto-fill username field from signup page
-        if (user_data?.phone_no) {
-            setUsername(user_data?.phone_no);
+
+        if (loggedOut && props.route.params?.data?.errorMsg) {
+            Alert.alert('Unable to Login', props.route.params.data.errorMsg, [{ text: 'OK', onPress: () => {} }]);
         }
-        // If user manually logged out, don't try autologin
-        if (props.route.params?.data?.loggedOut) {
-            if (props.route.params?.data?.errorMsg) {
-                Alert.alert('Unable to Login', props.route.params?.data?.errorMsg, [{ text: 'OK', onPress: () => {} }]);
-            }
-            return logger.debug('User logged out');
-        }
-        // Read user info from storage
-        readStorage();
+
+        initLogin();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const readStorage = async () => {
+    const initLogin = async () => {
+        setGlobalLoading(true);
         try {
-            setGlobalLoading(true);
-            // Load data from disk into redux store
-            if (!user_data?.phone_no && !username) {
-                const new_user_data = await store.dispatch(syncFromStorage()).unwrap();
-                if (new_user_data?.phone_no) {
-                    setUsername(new_user_data.phone_no);
-                    const has = await Keychain.hasGenericPassword({
-                        server: API_URL,
-                        service: `${new_user_data.phone_no}-credentials`,
-                    });
-                    setHasCreds(Boolean(has));
-                    if (has) {
-                        await attemptAutoLogin(new_user_data.phone_no);
-                    }
-                }
+            // 1. Resolve username: Redux → storage → give up
+            let user_name = user_data?.phone_no || undefined;
+            if (!user_name) {
+                const stored = await store.dispatch(syncFromStorage()).unwrap();
+                user_name = stored?.phone_no;
+            }
+            if (user_name) {
+                setUsername(user_name);
+            } else {
+                return;
+            }
+            // 2. Check if we have stored credentials (for fingerprint button)
+            const credsFound = await Keychain.hasGenericPassword({
+                server: API_URL,
+                service: `${user_name}-credentials`,
+            });
+            setHasCreds(credsFound);
+
+            // 3. Auto-login if we have creds and weren't explicitly logged out
+            if (credsFound && !loggedOut) {
+                await attemptAutoLogin(user_name!);
             }
         } catch (err) {
             logger.error('Error on auto-login:', err);
@@ -87,7 +88,6 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
 
         // If auth token is recent (<30min) then validate it
         if (millisecondsSince(new Date(creds.time)) < milliseconds.hour / 2) {
-            // TODO: place token in store
             const tokenIsValid = await store.dispatch(validateToken(creds.auth_token)).unwrap();
             if (tokenIsValid) {
                 logger.debug('JWT auth token still valid, skipping login...');

@@ -13,9 +13,10 @@ import { logger } from '~/global/logger';
 import { popFromStorage, StorageKeys } from '~/global/storage';
 import globalStyle from '~/global/style';
 import { SECONDARY_LITE } from '~/global/variables';
+import * as websocketManager from '~/global/websocketManager';
+import { SocketMessage } from '~/global/websocketManager';
 import { RootNavigation, setupInterceptors } from '~/store/actions/auth';
 import { getTURNServerCreds, loadContacts, loadKeys, loadMessages, registerPushNotifications } from '~/store/actions/user';
-import { SocketMessage, startWebsocketManager } from '~/store/actions/websocket';
 import { Conversation, UserData } from '~/store/reducers/user';
 import { RootState, store } from '~/store/store';
 
@@ -67,10 +68,10 @@ export default function Home() {
                 navigation.replace('KeySetup');
                 return;
             }
+            // Setup axios interceptors (before any authenticated API calls)
+            setupInterceptors();
             // Load new messages from backend and old messages from storage
             await loadMessagesAndContacts();
-            // Setup axios interceptors
-            setupInterceptors(navigation);
             setLoadingMsg('');
         };
         initLoad();
@@ -171,7 +172,7 @@ export default function Home() {
                     onDismiss={() => {}}
                     action={{
                         label: 'Reconnect',
-                        onPress: () => store.dispatch(startWebsocketManager()),
+                        onPress: () => websocketManager.reconnect(),
                     }}
                 >
                     Connection to servers lost! Please try again later

@@ -23,7 +23,6 @@ export interface State {
     conversations: Map<string, Conversation>;
     socketStatus: 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
     socketErr: string;
-    socketConn?: WebSocket;
     caller?: UserData;
     callOffer?: RTCSessionDescription;
     turnServerCredentials: TURNCredentials;
@@ -93,7 +92,6 @@ const initialState: State = {
     conversations: new Map(),
     socketStatus: 'disconnected',
     socketErr: '',
-    socketConn: undefined,
     caller: undefined,
     callOffer: undefined,
     turnServerCredentials: {
@@ -277,10 +275,6 @@ export const userSlice = createSlice({
         TURN_CREDS: (state, action: PayloadAction<TURNCredentials>) => {
             state.turnServerCredentials = action.payload;
         },
-        WEBSOCKET_CONNECT: (state, action: PayloadAction<WebSocket>) => {
-            state.socketConn = action.payload;
-            state.socketErr = '';
-        },
         WEBSOCKET_STATUS: (state, action: PayloadAction<'disconnected' | 'connecting' | 'connected' | 'reconnecting'>) => {
             state.socketStatus = action.payload;
             if (action.payload === 'connected') {
@@ -316,7 +310,6 @@ export const {
     APPEND_OLDER_MESSAGES,
     RECV_CALL_OFFER,
     TURN_CREDS,
-    WEBSOCKET_CONNECT,
     WEBSOCKET_STATUS,
     WEBSOCKET_ERROR,
     LOGOUT,

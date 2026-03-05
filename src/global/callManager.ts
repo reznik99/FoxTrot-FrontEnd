@@ -10,7 +10,7 @@ import { dbSaveCallRecord } from '~/global/database';
 import { logger } from '~/global/logger';
 import { readFromStorage, StorageKeys } from '~/global/storage';
 import { CandidatePair, getConnStats, getRTCConfiguration, LocalCandidate, WebRTCMessage } from '~/global/webrtc';
-import { SocketData } from '~/store/actions/websocket';
+import { SocketData, wsSendMessage } from '~/global/websocketManager';
 import { TURNCredentials, UserData } from '~/store/reducers/user';
 import { store } from '~/store/store';
 
@@ -75,7 +75,7 @@ const internal = {
     peerStream: null as MediaStream | null,
     callTimer: null as ReturnType<typeof setInterval> | null,
     callStatsTimer: null as ReturnType<typeof setInterval> | null,
-    socketConn: null as WebSocket | null,
+    disconnectTimer: null as ReturnType<typeof setTimeout> | null,
     userData: null as UserData | null,
     callOffer: null as RTCSessionDescriptionInit | null,
     pendingIceCandidates: [] as any[],
@@ -121,7 +121,6 @@ export function hasStream(): boolean {
 export function startCall(params: {
     peerUser: UserData;
     videoEnabled: boolean;
-    socketConn: WebSocket;
     userData: UserData;
     turnCreds: TURNCredentials;
 }) {
@@ -135,7 +134,6 @@ export function startCall(params: {
 export function answerCall(params: {
     peerUser: UserData;
     videoEnabled: boolean;
-    socketConn: WebSocket;
     userData: UserData;
     turnCreds: TURNCredentials;
     callOffer: RTCSessionDescriptionInit;
@@ -195,6 +193,7 @@ export function endCall(isRemoteHangup: boolean = false) {
     InCallManager.stop();
 
     // Stop timers
+    clearDisconnectTimer();
     stopTimers();
 
     // Release WebRTC resources
@@ -207,7 +206,6 @@ export function endCall(isRemoteHangup: boolean = false) {
     internal.peerChannel = null;
     internal.localStream = null;
     internal.peerStream = null;
-    internal.socketConn = null;
     internal.userData = null;
     internal.callOffer = null;
     internal.pendingIceCandidates = [];
@@ -316,15 +314,13 @@ export function onIceCandidate(candidate: any) {
 async function setupStream(params: {
     peerUser: UserData;
     videoEnabled: boolean;
-    socketConn: WebSocket;
     userData: UserData;
     turnCreds: TURNCredentials;
     callOffer?: RTCSessionDescriptionInit;
 }) {
-    const { peerUser, videoEnabled, socketConn, userData, turnCreds, callOffer } = params;
+    const { peerUser, videoEnabled, userData, turnCreds, callOffer } = params;
 
     // Store references
-    internal.socketConn = socketConn;
     internal.userData = userData;
     internal.callOffer = callOffer || null;
 
@@ -370,12 +366,19 @@ async function setupStream(params: {
                     candidate: event.candidate?.toJSON() || event.candidate,
                 },
             };
-            socketConn?.send(JSON.stringify(message));
+            wsSendMessage(message);
         });
         newConnection.addEventListener('connectionstatechange', _event => {
-            logger.debug('[WebRTC] connection state change:', newConnection?.connectionState);
-            setState({ callStatus: `${peerUser?.phone_no} : ${newConnection?.connectionState}` });
-            if (newConnection?.connectionState === 'disconnected' || newConnection?.connectionState === 'failed') {
+            const connState = newConnection?.connectionState;
+            logger.debug('[WebRTC] connection state change:', connState);
+            setState({ callStatus: `${peerUser?.phone_no} : ${connState}` });
+
+            if (connState === 'connected') {
+                clearDisconnectTimer();
+            } else if (connState === 'disconnected') {
+                startDisconnectTimer();
+            } else if (connState === 'failed') {
+                clearDisconnectTimer();
                 endCall(true);
             }
             checkConnectionType();
@@ -411,9 +414,9 @@ async function setupStream(params: {
         startTimers();
 
         if (!callOffer) {
-            await initiateCall(peerUser, userData, socketConn, videoEnabled);
+            await initiateCall(peerUser, userData, videoEnabled);
         } else {
-            await answerIncomingCall(callOffer, peerUser, userData, socketConn);
+            await answerIncomingCall(callOffer, peerUser, userData);
         }
     } catch (err: any) {
         logger.error('startStream error:', err);
@@ -421,7 +424,7 @@ async function setupStream(params: {
     }
 }
 
-async function initiateCall(peerUser: UserData, userData: UserData, socketConn: WebSocket, videoEnabled: boolean) {
+async function initiateCall(peerUser: UserData, userData: UserData, videoEnabled: boolean) {
     if (!internal.peerConnection) {
         return logger.error('call: Unable to initiate call with null peerConnection');
     }
@@ -452,16 +455,11 @@ async function initiateCall(peerUser: UserData, userData: UserData, socketConn: 
             type: videoEnabled ? 'video' : 'audio',
         },
     };
-    socketConn?.send(JSON.stringify(message));
+    wsSendMessage(message);
     setState({ callStatus: `${peerUser?.phone_no} : Dialing`, phase: CallPhase.DIALING });
 }
 
-async function answerIncomingCall(
-    callOffer: RTCSessionDescriptionInit,
-    peerUser: UserData,
-    userData: UserData,
-    socketConn: WebSocket,
-) {
+async function answerIncomingCall(callOffer: RTCSessionDescriptionInit, peerUser: UserData, userData: UserData) {
     if (!internal.peerConnection) {
         return logger.debug('answerCall: Unable to answer call with null peerConnection');
     }
@@ -484,7 +482,7 @@ async function answerIncomingCall(
             answer: answerDescription,
         },
     };
-    socketConn?.send(JSON.stringify(message));
+    wsSendMessage(message);
 
     // Flush any buffered ICE candidates
     internal.pendingIceCandidates.forEach(candidate => {
@@ -598,6 +596,25 @@ function stopTimers() {
     if (internal.callStatsTimer) {
         clearInterval(internal.callStatsTimer);
         internal.callStatsTimer = null;
+    }
+}
+
+const DISCONNECT_TIMEOUT_MS = 10_000;
+
+function startDisconnectTimer() {
+    clearDisconnectTimer();
+    logger.debug(`[WebRTC] connection lost, waiting ${DISCONNECT_TIMEOUT_MS / 1000}s for recovery...`);
+    internal.disconnectTimer = setTimeout(() => {
+        internal.disconnectTimer = null;
+        logger.debug('[WebRTC] recovery timed out, ending call');
+        endCall(true);
+    }, DISCONNECT_TIMEOUT_MS);
+}
+
+function clearDisconnectTimer() {
+    if (internal.disconnectTimer) {
+        clearTimeout(internal.disconnectTimer);
+        internal.disconnectTimer = null;
     }
 }
 

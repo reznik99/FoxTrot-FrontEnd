@@ -67,10 +67,10 @@ export default function Home() {
                 navigation.replace('KeySetup');
                 return;
             }
+            // Setup axios interceptors (before any authenticated API calls)
+            setupInterceptors();
             // Load new messages from backend and old messages from storage
             await loadMessagesAndContacts();
-            // Setup axios interceptors
-            setupInterceptors(navigation);
             setLoadingMsg('');
         };
         initLoad();

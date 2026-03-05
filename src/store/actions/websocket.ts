@@ -9,6 +9,7 @@ import Toast from 'react-native-toast-message';
 import * as callManager from '~/global/callManager';
 import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
+import { navigationRef } from '~/global/navigation';
 import { VibratePattern, WEBSOCKET_URL } from '~/global/variables';
 
 import { AppDispatch, GetState } from '../store';
@@ -127,7 +128,7 @@ function connectWebsocket() {
 
             const socketId: number = (ws as any)._socketId;
             ws.onopen = () => handleSocketOpen(dispatch);
-            ws.onclose = () => handleSocketClose(dispatch, getState, socketId);
+            ws.onclose = (event: any) => handleSocketClose(event.code, dispatch, getState, socketId);
             ws.onerror = (err: any) => handleSocketError(err, dispatch);
             ws.onmessage = event => handleSocketMessage(event.data, dispatch, getState);
             dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: ws });
@@ -229,15 +230,28 @@ function handleSocketOpen(dispatch: AppDispatch) {
     );
 }
 
-function handleSocketClose(dispatch: AppDispatch, getState: GetState, closedSocketId: number) {
+function handleSocketClose(code: number, dispatch: AppDispatch, getState: GetState, closedSocketId: number) {
     const currentSocket = getState().userReducer.socketConn;
     if (currentSocket && (currentSocket as any)._socketId !== closedSocketId) {
         logger.debug('[WebSocket] stale close event, ignoring');
         return;
     }
 
-    logger.debug('[WebSocket] closed');
+    logger.debug(`[WebSocket] closed (code: ${code})`);
     dispatch({ type: 'user/WEBSOCKET_CONNECT', payload: null });
+
+    if (code === 4401) {
+        logger.warn('[WebSocket] auth failed, redirecting to login');
+        clearReconnectTimer();
+        dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
+        if (navigationRef.isReady()) {
+            navigationRef.reset({
+                index: 0,
+                routes: [{ name: 'Login', params: { data: { loggedOut: true, errorMsg: 'Session expired. Please re-authenticate.' } } }],
+            });
+        }
+        return;
+    }
 
     if (mgr.intentionalClose) {
         mgr.intentionalClose = false;

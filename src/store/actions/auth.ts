@@ -6,7 +6,7 @@ import Toast from 'react-native-toast-message';
 
 import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
-import { RootNavigation } from '~/global/navigation';
+import { navigationRef, RootNavigation } from '~/global/navigation';
 import { deleteFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { API_URL, KeychainOpts } from '~/global/variables';
 
@@ -111,15 +111,18 @@ export const logOut = createAsyncThunk('logOut', async ({ navigation }: { naviga
     navigation.replace('Login', { data: { loggedOut: true, errorMsg: '' } });
 });
 
-export function setupInterceptors(navigation: RootNavigation) {
+export function setupInterceptors() {
     axios.interceptors.response.use(
         response => response,
         (error: AxiosError) => {
             if (error.response?.status === 403) {
                 // TODO: Re-authenticate instead of signing out
-                navigation.replace('Login', {
-                    data: { loggedOut: true, errorMsg: 'Session expired. Please re-authenticate.' },
-                });
+                if (navigationRef.isReady()) {
+                    navigationRef.reset({
+                        index: 0,
+                        routes: [{ name: 'Login', params: { data: { loggedOut: true, errorMsg: 'Session expired. Please re-authenticate.' } } }],
+                    });
+                }
             }
             return Promise.reject(error);
         },

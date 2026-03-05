@@ -120,7 +120,12 @@ export function setupInterceptors() {
                 if (navigationRef.isReady()) {
                     navigationRef.reset({
                         index: 0,
-                        routes: [{ name: 'Login', params: { data: { loggedOut: true, errorMsg: 'Session expired. Please re-authenticate.' } } }],
+                        routes: [
+                            {
+                                name: 'Login',
+                                params: { data: { loggedOut: true, errorMsg: 'Session expired. Please re-authenticate.' } },
+                            },
+                        ],
                     });
                 }
             }

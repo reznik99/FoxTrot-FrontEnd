@@ -9,7 +9,7 @@ import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { deleteFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { VibratePattern } from '~/global/variables';
-import { SocketMessage } from '~/store/actions/websocket';
+import { SocketMessage } from '~/global/websocketManager';
 import { UserData } from '~/store/reducers/user';
 
 const messaging = getMessaging();

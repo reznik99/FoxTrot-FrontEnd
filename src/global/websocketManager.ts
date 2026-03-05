@@ -11,6 +11,7 @@ import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { navigationRef } from '~/global/navigation';
 import { VibratePattern, WEBSOCKET_URL } from '~/global/variables';
+import { loadMessages } from '~/store/actions/user';
 import { store } from '~/store/store';
 
 export interface SocketData {
@@ -103,6 +104,8 @@ export function reconnect() {
     mgr.reconnectAttempt = 0;
     clearReconnectTimer();
     connectWebsocket();
+    // Fetch any messages that arrived while disconnected
+    store.dispatch(loadMessages());
 }
 
 // --- connect & reconnect ---
@@ -264,7 +267,7 @@ function handleSocketClose(code: number, closedSocketId: number) {
 
 function handleSocketError(err: any) {
     const message = err?.message || err?.type || 'Connection error';
-    logger.error('[WebSocket] error:', message);
+    logger.error(`[WebSocket] error: ${message} (url: ${WEBSOCKET_URL})`);
     store.dispatch({ type: 'user/WEBSOCKET_ERROR', payload: message });
 }
 

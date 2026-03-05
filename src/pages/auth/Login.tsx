@@ -71,7 +71,7 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
 
             // 3. Auto-login if we have creds and weren't explicitly logged out
             if (credsFound && !loggedOut) {
-                await attemptAutoLogin(user_name!);
+                await attemptAutoLogin(user_name);
             }
         } catch (err) {
             logger.error('Error on auto-login:', err);
@@ -156,6 +156,7 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
                         <TextInput
                             mode="outlined"
                             autoCapitalize="none"
+                            autoComplete="username"
                             onChangeText={val => setUsername(val.trim())}
                             value={username}
                             label="Username"
@@ -164,6 +165,7 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
                         <PasswordInput
                             mode="outlined"
                             autoCapitalize="none"
+                            autoComplete="current-password"
                             onChangeText={val => setPassword(val.trim())}
                             value={password}
                             label="Password"

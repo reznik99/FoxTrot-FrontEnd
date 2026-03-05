@@ -11,6 +11,7 @@ type Props = {
     outlineColor?: string | undefined;
     onChangeText?: (((text: string) => void) & Function) | undefined;
     autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters' | undefined;
+    autoComplete?: 'current-password' | 'new-password' | 'off' | undefined;
 };
 
 export default function PasswordInput(props: Props) {
@@ -21,6 +22,7 @@ export default function PasswordInput(props: Props) {
         <TextInput
             mode={props.mode}
             autoCapitalize={props.autoCapitalize}
+            autoComplete={props.autoComplete}
             onChangeText={props.onChangeText}
             value={props.value}
             label={props.label}

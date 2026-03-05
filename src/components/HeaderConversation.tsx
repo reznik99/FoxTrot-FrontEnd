@@ -82,7 +82,7 @@ export default function HeaderConversation(props: IProps) {
                         navigation.navigate('Call', { data: { peer_user: data.peer_user, video_enabled: true } });
                     }}
                 >
-                    <Icon source="video" color={styles.topBarText.color} size={styles.topBarText.fontSize} />
+                    <Icon source="video" color={styles.topBarText.color} size={18} />
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={styles.button}
@@ -93,10 +93,10 @@ export default function HeaderConversation(props: IProps) {
                         navigation.navigate('Call', { data: { peer_user: data.peer_user, video_enabled: false } });
                     }}
                 >
-                    <Icon source="phone" color={styles.topBarText.color} size={styles.topBarText.fontSize} />
+                    <Icon source="phone" color={styles.topBarText.color} size={18} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.button} onPress={() => setVisibleDialog('UserInfo')}>
-                    <Icon source="information" color={styles.topBarText.color} size={styles.topBarText.fontSize} />
+                    <Icon source="information" color={styles.topBarText.color} size={18} />
                 </TouchableOpacity>
             </View>
 
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     },
     topBarText: {
         color: '#fff',
-        fontSize: 16,
+        fontSize: 15,
         flexShrink: 1,
     },
     buttonContainer: {

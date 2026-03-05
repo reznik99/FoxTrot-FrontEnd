@@ -1,4 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
+// Recording modes: tap mic → "locked" recording (tap stop to finish), hold mic → stop on release
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import Sound, { AudioEncoderAndroidType, AudioSet } from 'react-native-nitro-sound';
 import { ActivityIndicator, Icon, Text, useTheme } from 'react-native-paper';
@@ -8,6 +9,8 @@ import CustomKeyboardAvoidingView from '~/components/CustomKeyboardAvoidingView'
 import { logger } from '~/global/logger';
 import { getMicrophoneRecordingPermission, getReadExtPermission } from '~/global/permissions';
 import { DARKHEADER, ERROR_RED, SECONDARY_LITE, TEXT_SECONDARY } from '~/global/variables';
+
+const TAP_THRESHOLD_MS = 500;
 
 type IProps = {
     inputMessage: string;
@@ -28,6 +31,8 @@ export default function Messaging(props: IProps) {
     const [audioPlaybackTime, setAudioPlaybackTime] = useState(0);
     const [playingAudio, setPlayingAudio] = useState(false);
     const [recording, setRecording] = useState(false);
+    const [recordLocked, setRecordLocked] = useState(false);
+    const recordStartRef = useRef(0);
 
     const setInputMessage = useCallback(
         (text: string) => {
@@ -43,9 +48,19 @@ export default function Messaging(props: IProps) {
         setAudioFilePath('');
         setAudioRecordTime(0);
         setAudioPlaybackTime(0);
+        setPlayingAudio(false);
+        setRecording(false);
+        setRecordLocked(false);
         Sound.removeRecordBackListener();
         Sound.removePlayBackListener();
         Sound.removePlaybackEndListener();
+    }, []);
+
+    const stopRecording = useCallback(async () => {
+        await Sound.stopRecorder();
+        Sound.removeRecordBackListener();
+        setRecording(false);
+        setRecordLocked(false);
     }, []);
 
     const onMicPress = useCallback(async () => {
@@ -69,6 +84,7 @@ export default function Messaging(props: IProps) {
                 AudioEncodingBitRate: 32000,
                 AudioChannels: 1,
             };
+            recordStartRef.current = Date.now();
             const result = await Sound.startRecorder(undefined, audioConfig);
             setAudioFilePath(result);
             setRecording(true);
@@ -79,15 +95,20 @@ export default function Messaging(props: IProps) {
     }, [resetAudio]);
 
     const onMicRelease = useCallback(async () => {
+        // Quick tap → lock recording mode (user taps stop to finish)
+        if (Date.now() - recordStartRef.current < TAP_THRESHOLD_MS) {
+            setRecordLocked(true);
+            return;
+        }
+        // Normal hold-and-release → stop recording
         try {
-            // Stop recording
-            await Sound.stopRecorder();
-            Sound.removeRecordBackListener();
-            setRecording(false);
+            await stopRecording();
         } catch (err) {
             logger.error(err);
+            resetAudio();
+            setRecording(false);
         }
-    }, []);
+    }, [stopRecording, resetAudio]);
 
     const playAudio = useCallback(async () => {
         try {
@@ -122,14 +143,21 @@ export default function Messaging(props: IProps) {
 
     return (
         <CustomKeyboardAvoidingView>
-            {/* Audio data controls */}
-            {audioFilePath && (
+            {/* Audio bar — above the input row */}
+            {!!audioFilePath && (
                 <View style={styles.audioContainer}>
                     {recording ? (
                         <View style={styles.audioRow}>
                             <Icon source="microphone" color="#e53935" size={18} />
-                            <Text style={styles.recordingLabel}>Recording</Text>
+                            <Text style={styles.recordingLabel}>
+                                {recordLocked ? 'Tap stop to finish' : 'Release to stop'}
+                            </Text>
                             <Text style={styles.audioDuration}>{Sound.mmssss(~~audioRecordTime)}</Text>
+                            {recordLocked && (
+                                <TouchableOpacity onPress={stopRecording} hitSlop={8}>
+                                    <Icon source="stop-circle-outline" color={ERROR_RED} size={20} />
+                                </TouchableOpacity>
+                            )}
                         </View>
                     ) : (
                         <View style={styles.audioRow}>
@@ -154,13 +182,13 @@ export default function Messaging(props: IProps) {
                                 {Sound.mmssss(audioPlaybackTime ? ~~audioPlaybackTime : ~~audioRecordTime)}
                             </Text>
                             <TouchableOpacity onPress={resetAudio} hitSlop={8}>
-                                <Icon source="close" color={SECONDARY_LITE} size={18} />
+                                <Icon source="delete-outline" color={ERROR_RED} size={18} />
                             </TouchableOpacity>
                         </View>
                     )}
                 </View>
             )}
-            {/* Messaging controls */}
+            {/* Input row — never changes layout */}
             <View style={[styles.inputContainer, { paddingBottom: edgeInsets.bottom, paddingHorizontal: edgeInsets.left }]}>
                 <TouchableOpacity style={styles.button} onPress={props.handleCameraSelect}>
                     <Icon source="camera" color={colors.primary} size={20} />
@@ -182,20 +210,24 @@ export default function Messaging(props: IProps) {
                 )}
                 <View style={{ flex: 1 }}>
                     <TextInput
-                        placeholder="Type a message"
+                        placeholder={audioFilePath ? 'Send audio message' : 'Type a message'}
                         multiline={true}
                         value={props.inputMessage}
                         onChangeText={setInputMessage}
-                        style={styles.input}
+                        style={[styles.input, audioFilePath && styles.inputDisabled]}
                         clearButtonMode="always"
+                        editable={!audioFilePath}
                     />
                 </View>
 
                 {props.loading ? (
                     <ActivityIndicator style={{ marginHorizontal: 5 }} />
                 ) : (
-                    <TouchableOpacity style={styles.button} onPress={audioFilePath ? sendAudio : props.handleSend}>
-                        <Icon source="send-lock" color={colors.primary} size={20} />
+                    <TouchableOpacity
+                        style={styles.button}
+                        onPress={audioFilePath && !recording ? sendAudio : !audioFilePath ? props.handleSend : undefined}
+                    >
+                        <Icon source="send-lock" color={recording ? SECONDARY_LITE : colors.primary} size={20} />
                     </TouchableOpacity>
                 )}
             </View>
@@ -205,9 +237,12 @@ export default function Messaging(props: IProps) {
 
 const styles = StyleSheet.create({
     audioContainer: {
-        paddingVertical: 8,
-        paddingHorizontal: 26,
+        paddingVertical: 6,
+        paddingHorizontal: 14,
+        marginHorizontal: 40,
+        marginBottom: 4,
         backgroundColor: DARKHEADER,
+        borderRadius: 20,
     },
     audioRow: {
         flexDirection: 'row',
@@ -233,6 +268,8 @@ const styles = StyleSheet.create({
     audioDuration: {
         color: TEXT_SECONDARY,
         fontSize: 12,
+        minWidth: 58,
+        textAlign: 'right',
     },
     inputContainer: {
         flexDirection: 'row',
@@ -245,6 +282,9 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         paddingHorizontal: 12,
         backgroundColor: '#faf1e6',
+    },
+    inputDisabled: {
+        opacity: 0.4,
     },
     button: {
         padding: 10,

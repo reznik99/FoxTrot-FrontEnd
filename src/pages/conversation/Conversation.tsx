@@ -43,10 +43,10 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
         offset: conversation.messages.length,
     });
 
-    // Mark unseen decrypted received messages as seen
+    // Mark unseen received messages as seen when conversation is opened
     useEffect(() => {
         const unseenIds = conversation.messages
-            .filter(msg => !msg.seen && msg.is_decrypted && msg.sender !== user_data.phone_no)
+            .filter(msg => !msg.seen && msg.sender !== user_data.phone_no)
             .map(msg => msg.id);
         if (unseenIds.length > 0) {
             store.dispatch(MARK_MESSAGES_SEEN({ conversationId: peer.phone_no, messageIds: unseenIds }));

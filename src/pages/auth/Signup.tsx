@@ -52,6 +52,8 @@ export default function Signup(props: StackScreenProps<AuthStackParamList, 'Sign
             <View style={{ gap: 8 }}>
                 <TextInput
                     mode="outlined"
+                    autoCapitalize="none"
+                    autoComplete="username-new"
                     onChangeText={val => setUsername(val.trim())}
                     value={username}
                     label="Username"
@@ -60,6 +62,7 @@ export default function Signup(props: StackScreenProps<AuthStackParamList, 'Sign
                 <PasswordInput
                     mode="outlined"
                     autoCapitalize="none"
+                    autoComplete="new-password"
                     onChangeText={val => setPassword(val.trim())}
                     value={password}
                     label="Password"
@@ -68,6 +71,7 @@ export default function Signup(props: StackScreenProps<AuthStackParamList, 'Sign
                 <PasswordInput
                     mode="outlined"
                     autoCapitalize="none"
+                    autoComplete="new-password"
                     onChangeText={val => setRePassword(val.trim())}
                     value={rePassword}
                     label="Repeat Password"

@@ -1,13 +1,13 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Button, Dialog, Icon, Portal, Text } from 'react-native-paper';
+import { Badge, Button, Dialog, Icon, Portal, Text, useTheme } from 'react-native-paper';
 import { useDispatch, useSelector } from 'react-redux';
 
 import AvatarWithStatus from '~/components/AvatarWithStatus';
 import { dbDeleteConversation } from '~/global/database';
 import { humanTime } from '~/global/helper';
 import globalStyle from '~/global/style';
-import { ERROR_RED, SECONDARY, SECONDARY_LITE } from '~/global/variables';
+import { ERROR_RED, SECONDARY, SECONDARY_LITE, TEXT_SECONDARY } from '~/global/variables';
 import { RootNavigation } from '~/store/actions/auth';
 import { addContact } from '~/store/actions/user';
 import { Conversation, DELETE_CONVERSATION, message } from '~/store/reducers/user';
@@ -50,6 +50,7 @@ interface IProps {
 }
 
 export default function ConversationPeek(props: IProps) {
+    const { colors } = useTheme();
     const dispatch = useDispatch<AppDispatch>();
     const user_phone_no = useSelector((state: RootState) => state.userReducer.user_data?.phone_no);
     const contacts = useSelector((state: RootState) => state.userReducer.contacts);
@@ -58,7 +59,11 @@ export default function ConversationPeek(props: IProps) {
 
     const { data, navigation } = props;
     const lastMessage = data.messages[0] ?? {};
-    const isNew = lastMessage.sender !== user_phone_no && !lastMessage.seen;
+    const unreadCount = useMemo(
+        () => data.messages.filter(m => m.sender !== user_phone_no && !m.seen).length,
+        [data.messages, user_phone_no],
+    );
+    const isNew = unreadCount > 0;
 
     const { peer, isRequest } = useMemo(() => {
         const contact = contacts.find(con => con.phone_no === data.other_user.phone_no);
@@ -100,20 +105,18 @@ export default function ConversationPeek(props: IProps) {
                 <View style={{ marginRight: 10 }}>
                     <AvatarWithStatus user={peer} size={55} borderColor={SECONDARY} />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={styles.contentColumn}>
                     <Text style={[globalStyle.textInfo, boldIfUnseen]}>{peer.phone_no}</Text>
                     {(() => {
                         const preview = getMessagePreview(lastMessage);
+                        const previewColor = isNew ? TEXT_SECONDARY : SECONDARY_LITE;
                         if (preview.icon) {
                             return (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                    <Icon source={preview.icon} size={14} color={SECONDARY_LITE} />
+                                <View style={styles.previewRow}>
+                                    <Icon source={preview.icon} size={14} color={previewColor} />
                                     <Text
-                                        style={[
-                                            globalStyle.textInfo,
-                                            boldIfUnseen,
-                                            { color: SECONDARY_LITE, fontStyle: 'italic' },
-                                        ]}
+                                        style={[globalStyle.textInfo, boldIfUnseen, { color: previewColor, fontStyle: 'italic' }]}
+                                        numberOfLines={1}
                                     >
                                         {preview.text}
                                     </Text>
@@ -121,24 +124,17 @@ export default function ConversationPeek(props: IProps) {
                             );
                         }
                         return (
-                            <Text style={[globalStyle.textInfo, boldIfUnseen, { color: SECONDARY_LITE }]} numberOfLines={1}>
+                            <Text style={[globalStyle.textInfo, boldIfUnseen, { color: previewColor }]} numberOfLines={1}>
                                 {preview.text}
                             </Text>
                         );
                     })()}
                 </View>
-                <View
-                    style={{
-                        alignSelf: 'center',
-                        display: 'flex',
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        marginHorizontal: 5,
-                    }}
-                >
-                    <Text style={[globalStyle.textInfo, boldIfUnseen, { fontSize: 12, color: SECONDARY_LITE }]}>
+                <View style={styles.endRow}>
+                    <Text style={[styles.timestamp, isNew && { color: colors.primary, fontWeight: 'bold' }]}>
                         {humanTime(lastMessage.sent_at)}
                     </Text>
+                    {isNew && <Badge style={{ backgroundColor: colors.primary }}>{unreadCount > 99 ? '99+' : unreadCount}</Badge>}
                 </View>
             </TouchableOpacity>
             {isRequest && (
@@ -201,17 +197,33 @@ export default function ConversationPeek(props: IProps) {
 
 const styles = StyleSheet.create({
     conversationPeek: {
-        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        padding: 10,
+        padding: 12,
+    },
+    contentColumn: {
+        flex: 1,
+        gap: 2,
+    },
+    previewRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    endRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginLeft: 8,
+        gap: 6,
+    },
+    timestamp: {
+        fontSize: 12,
+        color: SECONDARY_LITE,
     },
     messageRequestContainer: {
-        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'space-evenly',
         padding: 5,
     },
     unseenMessage: {

@@ -112,15 +112,18 @@ export const logOut = createAsyncThunk('logOut', async ({ navigation }: { naviga
 });
 
 let interceptorId: number | null = null;
+let isLoggingOut = false;
 
 export function setupInterceptors() {
+    isLoggingOut = false;
     if (interceptorId !== null) {
         axios.interceptors.response.eject(interceptorId);
     }
     interceptorId = axios.interceptors.response.use(
         response => response,
         (error: AxiosError) => {
-            if (error.response?.status === 403) {
+            if (error.response?.status === 403 && !isLoggingOut) {
+                isLoggingOut = true;
                 // TODO: Re-authenticate instead of signing out
                 if (navigationRef.isReady()) {
                     navigationRef.reset({

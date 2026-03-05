@@ -115,7 +115,11 @@ export default function ConversationPeek(props: IProps) {
                                 <View style={styles.previewRow}>
                                     <Icon source={preview.icon} size={14} color={previewColor} />
                                     <Text
-                                        style={[globalStyle.textInfo, boldIfUnseen, { color: previewColor, fontStyle: 'italic' }]}
+                                        style={[
+                                            globalStyle.textInfo,
+                                            boldIfUnseen,
+                                            { color: previewColor, fontStyle: 'italic' },
+                                        ]}
                                         numberOfLines={1}
                                     >
                                         {preview.text}
@@ -134,7 +138,9 @@ export default function ConversationPeek(props: IProps) {
                     <Text style={[styles.timestamp, isNew && { color: colors.primary, fontWeight: 'bold' }]}>
                         {humanTime(lastMessage.sent_at)}
                     </Text>
-                    {isNew && <Badge style={{ backgroundColor: colors.primary }}>{unreadCount > 99 ? '99+' : unreadCount}</Badge>}
+                    {isNew && (
+                        <Badge style={{ backgroundColor: colors.primary }}>{unreadCount > 99 ? '99+' : unreadCount}</Badge>
+                    )}
                 </View>
             </TouchableOpacity>
             {isRequest && (

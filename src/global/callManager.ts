@@ -75,6 +75,7 @@ const internal = {
     peerStream: null as MediaStream | null,
     callTimer: null as ReturnType<typeof setInterval> | null,
     callStatsTimer: null as ReturnType<typeof setInterval> | null,
+    disconnectTimer: null as ReturnType<typeof setTimeout> | null,
     userData: null as UserData | null,
     callOffer: null as RTCSessionDescriptionInit | null,
     pendingIceCandidates: [] as any[],
@@ -192,6 +193,7 @@ export function endCall(isRemoteHangup: boolean = false) {
     InCallManager.stop();
 
     // Stop timers
+    clearDisconnectTimer();
     stopTimers();
 
     // Release WebRTC resources
@@ -367,9 +369,16 @@ async function setupStream(params: {
             wsSendMessage(message);
         });
         newConnection.addEventListener('connectionstatechange', _event => {
-            logger.debug('[WebRTC] connection state change:', newConnection?.connectionState);
-            setState({ callStatus: `${peerUser?.phone_no} : ${newConnection?.connectionState}` });
-            if (newConnection?.connectionState === 'disconnected' || newConnection?.connectionState === 'failed') {
+            const connState = newConnection?.connectionState;
+            logger.debug('[WebRTC] connection state change:', connState);
+            setState({ callStatus: `${peerUser?.phone_no} : ${connState}` });
+
+            if (connState === 'connected') {
+                clearDisconnectTimer();
+            } else if (connState === 'disconnected') {
+                startDisconnectTimer();
+            } else if (connState === 'failed') {
+                clearDisconnectTimer();
                 endCall(true);
             }
             checkConnectionType();
@@ -587,6 +596,25 @@ function stopTimers() {
     if (internal.callStatsTimer) {
         clearInterval(internal.callStatsTimer);
         internal.callStatsTimer = null;
+    }
+}
+
+const DISCONNECT_TIMEOUT_MS = 10_000;
+
+function startDisconnectTimer() {
+    clearDisconnectTimer();
+    logger.debug(`[WebRTC] connection lost, waiting ${DISCONNECT_TIMEOUT_MS / 1000}s for recovery...`);
+    internal.disconnectTimer = setTimeout(() => {
+        internal.disconnectTimer = null;
+        logger.debug('[WebRTC] recovery timed out, ending call');
+        endCall(true);
+    }, DISCONNECT_TIMEOUT_MS);
+}
+
+function clearDisconnectTimer() {
+    if (internal.disconnectTimer) {
+        clearTimeout(internal.disconnectTimer);
+        internal.disconnectTimer = null;
     }
 }
 

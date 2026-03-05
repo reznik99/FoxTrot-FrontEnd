@@ -5,6 +5,8 @@ import { ActivityIndicator, Icon, Text, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import CustomKeyboardAvoidingView from '~/components/CustomKeyboardAvoidingView';
+import Toast from 'react-native-toast-message';
+
 import { logger } from '~/global/logger';
 import { getMicrophoneRecordingPermission, getReadExtPermission } from '~/global/permissions';
 import { DARKHEADER, ERROR_RED, SECONDARY_LITE, TEXT_SECONDARY } from '~/global/variables';
@@ -84,10 +86,15 @@ export default function Messaging(props: IProps) {
             await Sound.stopRecorder();
             Sound.removeRecordBackListener();
             setRecording(false);
+            // Auto-cancel recordings under 500ms — too short to be intentional
+            if (audioRecordTime < 500) {
+                resetAudio();
+                Toast.show({ type: 'info', text1: 'Hold to record', text2: 'Press and hold the mic button to record audio' });
+            }
         } catch (err) {
             logger.error(err);
         }
-    }, []);
+    }, [audioRecordTime, resetAudio]);
 
     const playAudio = useCallback(async () => {
         try {
@@ -112,6 +119,10 @@ export default function Messaging(props: IProps) {
     }, []);
 
     const sendAudio = useCallback(async () => {
+        if (audioRecordTime < 500) {
+            resetAudio();
+            return;
+        }
         try {
             await props.handleSendAudio(audioFilePath, audioRecordTime);
             resetAudio();

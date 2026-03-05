@@ -150,7 +150,13 @@ export default function KeySetup() {
                 </Text>
 
                 <View style={styles.inputContainer}>
-                    <PasswordInput value={password} label="Decryption Password" mode="outlined" onChangeText={setPassword} />
+                    <PasswordInput
+                        value={password}
+                        label="Decryption Password"
+                        mode="outlined"
+                        autoComplete="off"
+                        onChangeText={setPassword}
+                    />
                 </View>
 
                 <Button mode="contained" onPress={handleImport} disabled={!password.trim()} style={styles.button}>
@@ -176,7 +182,13 @@ export default function KeySetup() {
                 </Text>
 
                 <View style={styles.inputContainer}>
-                    <PasswordInput value={password} label="Encryption Password" mode="outlined" onChangeText={setPassword} />
+                    <PasswordInput
+                        value={password}
+                        label="Encryption Password"
+                        mode="outlined"
+                        autoComplete="off"
+                        onChangeText={setPassword}
+                    />
                 </View>
 
                 <Button mode="contained" onPress={handleExport} disabled={!password.trim()} style={styles.button}>

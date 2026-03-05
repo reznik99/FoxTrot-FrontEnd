@@ -111,8 +111,13 @@ export const logOut = createAsyncThunk('logOut', async ({ navigation }: { naviga
     navigation.replace('Login', { data: { loggedOut: true, errorMsg: '' } });
 });
 
+let interceptorId: number | null = null;
+
 export function setupInterceptors() {
-    axios.interceptors.response.use(
+    if (interceptorId !== null) {
+        axios.interceptors.response.eject(interceptorId);
+    }
+    interceptorId = axios.interceptors.response.use(
         response => response,
         (error: AxiosError) => {
             if (error.response?.status === 403) {

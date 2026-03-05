@@ -15,7 +15,7 @@ import { useDispatch } from 'react-redux';
 import { logger } from '~/global/logger';
 import { HomeStackParamList } from '~/global/navigation';
 import { getCameraAndMicrophonePermissions } from '~/global/permissions';
-import { DARKHEADER, SECONDARY, SECONDARY_LITE } from '~/global/variables';
+import { DARKHEADER, SECONDARY } from '~/global/variables';
 import { uploadMedia } from '~/store/actions/media';
 import { sendMessage } from '~/store/actions/user';
 import { AppDispatch } from '~/store/store';
@@ -177,7 +177,7 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
     }, [media, isVideo, props.navigation, props.route.params?.data?.peer, dispatch, generateThumbnail]);
 
     return (
-        <View style={[styles.container, { paddingTop: edgeInsets.top, paddingBottom: edgeInsets.bottom }]}>
+        <View style={styles.container}>
             {/* Loading screen */}
             {!device && !media && (
                 <View style={styles.loaderContainer}>
@@ -192,50 +192,43 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
             )}
             {/* Media preview and actions */}
             {media && (
-                <>
-                    <View style={{ flex: 1, backgroundColor: DARKHEADER, justifyContent: 'center', alignItems: 'center' }}>
-                        {loading ? (
-                            <>
-                                <Image
-                                    style={{ width: '100%', height: '100%', position: 'absolute' }}
-                                    source={{ uri: media }}
-                                    resizeMode="contain"
-                                    blurRadius={3}
-                                />
-                                <ActivityIndicator size="large" />
-                            </>
-                        ) : isVideo ? (
-                            <Video
-                                source={{ uri: media }}
-                                style={{ width: '100%', height: '100%' }}
-                                resizeMode="contain"
-                                controls={true}
-                                paused={false}
-                                repeat={true}
-                                bufferConfig={{
-                                    minBufferMs: 2000,
-                                    maxBufferMs: 5000,
-                                    bufferForPlaybackMs: 1000,
-                                    bufferForPlaybackAfterRebufferMs: 2000,
-                                }}
-                            />
-                        ) : (
-                            <Image style={{ width: '100%', height: '100%' }} source={{ uri: media }} resizeMode="contain" />
-                        )}
-                    </View>
-                    <View style={[styles.buttonContainer, { marginBottom: edgeInsets.bottom }]}>
+                <View style={styles.fullScreen}>
+                    {loading ? (
+                        <>
+                            <Image style={styles.mediaPreview} source={{ uri: media }} resizeMode="cover" blurRadius={3} />
+                            <ActivityIndicator size="large" style={StyleSheet.absoluteFill} />
+                        </>
+                    ) : isVideo ? (
+                        <Video
+                            source={{ uri: media }}
+                            style={styles.mediaPreview}
+                            resizeMode="cover"
+                            controls={true}
+                            paused={false}
+                            repeat={true}
+                            bufferConfig={{
+                                minBufferMs: 2000,
+                                maxBufferMs: 5000,
+                                bufferForPlaybackMs: 1000,
+                                bufferForPlaybackAfterRebufferMs: 2000,
+                            }}
+                        />
+                    ) : (
+                        <Image style={styles.mediaPreview} source={{ uri: media }} resizeMode="cover" />
+                    )}
+                    <View style={[styles.buttonContainer, { paddingBottom: edgeInsets.bottom + 16 }]}>
                         <Button
                             style={styles.button}
-                            buttonColor={SECONDARY_LITE}
-                            icon="refresh"
+                            buttonColor="rgba(255,255,255,0.25)"
+                            icon={isVideo ? 'close' : 'camera-retake'}
                             mode="contained"
                             onPress={reset}
                         >
-                            {isVideo ? 'Cancel' : 'Take again'}
+                            {isVideo ? 'Cancel' : 'Retake'}
                         </Button>
                         <Button
                             style={styles.button}
-                            icon="send"
+                            icon="send-lock"
                             mode="contained"
                             onPress={send}
                             loading={loading}
@@ -244,36 +237,34 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
                             Send
                         </Button>
                     </View>
-                </>
+                </View>
             )}
             {/* Camera View and actions */}
             {device && hasPermission && !media && (
-                <>
-                    <View style={{ flex: 1, backgroundColor: DARKHEADER }}>
-                        <Camera
-                            style={initialized && { width: '100%', height: '100%' }}
-                            ref={cameraRef}
-                            device={device}
-                            isActive={isActive}
-                            isMirrored={device.position === 'front'}
-                            enableZoomGesture={true}
-                            photoQualityBalance={'speed'}
-                            resizeMode={'cover'}
-                            format={format}
-                            photo={true}
-                            onPreviewStarted={() => setInitialized(true)}
-                            onPreviewStopped={() => setInitialized(false)}
-                        />
-                    </View>
-                    <View style={[styles.buttonContainer, { marginBottom: edgeInsets.bottom }]}>
+                <View style={styles.fullScreen}>
+                    <Camera
+                        style={initialized && styles.mediaPreview}
+                        ref={cameraRef}
+                        device={device}
+                        isActive={isActive}
+                        isMirrored={device.position === 'front'}
+                        enableZoomGesture={true}
+                        photoQualityBalance={'speed'}
+                        resizeMode={'cover'}
+                        format={format}
+                        photo={true}
+                        onPreviewStarted={() => setInitialized(true)}
+                        onPreviewStopped={() => setInitialized(false)}
+                    />
+                    <View style={[styles.buttonContainer, { paddingBottom: edgeInsets.bottom + 16 }]}>
                         <Button
                             style={styles.button}
-                            buttonColor={SECONDARY_LITE}
-                            icon="camera-party-mode"
+                            buttonColor="rgba(255,255,255,0.25)"
+                            icon="camera-flip"
                             mode="contained"
                             onPress={swapCamera}
                         >
-                            Swap Camera
+                            Flip
                         </Button>
                         <Button
                             style={styles.button}
@@ -283,10 +274,10 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
                             loading={loading}
                             disabled={loading}
                         >
-                            Take pic
+                            Capture
                         </Button>
                     </View>
-                </>
+                </View>
             )}
         </View>
     );
@@ -300,17 +291,25 @@ const styles = StyleSheet.create({
         backgroundColor: SECONDARY,
     },
     loaderContainer: {
-        position: 'absolute',
-        width: '100%',
-        height: '100%',
+        ...StyleSheet.absoluteFillObject,
         justifyContent: 'center',
     },
-    buttonContainer: {
+    fullScreen: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: DARKHEADER,
+    },
+    mediaPreview: {
         width: '100%',
-        display: 'flex',
+        height: '100%',
+    },
+    buttonContainer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
         flexDirection: 'row',
         justifyContent: 'space-evenly',
-        paddingVertical: 10,
+        paddingTop: 16,
     },
     button: {
         borderRadius: 100,

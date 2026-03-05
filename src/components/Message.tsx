@@ -380,7 +380,13 @@ export default class Message extends PureComponent<MProps, MState> {
             >
                 <View style={[styles.message]}>
                     {/* Loader */}
-                    {this.state.loading && <ActivityIndicator style={styles.loader} animating={true} />}
+                    {this.state.loading && (
+                        <ActivityIndicator
+                            style={styles.loader}
+                            animating={true}
+                            color={isSent ? '#ffffffcc' : this.props.primaryColor}
+                        />
+                    )}
                     {/* Encrypted placeholder */}
                     {isEncrypted && (
                         <View style={styles.encryptedPlaceholder}>

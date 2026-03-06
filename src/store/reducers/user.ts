@@ -57,6 +57,7 @@ export interface message {
     sender: string;
     sender_id: string | number;
     is_decrypted?: boolean;
+    system?: boolean;
 }
 
 export interface CallRecord {
@@ -284,6 +285,39 @@ export const userSlice = createSlice({
             if (conversation) {
                 conversation.other_user.public_key = public_key;
                 conversation.other_user.session_key = session_key;
+            }
+
+            // Insert a system message warning about the key change
+            const systemMsg: message = {
+                id: -Date.now(),
+                message: `${phone_no} changed their security key. Verify their identity if this was unexpected.`,
+                sent_at: new Date().toISOString(),
+                seen: true,
+                reciever: state.user_data.phone_no,
+                reciever_id: state.user_data.id,
+                sender: phone_no,
+                sender_id: action.payload.user_id,
+                system: true,
+            };
+            if (conversation) {
+                conversation.messages = [systemMsg, ...conversation.messages];
+            } else {
+                const peer: UserData = {
+                    id: action.payload.user_id,
+                    phone_no,
+                    last_seen: Date.now(),
+                    online: true,
+                    pic: getAvatar(action.payload.user_id),
+                    public_key,
+                    session_key,
+                };
+                state.conversations.set(phone_no, { other_user: peer, messages: [systemMsg] });
+            }
+            // Persist system message to SQLite
+            try {
+                dbSaveMessage(systemMsg, phone_no);
+            } catch (err) {
+                logger.error('Error saving key rotation system message to SQLite:', err);
             }
         },
         CONTACT_STATUS: (

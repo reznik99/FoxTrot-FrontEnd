@@ -113,7 +113,7 @@ export const generateAndSyncKeys = createDefaultAsyncThunk<boolean>('generateAnd
 
         // Re-derive all session keys with the new private key
         if (hasExistingKeys) {
-            await thunkAPI.dispatch(loadContacts({ atomic: false }));
+            await thunkAPI.dispatch(loadContacts({ atomic: false, forceDerive: true }));
         }
 
         return true;
@@ -273,7 +273,9 @@ export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, th
     }
 });
 
-export const loadContacts = createDefaultAsyncThunk('loadContacts', async ({ atomic }: { atomic: boolean }, thunkAPI) => {
+export const loadContacts = createDefaultAsyncThunk(
+    'loadContacts',
+    async ({ atomic, forceDerive }: { atomic: boolean; forceDerive?: boolean }, thunkAPI) => {
     try {
         thunkAPI.dispatch(SET_REFRESHING(true));
         const state = thunkAPI.getState().userReducer;
@@ -291,8 +293,8 @@ export const loadContacts = createDefaultAsyncThunk('loadContacts', async ({ ato
                 const known = knownContacts.get(String(contact.id));
                 const keyUnchanged = known && known.public_key === (contact.public_key || null);
 
-                // Reuse existing session key if the public key hasn't changed
-                if (keyUnchanged && known.session_key) {
+                // Reuse existing session key if the public key hasn't changed (and we're not forcing re-derivation)
+                if (!forceDerive && keyUnchanged && known.session_key) {
                     return {
                         ...contact,
                         last_seen: new Date(contact.last_seen).getTime(),

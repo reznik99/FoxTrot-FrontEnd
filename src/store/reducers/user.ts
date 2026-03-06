@@ -10,7 +10,7 @@ import {
     dbSaveMessage,
     dbUpdateMessageDecrypted,
 } from '~/global/database';
-import { getAvatar } from '~/global/helper';
+import { generateLocalMessageId, getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { writeToStorage } from '~/global/storage';
 
@@ -284,7 +284,7 @@ export const userSlice = createSlice({
 
             // Insert a system message warning about the key change
             const systemMsg: message = {
-                id: -Date.now(),
+                id: generateLocalMessageId(),
                 message: `${phone_no} changed their security key. Verify their identity if this was unexpected.`,
                 sent_at: new Date().toISOString(),
                 seen: true,
@@ -320,7 +320,7 @@ export const userSlice = createSlice({
             const now = new Date().toISOString();
             for (const [phoneNo, conversation] of state.conversations) {
                 const systemMsg: message = {
-                    id: -Date.now(),
+                    id: generateLocalMessageId(),
                     message: 'You changed your identity keys. Previous encrypted messages can no longer be read.',
                     sent_at: now,
                     seen: true,

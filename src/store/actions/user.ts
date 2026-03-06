@@ -14,7 +14,7 @@ import {
     dbSaveConversation,
     dbSaveMessage,
 } from '~/global/database';
-import { getAvatar } from '~/global/helper';
+import { generateLocalMessageId, getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { getPushNotificationPermission } from '~/global/permissions';
 import { readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
@@ -324,8 +324,8 @@ export const loadContacts = createDefaultAsyncThunk(
                     if (known && known.public_key !== (contact.public_key || null)) {
                         logger.info('Detected offline key change for:', contact.phone_no);
                         const systemMsg: message = {
-                            id: -(Date.now() + Math.floor(Math.random() * 10000)),
-                            message: `${contact.phone_no} changed their security key while you were offline. Verify their identity if this was unexpected.`,
+                            id: generateLocalMessageId(),
+                            message: `${contact.phone_no} changed their security key. Verify their identity if this was unexpected.`,
                             sent_at: new Date().toISOString(),
                             seen: true,
                             reciever: state.user_data.phone_no,

@@ -5,13 +5,20 @@ import * as Keychain from 'react-native-keychain';
 import Toast from 'react-native-toast-message';
 
 import { encrypt, exportKeypair, generateIdentityKeypair, generateSessionKeyECDH, importKeypair } from '~/global/crypto';
-import { dbGetConversation, dbGetConversations, dbSaveConversation, dbSaveMessage, getDb } from '~/global/database';
+import {
+    dbGetConversation,
+    dbGetConversations,
+    dbGetStoredContacts,
+    dbSaveContacts,
+    dbSaveConversation,
+    dbSaveMessage,
+    getDb,
+} from '~/global/database';
 import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { getPushNotificationPermission } from '~/global/permissions';
 import { readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { API_URL, KeypairAlgorithm } from '~/global/variables';
-import { evictMediaCache } from '~/store/actions/media';
 import {
     ADD_CONTACT_SUCCESS,
     Conversation,
@@ -19,6 +26,7 @@ import {
     LOAD_CONTACTS,
     LOAD_CONVERSATIONS,
     message,
+    RECV_MESSAGE,
     SEND_MESSAGE,
     SET_LOADING,
     SET_REFRESHING,
@@ -124,52 +132,103 @@ export const generateAndSyncKeys = createDefaultAsyncThunk<boolean>('generateAnd
     }
 });
 
+// --- Disk loaders (fast, synchronous SQLite reads) ---
+
+export const loadMessagesFromDisk = createDefaultAsyncThunk('loadMessagesFromDisk', async (_, thunkAPI) => {
+    try {
+        const state = thunkAPI.getState().userReducer;
+        if (state.conversations.size) return;
+
+        await getDb();
+
+        const conversations = new Map<string, Conversation>();
+        for (const conv of dbGetConversations()) {
+            const fullConv = dbGetConversation(conv.other_user.phone_no);
+            if (fullConv) {
+                conversations.set(conv.other_user.phone_no, fullConv);
+            }
+        }
+
+        if (conversations.size) {
+            thunkAPI.dispatch(LOAD_CONVERSATIONS(conversations));
+            logger.debug('Loaded', conversations.size, 'conversations from SQLite');
+        }
+    } catch (err: any) {
+        logger.error('Error loading messages from disk:', err);
+    }
+});
+
+export const loadContactsFromDisk = createDefaultAsyncThunk('loadContactsFromDisk', async (_, thunkAPI) => {
+    try {
+        const state = thunkAPI.getState().userReducer;
+        if (state.contacts.length) return;
+
+        await getDb();
+
+        const cached = dbGetStoredContacts();
+        if (!cached.length) return;
+
+        const contacts = await Promise.all<UserData>(
+            cached.map(async sc => {
+                try {
+                    const session_key = await generateSessionKeyECDH(sc.public_key || '', state.keys?.privateKey);
+                    return {
+                        id: sc.id,
+                        phone_no: sc.phone_no,
+                        public_key: sc.public_key || undefined,
+                        last_seen: 0,
+                        online: false,
+                        pic: getAvatar(sc.id),
+                        session_key,
+                    };
+                } catch {
+                    return {
+                        id: sc.id,
+                        phone_no: sc.phone_no,
+                        public_key: sc.public_key || undefined,
+                        last_seen: 0,
+                        online: false,
+                        pic: getAvatar(sc.id),
+                    };
+                }
+            }),
+        );
+
+        thunkAPI.dispatch(LOAD_CONTACTS(contacts));
+    } catch (err: any) {
+        logger.error('Error loading contacts from disk:', err);
+    }
+});
+
+// --- API loaders (network, merge with Redux state, persist to disk) ---
+
 export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, thunkAPI) => {
     try {
         thunkAPI.dispatch(SET_REFRESHING(true));
 
-        const state = thunkAPI.getState().userReducer;
+        const { user_data, token } = thunkAPI.getState().userReducer;
 
         // Initialize database
         await getDb();
 
-        // Evict stale media cache in background (fire-and-forget) if enabled
-        readFromStorage(StorageKeys.AUTO_EVICT_CACHE).then(val => {
-            if (val !== 'false') evictMediaCache();
-        });
-
         // Check last time we hit the API for messages
-        const cachedLastChecked = (await readFromStorage(`messages-${state.user_data.id}-last-checked`)) || '0';
-
+        const cachedLastChecked = (await readFromStorage(`messages-${user_data.id}-last-checked`)) || '0';
         let lastChecked = parseInt(cachedLastChecked, 10);
-        let previousConversations = new Map<string, Conversation>();
 
-        // Load bulk messages from storage if there aren't any in the redux state
-        if (!state.conversations.size) {
-            // Load from SQLite
-            for (const conv of dbGetConversations()) {
-                const fullConv = dbGetConversation(conv.other_user.phone_no);
-                if (fullConv) {
-                    previousConversations.set(conv.other_user.phone_no, fullConv);
-                }
-            }
-            logger.debug('Loaded', previousConversations.size, 'conversations from SQLite. Last checked', lastChecked);
-        } else {
-            previousConversations = new Map(state.conversations);
-            logger.debug('Found', previousConversations.size, 'conversations in memory. Last checked', lastChecked);
-        }
-
-        // If no cached conversations, load all from API just in case.
-        if (!previousConversations.size) {
+        // If no conversations in state yet, fetch everything
+        if (!thunkAPI.getState().userReducer.conversations.size) {
             lastChecked = 0;
         }
 
-        // Load new user messages
-        const conversations = new Map(previousConversations);
+        // Fetch new messages from API
         const response = await axios.get<message[]>(
             `${API_URL}/getConversations/?since=${lastChecked}`,
-            axiosBearerConfig(state.token),
+            axiosBearerConfig(token),
         );
+
+        // Snapshot conversations AFTER the network call returns — minimizes the window
+        // where parallel dispatches (e.g. system messages) could be overwritten
+        const conversations = new Map(thunkAPI.getState().userReducer.conversations);
 
         response.data.toReversed().forEach(msg => {
             const peer: UserData = {
@@ -179,14 +238,13 @@ export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, th
                 last_seen: new Date(msg.sent_at).getTime(),
                 online: false,
             };
-            if (msg.sender === state.user_data.phone_no) {
+            if (msg.sender === user_data.phone_no) {
                 peer.id = msg.reciever_id;
                 peer.phone_no = msg.reciever;
                 peer.pic = getAvatar(msg.reciever_id);
             }
             const convo = conversations.get(peer.phone_no);
             if (convo) {
-                // Have to do this instead of unshift() because of readonly property?
                 conversations.set(peer.phone_no, {
                     other_user: convo.other_user,
                     messages: [msg, ...convo.messages],
@@ -198,7 +256,7 @@ export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, th
                 });
             }
 
-            // Save to SQLite
+            // Persist to SQLite
             try {
                 dbSaveConversation(peer, new Date(msg.sent_at).getTime());
                 dbSaveMessage(msg, peer.phone_no);
@@ -206,12 +264,10 @@ export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, th
                 logger.error('Error saving message to SQLite:', err);
             }
         });
-        const newMessagesLoaded = response.data?.length;
-        logger.debug('Loaded', newMessagesLoaded, 'new messages from api');
+        logger.debug('Loaded', response.data?.length, 'new messages from API');
 
-        // Save all new conversations to redux state
         thunkAPI.dispatch(LOAD_CONVERSATIONS(conversations));
-        writeToStorage(`messages-${state.user_data.id}-last-checked`, String(Date.now()));
+        writeToStorage(`messages-${user_data.id}-last-checked`, String(Date.now()));
     } catch (err: any) {
         logger.error('Error loading messages:', err);
         Toast.show({
@@ -230,7 +286,13 @@ export const loadContacts = createDefaultAsyncThunk('loadContacts', async ({ ato
         thunkAPI.dispatch(SET_REFRESHING(true));
         const state = thunkAPI.getState().userReducer;
 
-        // Load contacts
+        // Build map of known public keys for key-change detection
+        const knownKeys = new Map<string, string | null>();
+        for (const c of state.contacts) {
+            knownKeys.set(String(c.id), c.public_key || null);
+        }
+
+        // Fetch fresh contacts from API
         const response = await axios.get<UserData[]>(`${API_URL}/getContacts`, axiosBearerConfig(state.token));
         const contacts = await Promise.all<UserData>(
             response.data.map(async contact => {
@@ -250,7 +312,37 @@ export const loadContacts = createDefaultAsyncThunk('loadContacts', async ({ ato
             }),
         );
 
+        // Detect key changes that happened while offline
+        if (knownKeys.size > 0) {
+            for (const contact of contacts) {
+                const previousKey = knownKeys.get(String(contact.id));
+                if (previousKey !== undefined && previousKey !== (contact.public_key || null)) {
+                    logger.info('Detected offline key change for:', contact.phone_no);
+                    const systemMsg: message = {
+                        id: -(Date.now() + Math.floor(Math.random() * 10000)),
+                        message: `${contact.phone_no} changed their security key while you were offline. Verify their identity if this was unexpected.`,
+                        sent_at: new Date().toISOString(),
+                        seen: true,
+                        reciever: state.user_data.phone_no,
+                        reciever_id: state.user_data.id,
+                        sender: contact.phone_no,
+                        sender_id: contact.id,
+                        system: true,
+                    };
+                    thunkAPI.dispatch(RECV_MESSAGE(systemMsg));
+                }
+            }
+        }
+
+        // Update Redux with fresh contacts
         thunkAPI.dispatch(LOAD_CONTACTS(contacts));
+
+        // Persist to SQLite for future key-change detection and fast disk load
+        try {
+            dbSaveContacts(contacts.map(c => ({ id: c.id, phone_no: c.phone_no, public_key: c.public_key })));
+        } catch (err) {
+            logger.warn('Failed to persist contacts to SQLite:', err);
+        }
     } catch (err: any) {
         logger.error('Error loading contacts:', err);
         Toast.show({

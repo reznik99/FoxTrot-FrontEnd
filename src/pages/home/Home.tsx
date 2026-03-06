@@ -10,13 +10,22 @@ import { useSelector } from 'react-redux';
 import ConversationPeek from '~/components/ConversationPeek';
 import { dbSaveCallRecord } from '~/global/database';
 import { logger } from '~/global/logger';
-import { popFromStorage, StorageKeys } from '~/global/storage';
+import { popFromStorage, readFromStorage, StorageKeys } from '~/global/storage';
 import globalStyle from '~/global/style';
 import { SECONDARY_LITE } from '~/global/variables';
 import * as websocketManager from '~/global/websocketManager';
 import { SocketMessage } from '~/global/websocketManager';
 import { RootNavigation, setupInterceptors } from '~/store/actions/auth';
-import { getTURNServerCreds, loadContacts, loadKeys, loadMessages, registerPushNotifications } from '~/store/actions/user';
+import { evictMediaCache } from '~/store/actions/media';
+import {
+    getTURNServerCreds,
+    loadContacts,
+    loadContactsFromDisk,
+    loadKeys,
+    loadMessages,
+    loadMessagesFromDisk,
+    registerPushNotifications,
+} from '~/store/actions/user';
 import { Conversation, UserData } from '~/store/reducers/user';
 import { RootState, store } from '~/store/store';
 
@@ -41,10 +50,16 @@ export default function Home() {
     }, [conversations]);
 
     useEffect(() => {
-        let cleanupCallHandlers: (() => void) | undefined;
         const initLoad = async () => {
+            setLoadingMsg('Registering events...');
+            // [background] Setup axios interceptors (before any authenticated API calls)
+            setupInterceptors();
             // [background] Register device for push notifications
             store.dispatch(registerPushNotifications());
+            // [background] Evict stale media cache if enabled
+            readFromStorage(StorageKeys.AUTO_EVICT_CACHE).then(val => {
+                if (val === 'true') evictMediaCache();
+            });
             // [background] Get TURN credentials for proxying calls if peer-to-peer ICE fails
             store.dispatch(getTURNServerCreds()).then(async () => {
                 // Check if user answered a call in the background
@@ -59,38 +74,32 @@ export default function Home() {
                     });
                 }
             });
-            // Register Call Screen handler
-            cleanupCallHandlers = registerCallHandlers();
-            // Load keys from TPM — if none exist, redirect to key setup
-            const loaded = await loadKeypair();
+
+            // Load keys from KeyChain — if none exist, redirect to key setup
+            setLoadingMsg('Loading keys from Secure Storage...');
+            const loaded = await store.dispatch(loadKeys()).unwrap();
             if (!loaded) {
                 setLoadingMsg('');
                 navigation.replace('KeySetup');
                 return;
             }
-            // Setup axios interceptors (before any authenticated API calls)
-            setupInterceptors();
-            // Load new messages from backend and old messages from storage
-            await loadMessagesAndContacts();
+
+            // Load cached data from disk (fast, renders immediately)
+            setLoadingMsg('Loading keys from TPM...');
+            await Promise.all([store.dispatch(loadMessagesFromDisk()), store.dispatch(loadContactsFromDisk())]);
             setLoadingMsg('');
+            // Fetch fresh data from API in background
+            await Promise.all([store.dispatch(loadContacts({ atomic: false })), store.dispatch(loadMessages())]);
         };
+
+        // [background] Register Call Screen handler
+        const cleanupCallHandlers = registerCallHandlers();
         initLoad();
-        // returned function will be called on component unmount
+
         return () => {
             cleanupCallHandlers?.();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    const loadMessagesAndContacts = useCallback(async () => {
-        setLoadingMsg('Loading contacts & messages...');
-        await Promise.all([store.dispatch(loadContacts({ atomic: false })), store.dispatch(loadMessages())]);
-    }, []);
-
-    const loadKeypair = useCallback(async () => {
-        setLoadingMsg('Loading keys from TPM...');
-        const loadedKeys = await store.dispatch(loadKeys()).unwrap();
-        return loadedKeys;
     }, []);
 
     const registerCallHandlers = useCallback(() => {
@@ -134,8 +143,9 @@ export default function Home() {
     }, [navigation]);
 
     const onRefresh = useCallback(() => {
-        loadMessagesAndContacts().finally(() => setLoadingMsg(''));
-    }, [loadMessagesAndContacts]);
+        store.dispatch(loadContacts({ atomic: false }));
+        store.dispatch(loadMessages());
+    }, []);
 
     const renderListEmpty = useCallback(
         () => (
@@ -147,7 +157,7 @@ export default function Home() {
         [],
     );
 
-    if (loading || loadingMsg) {
+    if (loadingMsg) {
         return (
             <View style={globalStyle.wrapper}>
                 <View style={styles.loadingContainer}>
@@ -160,6 +170,7 @@ export default function Home() {
 
     return (
         <View style={globalStyle.wrapper}>
+            {loading && <ActivityIndicator style={styles.inlineLoader} size="small" />}
             {socketStatus === 'reconnecting' && (
                 <Snackbar visible={true} style={styles.snackbar} onDismiss={() => {}}>
                     Reconnecting to server...
@@ -210,6 +221,9 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
         top: '40%',
         opacity: 0.08,
+    },
+    inlineLoader: {
+        paddingVertical: 6,
     },
     snackbar: {
         zIndex: 100,

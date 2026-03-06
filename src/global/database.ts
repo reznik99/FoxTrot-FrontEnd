@@ -46,7 +46,7 @@ async function getOrCreateDbKey(): Promise<string> {
             return credentials.password;
         }
     } catch (err) {
-        logger.debug('No existing database key found, generating new one');
+        logger.debug('[SQLite] No existing database key found, generating new one');
     }
 
     const keyBytes = QuickCrypto.getRandomValues(new Uint8Array(32));
@@ -57,7 +57,7 @@ async function getOrCreateDbKey(): Promise<string> {
         storage: Keychain.STORAGE_TYPE.AES_GCM_NO_AUTH,
     });
 
-    logger.debug('Generated and stored new database encryption key');
+    logger.debug('[SQLite] Generated and stored new database encryption key');
     return key;
 }
 
@@ -72,7 +72,7 @@ export async function getDb(): Promise<DB> {
 
     const encryptionKey = await getOrCreateDbKey();
     db = open({ name: DB_NAME, encryptionKey });
-    logger.debug('Database opened');
+    logger.debug('[SQLite]', DB_NAME, 'opened');
 
     initializeSchema();
     return db;
@@ -82,7 +82,7 @@ export function closeDb(): void {
     if (db) {
         db.close();
         db = null;
-        logger.debug('Database closed');
+        logger.debug('[SQLite] Database closed');
     }
 }
 
@@ -90,7 +90,7 @@ export function deleteDb(): void {
     if (db) {
         db.delete();
         db = null;
-        logger.debug('Database deleted');
+        logger.debug('[SQLite] Database deleted');
     }
 }
 
@@ -112,7 +112,7 @@ function initializeSchema(): void {
         return;
     }
 
-    logger.debug('Initializing database schema version', SCHEMA_VERSION, 'from', currentVersion);
+    logger.debug('[SQLite] Initializing database schema version', SCHEMA_VERSION, 'from', currentVersion);
 
     // Messages table - matches the `message` interface from reducers
     database.executeSync(`
@@ -192,7 +192,7 @@ function initializeSchema(): void {
         database.executeSync('UPDATE schema_version SET version = ?', [SCHEMA_VERSION]);
     }
 
-    logger.debug('Database schema initialized');
+    logger.debug('[SQLite] Database schema initialized');
 }
 
 // Messages
@@ -236,7 +236,7 @@ export function dbGetMessages(conversationId: string, limit = DB_MSG_PAGE_SIZE, 
          ORDER BY datetime(sent_at) DESC LIMIT ? OFFSET ?`,
         [conversationId, limit, offset],
     );
-    logger.debug('Loaded', result.rows.length, 'messages from database');
+    logger.debug('[SQLite] Loaded', result.rows.length, 'messages');
     return (result.rows || []).map(row => ({
         id: row.id as number,
         message: row.message as string,
@@ -427,6 +427,7 @@ export function dbSaveContacts(contacts: Array<{ id: string | number; phone_no: 
 export function dbGetStoredContacts(): Array<{ id: string; phone_no: string; public_key: string | null }> {
     const database = requireDb();
     const result = database.executeSync('SELECT id, phone_no, public_key FROM contacts');
+    logger.debug('[SQLite] Loaded', result.rows.length, 'contacts');
     return (result.rows || []).map(row => ({
         id: row.id as string,
         phone_no: row.phone_no as string,

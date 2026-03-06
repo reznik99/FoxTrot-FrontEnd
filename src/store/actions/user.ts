@@ -413,18 +413,18 @@ export const sendMessage = createDefaultAsyncThunk('sendMessage', async (data: s
 
         // Encrypt and send message
         const encryptedMessage = await encrypt(data.to_user.session_key, data.message);
-        await axios.post(
+        const res = await axios.post(
             `${API_URL}/sendMessage`,
             { message: encryptedMessage, contact_id: data.to_user.id, contact_phone_no: data.to_user.phone_no },
             axiosBearerConfig(state.token),
         );
 
-        // Save message locally
+        // Save message locally using server-assigned ID
         const localMessage = {
             sender: state.user_data,
             reciever: data.to_user,
             rawMessage: {
-                id: Date.now(),
+                id: res.data.id ?? Date.now(),
                 message: encryptedMessage,
                 sender: state.user_data.phone_no,
                 sender_id: state.user_data.id,

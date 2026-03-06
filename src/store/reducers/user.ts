@@ -268,6 +268,24 @@ export const userSlice = createSlice({
                 conversation.messages = [...conversation.messages, ...messages];
             }
         },
+        KEY_ROTATED: (
+            state,
+            action: PayloadAction<{ user_id: number; phone_no: string; public_key: string; session_key: CryptoKey }>,
+        ) => {
+            const { phone_no, public_key, session_key } = action.payload;
+
+            const contact = state.contacts.find(c => c.phone_no === phone_no);
+            if (contact) {
+                contact.public_key = public_key;
+                contact.session_key = session_key;
+            }
+
+            const conversation = state.conversations.get(phone_no);
+            if (conversation) {
+                conversation.other_user.public_key = public_key;
+                conversation.other_user.session_key = session_key;
+            }
+        },
         CONTACT_STATUS: (
             state,
             action: PayloadAction<{ user_id: number; phone_no: string; online: boolean; last_seen: string }>,
@@ -327,6 +345,7 @@ export const {
     MARK_MESSAGES_SEEN,
     DELETE_MESSAGE,
     APPEND_OLDER_MESSAGES,
+    KEY_ROTATED,
     CONTACT_STATUS,
     RECV_CALL_OFFER,
     TURN_CREDS,

@@ -81,9 +81,16 @@ export const generateAndSyncKeys = createDefaultAsyncThunk<boolean>('generateAnd
         const keyPair = await generateIdentityKeypair();
         const keys = await exportKeypair(keyPair);
 
-        // Upload public key
-        logger.debug(`Syncing '${KeypairAlgorithm.name} ${KeypairAlgorithm.namedCurve}' public key to server`);
-        await axios.post(`${API_URL}/savePublicKey`, { publicKey: keys.publicKey }, axiosBearerConfig(state.token));
+        // Upload public key (force overwrite if rotating an existing key)
+        const hasExistingKeys = !!state.keys;
+        logger.debug(
+            `Syncing '${KeypairAlgorithm.name} ${KeypairAlgorithm.namedCurve}' public key to server (force: ${hasExistingKeys})`,
+        );
+        await axios.post(
+            `${API_URL}/savePublicKey`,
+            { publicKey: keys.publicKey, force: hasExistingKeys },
+            axiosBearerConfig(state.token),
+        );
 
         // Store on device
         logger.debug(`Saving '${KeypairAlgorithm.name} ${KeypairAlgorithm.namedCurve}' keys to secure storage`);
@@ -95,6 +102,12 @@ export const generateAndSyncKeys = createDefaultAsyncThunk<boolean>('generateAnd
 
         // Store keypair in memory
         thunkAPI.dispatch(KEY_LOAD(keyPair));
+
+        // Re-derive all session keys with the new private key
+        if (hasExistingKeys) {
+            await thunkAPI.dispatch(loadContacts({ atomic: false }));
+        }
+
         return true;
     } catch (err: any) {
         await Keychain.resetInternetCredentials({ server: API_URL, service: `${state.user_data?.phone_no}-keys` });

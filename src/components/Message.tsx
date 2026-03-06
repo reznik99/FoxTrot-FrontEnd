@@ -188,20 +188,32 @@ export default class Message extends PureComponent<MProps, MState> {
     };
 
     handleLongPress = () => {
-        if (!this.state.decryptedMessage) return;
-        this.props.onLongPress({
-            messageId: this.props.item.id,
-            conversationId: this.props.conversationId,
-            type: this.state.decryptedMessage.type,
-            text: this.state.decryptedMessage.message,
-            objectKey: this.state.decryptedMessage.objectKey,
-            fileKey: this.state.decryptedMessage.fileKey,
-            fileIv: this.state.decryptedMessage.fileIv,
-            mediaUri: this.state.mediaUri,
-            sentAt: this.props.item.sent_at,
-            rawMessageLength: Buffer.byteLength(this.props.item.message, 'utf8'),
-            isSent: this.props.isSent,
-        });
+        const msg = this.state.decryptedMessage;
+        if (msg) {
+            this.props.onLongPress({
+                messageId: this.props.item.id,
+                conversationId: this.props.conversationId,
+                type: msg.type,
+                text: msg.message,
+                objectKey: msg.objectKey,
+                fileKey: msg.fileKey,
+                fileIv: msg.fileIv,
+                mediaUri: this.state.mediaUri,
+                sentAt: this.props.item.sent_at,
+                rawMessageLength: Buffer.byteLength(this.props.item.message, 'utf8'),
+                isSent: this.props.isSent,
+            });
+        } else {
+            this.props.onLongPress({
+                messageId: this.props.item.id,
+                conversationId: this.props.conversationId,
+                type: 'MSG',
+                text: this.props.item.message,
+                sentAt: this.props.item.sent_at,
+                rawMessageLength: Buffer.byteLength(this.props.item.message, 'utf8'),
+                isSent: this.props.isSent,
+            });
+        }
     };
 
     decryptMessage = async (item: message): Promise<decryptedMessage> => {

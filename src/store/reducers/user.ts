@@ -315,6 +315,29 @@ export const userSlice = createSlice({
                 logger.error('Error saving key rotation system message to SQLite:', err);
             }
         },
+        SELF_KEY_ROTATED: (state, action: PayloadAction<{ publicKey: string }>) => {
+            state.user_data.public_key = action.payload.publicKey;
+            const now = new Date().toISOString();
+            for (const [phoneNo, conversation] of state.conversations) {
+                const systemMsg: message = {
+                    id: -Date.now(),
+                    message: 'You changed your identity keys. Previous encrypted messages can no longer be read.',
+                    sent_at: now,
+                    seen: true,
+                    reciever: phoneNo,
+                    reciever_id: conversation.other_user.id,
+                    sender: state.user_data.phone_no,
+                    sender_id: state.user_data.id,
+                    system: true,
+                };
+                conversation.messages = [systemMsg, ...conversation.messages];
+                try {
+                    dbSaveMessage(systemMsg, phoneNo);
+                } catch (err) {
+                    logger.error('Error saving self key rotation system message to SQLite:', err);
+                }
+            }
+        },
         CONTACT_STATUS: (
             state,
             action: PayloadAction<{ user_id: number; phone_no: string; online: boolean; last_seen: string }>,
@@ -374,6 +397,7 @@ export const {
     DELETE_MESSAGE,
     APPEND_OLDER_MESSAGES,
     KEY_ROTATED,
+    SELF_KEY_ROTATED,
     CONTACT_STATUS,
     RECV_CALL_OFFER,
     TURN_CREDS,

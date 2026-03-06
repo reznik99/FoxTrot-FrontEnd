@@ -27,6 +27,7 @@ import {
     LOAD_CONVERSATIONS,
     message,
     RECV_MESSAGE,
+    SELF_KEY_ROTATED,
     SEND_MESSAGE,
     SET_LOADING,
     SYNC_FROM_STORAGE,
@@ -113,6 +114,7 @@ export const generateAndSyncKeys = createDefaultAsyncThunk<boolean>('generateAnd
         // Re-derive all session keys with the new private key
         if (hasExistingKeys) {
             await thunkAPI.dispatch(loadContacts({ forceDerive: true }));
+            thunkAPI.dispatch(SELF_KEY_ROTATED({ publicKey: keys.publicKey }));
         }
 
         return true;

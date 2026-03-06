@@ -29,7 +29,6 @@ import {
     RECV_MESSAGE,
     SEND_MESSAGE,
     SET_LOADING,
-    SET_REFRESHING,
     SYNC_FROM_STORAGE,
     TOKEN_VALID,
     TURN_CREDS,
@@ -113,7 +112,7 @@ export const generateAndSyncKeys = createDefaultAsyncThunk<boolean>('generateAnd
 
         // Re-derive all session keys with the new private key
         if (hasExistingKeys) {
-            await thunkAPI.dispatch(loadContacts({ atomic: false, forceDerive: true }));
+            await thunkAPI.dispatch(loadContacts({ forceDerive: true }));
         }
 
         return true;
@@ -199,8 +198,6 @@ export const loadContactsFromDisk = createDefaultAsyncThunk('loadContactsFromDis
 
 export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, thunkAPI) => {
     try {
-        thunkAPI.dispatch(SET_REFRESHING(true));
-
         const { user_data, token } = thunkAPI.getState().userReducer;
 
         // Check last time we hit the API for messages
@@ -237,6 +234,8 @@ export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, th
             }
             const convo = conversations.get(peer.phone_no);
             if (convo) {
+                // Skip duplicates (message may have arrived via WebSocket while API call was in flight)
+                if (convo.messages.some(m => m.id === msg.id)) return;
                 conversations.set(peer.phone_no, {
                     other_user: convo.other_user,
                     messages: [msg, ...convo.messages],
@@ -268,102 +267,96 @@ export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, th
             text2: err.message ?? err.toString(),
             visibilityTime: 5000,
         });
-    } finally {
-        thunkAPI.dispatch(SET_REFRESHING(false));
     }
 });
 
 export const loadContacts = createDefaultAsyncThunk(
     'loadContacts',
-    async ({ atomic, forceDerive }: { atomic: boolean; forceDerive?: boolean }, thunkAPI) => {
-    try {
-        thunkAPI.dispatch(SET_REFRESHING(true));
-        const state = thunkAPI.getState().userReducer;
+    async ({ forceDerive }: { forceDerive?: boolean }, thunkAPI) => {
+        try {
+            const state = thunkAPI.getState().userReducer;
 
-        // Build map of known contacts for key-change detection and session key reuse
-        const knownContacts = new Map<string, { public_key: string | null; session_key?: CryptoKey }>();
-        for (const c of state.contacts) {
-            knownContacts.set(String(c.id), { public_key: c.public_key || null, session_key: c.session_key });
-        }
+            // Build map of known contacts for key-change detection and session key reuse
+            const knownContacts = new Map<string, { public_key: string | null; session_key?: CryptoKey }>();
+            for (const c of state.contacts) {
+                knownContacts.set(String(c.id), { public_key: c.public_key || null, session_key: c.session_key });
+            }
 
-        // Fetch fresh contacts from API
-        const response = await axios.get<UserData[]>(`${API_URL}/getContacts`, axiosBearerConfig(state.token));
-        const contacts = await Promise.all<UserData>(
-            response.data.map(async contact => {
-                const known = knownContacts.get(String(contact.id));
-                const keyUnchanged = known && known.public_key === (contact.public_key || null);
+            // Fetch fresh contacts from API
+            const response = await axios.get<UserData[]>(`${API_URL}/getContacts`, axiosBearerConfig(state.token));
+            const contacts = await Promise.all<UserData>(
+                response.data.map(async contact => {
+                    const known = knownContacts.get(String(contact.id));
+                    const keyUnchanged = known && known.public_key === (contact.public_key || null);
 
-                // Reuse existing session key if the public key hasn't changed (and we're not forcing re-derivation)
-                if (!forceDerive && keyUnchanged && known.session_key) {
-                    return {
-                        ...contact,
-                        last_seen: new Date(contact.last_seen).getTime(),
-                        pic: getAvatar(contact.id),
-                        session_key: known.session_key,
-                    };
-                }
+                    // Reuse existing session key if the public key hasn't changed (and we're not forcing re-derivation)
+                    if (!forceDerive && keyUnchanged && known.session_key) {
+                        return {
+                            ...contact,
+                            last_seen: new Date(contact.last_seen).getTime(),
+                            pic: getAvatar(contact.id),
+                            session_key: known.session_key,
+                        };
+                    }
 
-                try {
-                    const session_key = await generateSessionKeyECDH(contact.public_key || '', state.keys?.privateKey);
-                    logger.debug('Generated session key for contact:', contact.phone_no);
-                    return {
-                        ...contact,
-                        last_seen: new Date(contact.last_seen).getTime(),
-                        pic: getAvatar(contact.id),
-                        session_key: session_key,
-                    };
-                } catch (err: any) {
-                    logger.warn('Failed to generate session key:', contact.phone_no, err.message || err);
-                    return { ...contact, last_seen: new Date(contact.last_seen).getTime(), pic: getAvatar(contact.id) };
-                }
-            }),
-        );
+                    try {
+                        const session_key = await generateSessionKeyECDH(contact.public_key || '', state.keys?.privateKey);
+                        logger.debug('Generated session key for contact:', contact.phone_no);
+                        return {
+                            ...contact,
+                            last_seen: new Date(contact.last_seen).getTime(),
+                            pic: getAvatar(contact.id),
+                            session_key: session_key,
+                        };
+                    } catch (err: any) {
+                        logger.warn('Failed to generate session key:', contact.phone_no, err.message || err);
+                        return { ...contact, last_seen: new Date(contact.last_seen).getTime(), pic: getAvatar(contact.id) };
+                    }
+                }),
+            );
 
-        // Detect key changes that happened while offline
-        if (knownContacts.size > 0) {
-            for (const contact of contacts) {
-                const known = knownContacts.get(String(contact.id));
-                if (known && known.public_key !== (contact.public_key || null)) {
-                    logger.info('Detected offline key change for:', contact.phone_no);
-                    const systemMsg: message = {
-                        id: -(Date.now() + Math.floor(Math.random() * 10000)),
-                        message: `${contact.phone_no} changed their security key while you were offline. Verify their identity if this was unexpected.`,
-                        sent_at: new Date().toISOString(),
-                        seen: true,
-                        reciever: state.user_data.phone_no,
-                        reciever_id: state.user_data.id,
-                        sender: contact.phone_no,
-                        sender_id: contact.id,
-                        system: true,
-                    };
-                    thunkAPI.dispatch(RECV_MESSAGE(systemMsg));
+            // Detect key changes that happened while offline
+            if (knownContacts.size > 0) {
+                for (const contact of contacts) {
+                    const known = knownContacts.get(String(contact.id));
+                    if (known && known.public_key !== (contact.public_key || null)) {
+                        logger.info('Detected offline key change for:', contact.phone_no);
+                        const systemMsg: message = {
+                            id: -(Date.now() + Math.floor(Math.random() * 10000)),
+                            message: `${contact.phone_no} changed their security key while you were offline. Verify their identity if this was unexpected.`,
+                            sent_at: new Date().toISOString(),
+                            seen: true,
+                            reciever: state.user_data.phone_no,
+                            reciever_id: state.user_data.id,
+                            sender: contact.phone_no,
+                            sender_id: contact.id,
+                            system: true,
+                        };
+                        thunkAPI.dispatch(RECV_MESSAGE(systemMsg));
+                    }
                 }
             }
-        }
 
-        // Update Redux with fresh contacts
-        thunkAPI.dispatch(LOAD_CONTACTS(contacts));
+            // Update Redux with fresh contacts
+            thunkAPI.dispatch(LOAD_CONTACTS(contacts));
 
-        // Persist to SQLite for future key-change detection and fast disk load
-        try {
-            dbSaveContacts(contacts.map(c => ({ id: c.id, phone_no: c.phone_no, public_key: c.public_key })));
-        } catch (err) {
-            logger.warn('Failed to persist contacts to SQLite:', err);
+            // Persist to SQLite for future key-change detection and fast disk load
+            try {
+                dbSaveContacts(contacts.map(c => ({ id: c.id, phone_no: c.phone_no, public_key: c.public_key })));
+            } catch (err) {
+                logger.warn('Failed to persist contacts to SQLite:', err);
+            }
+        } catch (err: any) {
+            logger.error('Error loading contacts:', err);
+            Toast.show({
+                type: 'error',
+                text1: 'Error loading contacts',
+                text2: err.message ?? err.toString(),
+                visibilityTime: 5000,
+            });
         }
-    } catch (err: any) {
-        logger.error('Error loading contacts:', err);
-        Toast.show({
-            type: 'error',
-            text1: 'Error loading contacts',
-            text2: err.message ?? err.toString(),
-            visibilityTime: 5000,
-        });
-    } finally {
-        if (atomic) {
-            thunkAPI.dispatch(SET_REFRESHING(false));
-        }
-    }
-});
+    },
+);
 
 export const addContact = createDefaultAsyncThunk('addContact', async ({ user }: { user: UserData }, thunkAPI) => {
     try {

@@ -34,10 +34,9 @@ export default function Home() {
     const insets = useSafeAreaInsets();
     const { colors } = useTheme();
     const [loadingMsg, setLoadingMsg] = useState('');
+    const [refreshing, setRefreshing] = useState(false);
 
     const conversations = useSelector((state: RootState) => state.userReducer.conversations);
-    const loading = useSelector((state: RootState) => state.userReducer.loading);
-    const refreshing = useSelector((state: RootState) => state.userReducer.refreshing);
     const socketStatus = useSelector((state: RootState) => state.userReducer.socketStatus);
     const socketErr = useSelector((state: RootState) => state.userReducer.socketErr);
 
@@ -90,7 +89,7 @@ export default function Home() {
             await Promise.all([store.dispatch(loadMessagesFromDisk()), store.dispatch(loadContactsFromDisk())]);
             setLoadingMsg('');
             // Fetch fresh data from API in background
-            await Promise.all([store.dispatch(loadContacts({ atomic: false })), store.dispatch(loadMessages())]);
+            await Promise.all([store.dispatch(loadContacts({})), store.dispatch(loadMessages())]);
         };
 
         // [background] Register Call Screen handler
@@ -143,9 +142,10 @@ export default function Home() {
         };
     }, [navigation]);
 
-    const onRefresh = useCallback(() => {
-        store.dispatch(loadContacts({ atomic: false }));
-        store.dispatch(loadMessages());
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await Promise.all([store.dispatch(loadContacts({})), store.dispatch(loadMessages())]);
+        setRefreshing(false);
     }, []);
 
     const renderListEmpty = useCallback(
@@ -171,7 +171,6 @@ export default function Home() {
 
     return (
         <View style={globalStyle.wrapper}>
-            {loading && <ActivityIndicator style={styles.inlineLoader} size="small" />}
             {socketStatus === 'reconnecting' && (
                 <Snackbar visible={true} style={styles.snackbar} onDismiss={() => {}}>
                     Reconnecting to server...
@@ -222,9 +221,6 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
         top: '40%',
         opacity: 0.08,
-    },
-    inlineLoader: {
-        paddingVertical: 6,
     },
     snackbar: {
         zIndex: 100,

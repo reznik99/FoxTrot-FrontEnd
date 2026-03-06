@@ -68,5 +68,5 @@ export async function importKeysFromFile(password: string, phoneNo: string): Pro
 
     // Regenerate per-conversation session keys (ECDH)
     logger.debug('Regenerating conversation encryption keys...');
-    await store.dispatch(loadContacts({ atomic: true }));
+    await store.dispatch(loadContacts({ forceDerive: true }));
 }

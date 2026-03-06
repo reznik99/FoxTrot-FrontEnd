@@ -27,7 +27,6 @@ export interface State {
     callOffer?: RTCSessionDescription;
     turnServerCredentials: TURNCredentials;
     loading: boolean;
-    refreshing: boolean;
     loginErr: string;
     signupErr: string;
 }
@@ -100,7 +99,6 @@ const initialState: State = {
         credential: '',
     },
     loading: false,
-    refreshing: false,
     loginErr: '',
     signupErr: '',
 };
@@ -147,9 +145,6 @@ export const userSlice = createSlice({
         },
         SET_LOADING: (state, action: PayloadAction<boolean>) => {
             state.loading = action.payload;
-        },
-        SET_REFRESHING: (state, action: PayloadAction<boolean>) => {
-            state.refreshing = action.payload;
         },
         SEND_MESSAGE: (state, action: PayloadAction<{ sender: UserData; reciever: UserData; rawMessage: message }>) => {
             const reciever = action.payload.reciever;
@@ -372,7 +367,6 @@ export const {
     LOGIN_ERROR_MSG,
     SIGNUP_ERROR_MSG,
     SET_LOADING,
-    SET_REFRESHING,
     SEND_MESSAGE,
     RECV_MESSAGE,
     UPDATE_MESSAGE_DECRYPTED,

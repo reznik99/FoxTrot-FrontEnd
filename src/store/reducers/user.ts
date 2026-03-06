@@ -268,6 +268,25 @@ export const userSlice = createSlice({
                 conversation.messages = [...conversation.messages, ...messages];
             }
         },
+        CONTACT_STATUS: (
+            state,
+            action: PayloadAction<{ user_id: number; phone_no: string; online: boolean; last_seen: string }>,
+        ) => {
+            const { phone_no, online, last_seen } = action.payload;
+            const lastSeenMs = new Date(last_seen).getTime();
+
+            const contact = state.contacts.find(c => c.phone_no === phone_no);
+            if (contact) {
+                contact.online = online;
+                contact.last_seen = lastSeenMs;
+            }
+
+            const conversation = state.conversations.get(phone_no);
+            if (conversation) {
+                conversation.other_user.online = online;
+                conversation.other_user.last_seen = lastSeenMs;
+            }
+        },
         RECV_CALL_OFFER: (state, action: PayloadAction<{ offer: RTCSessionDescription; caller: UserData }>) => {
             state.callOffer = action.payload?.offer;
             state.caller = action.payload?.caller;
@@ -308,6 +327,7 @@ export const {
     MARK_MESSAGES_SEEN,
     DELETE_MESSAGE,
     APPEND_OLDER_MESSAGES,
+    CONTACT_STATUS,
     RECV_CALL_OFFER,
     TURN_CREDS,
     WEBSOCKET_STATUS,

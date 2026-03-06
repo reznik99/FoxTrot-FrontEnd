@@ -43,11 +43,7 @@ export const syncImportedPublicKey = createDefaultAsyncThunk<void, { publicKey: 
     'syncImportedPublicKey',
     async ({ publicKey }, thunkAPI) => {
         const state = thunkAPI.getState().userReducer;
-        await axios.post(
-            `${API_URL}/savePublicKey`,
-            { publicKey, force: true },
-            axiosBearerConfig(state.token),
-        );
+        await axios.post(`${API_URL}/savePublicKey`, { publicKey, force: true }, axiosBearerConfig(state.token));
         thunkAPI.dispatch(SELF_KEY_ROTATED({ publicKey }));
     },
 );

@@ -198,7 +198,7 @@ export default function Home() {
                 data={convos}
                 keyExtractor={(item, index) => item.other_user.phone_no || String(index)}
                 renderItem={({ item }) => <ConversationPeek data={item} navigation={navigation} />}
-                ItemSeparatorComponent={() => <Divider style={styles.divider} />}
+                ItemSeparatorComponent={InsetDivider}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                 ListEmptyComponent={renderListEmpty}
             />
@@ -215,6 +215,8 @@ export default function Home() {
         </View>
     );
 }
+
+const InsetDivider = () => <Divider style={styles.divider} />;
 
 const styles = StyleSheet.create({
     watermark: {

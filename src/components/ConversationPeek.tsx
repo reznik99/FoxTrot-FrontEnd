@@ -118,7 +118,11 @@ export default function ConversationPeek(props: IProps) {
                         if (preview.icon) {
                             return (
                                 <View style={styles.previewRow}>
-                                    <Icon source={preview.icon} size={14} color={isSystem ? WARNING_AMBER : colors.primary} />
+                                    <Icon
+                                        source={preview.icon}
+                                        size={14}
+                                        color={isSystem ? WARNING_AMBER : colors.primary}
+                                    />
                                     <Text
                                         style={[
                                             globalStyle.textInfo,

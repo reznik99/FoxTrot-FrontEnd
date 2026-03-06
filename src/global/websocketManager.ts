@@ -7,6 +7,7 @@ import QuickCrypto from 'react-native-quick-crypto';
 import Toast from 'react-native-toast-message';
 
 import * as callManager from '~/global/callManager';
+import { generateSessionKeyECDH } from '~/global/crypto';
 import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { navigationRef } from '~/global/navigation';
@@ -14,10 +15,16 @@ import { VibratePattern, WEBSOCKET_URL } from '~/global/variables';
 import { loadMessages } from '~/store/actions/user';
 import { store } from '~/store/store';
 
-export interface SocketData {
-    cmd: 'MSG' | 'CALL_OFFER' | 'CALL_ICE_CANDIDATE' | 'CALL_ANSWER';
-    data: SocketMessage;
+export interface ContactStatusPayload {
+    user_id: number;
+    phone_no: string;
+    online: boolean;
+    last_seen: string;
 }
+
+export type SocketData =
+  | { cmd: 'MSG' | 'CALL_OFFER' | 'CALL_ICE_CANDIDATE' | 'CALL_ANSWER'; data: SocketMessage }
+  | { cmd: 'CONTACT_STATUS'; data: ContactStatusPayload };
 
 export interface SocketMessage {
     sender: string;
@@ -332,8 +339,11 @@ function handleSocketMessage(data: any) {
                 logger.debug('[Websocket] RECV_CALL_ICE_CANDIDATE Recieved', parsedData.data?.sender);
                 callManager.onIceCandidate(parsedData.data?.candidate);
                 break;
+            case 'CONTACT_STATUS':
+                store.dispatch({ type: 'user/CONTACT_STATUS', payload: parsedData.data });
+                break;
             default:
-                logger.debug('[Websocket] RECV unknown command from', parsedData.data?.sender, parsedData.cmd);
+                logger.debug('[Websocket] RECV unknown command:', data);
         }
     } catch (err: any) {
         logger.error('[Websocket] RECV error:', err);

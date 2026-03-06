@@ -27,7 +27,6 @@ export interface State {
     callOffer?: RTCSessionDescription;
     turnServerCredentials: TURNCredentials;
     loading: boolean;
-    refreshing: boolean;
     loginErr: string;
     signupErr: string;
 }
@@ -57,6 +56,7 @@ export interface message {
     sender: string;
     sender_id: string | number;
     is_decrypted?: boolean;
+    system?: boolean;
 }
 
 export interface CallRecord {
@@ -99,7 +99,6 @@ const initialState: State = {
         credential: '',
     },
     loading: false,
-    refreshing: false,
     loginErr: '',
     signupErr: '',
 };
@@ -146,9 +145,6 @@ export const userSlice = createSlice({
         },
         SET_LOADING: (state, action: PayloadAction<boolean>) => {
             state.loading = action.payload;
-        },
-        SET_REFRESHING: (state, action: PayloadAction<boolean>) => {
-            state.refreshing = action.payload;
         },
         SEND_MESSAGE: (state, action: PayloadAction<{ sender: UserData; reciever: UserData; rawMessage: message }>) => {
             const reciever = action.payload.reciever;
@@ -268,6 +264,57 @@ export const userSlice = createSlice({
                 conversation.messages = [...conversation.messages, ...messages];
             }
         },
+        KEY_ROTATED: (
+            state,
+            action: PayloadAction<{ user_id: number; phone_no: string; public_key: string; session_key: CryptoKey }>,
+        ) => {
+            const { phone_no, public_key, session_key } = action.payload;
+
+            const contact = state.contacts.find(c => c.phone_no === phone_no);
+            if (contact) {
+                contact.public_key = public_key;
+                contact.session_key = session_key;
+            }
+
+            const conversation = state.conversations.get(phone_no);
+            if (conversation) {
+                conversation.other_user.public_key = public_key;
+                conversation.other_user.session_key = session_key;
+            }
+
+            // Insert a system message warning about the key change
+            const systemMsg: message = {
+                id: -Date.now(),
+                message: `${phone_no} changed their security key. Verify their identity if this was unexpected.`,
+                sent_at: new Date().toISOString(),
+                seen: true,
+                reciever: state.user_data.phone_no,
+                reciever_id: state.user_data.id,
+                sender: phone_no,
+                sender_id: action.payload.user_id,
+                system: true,
+            };
+            if (conversation) {
+                conversation.messages = [systemMsg, ...conversation.messages];
+            } else {
+                const peer: UserData = {
+                    id: action.payload.user_id,
+                    phone_no,
+                    last_seen: Date.now(),
+                    online: true,
+                    pic: getAvatar(action.payload.user_id),
+                    public_key,
+                    session_key,
+                };
+                state.conversations.set(phone_no, { other_user: peer, messages: [systemMsg] });
+            }
+            // Persist system message to SQLite
+            try {
+                dbSaveMessage(systemMsg, phone_no);
+            } catch (err) {
+                logger.error('Error saving key rotation system message to SQLite:', err);
+            }
+        },
         CONTACT_STATUS: (
             state,
             action: PayloadAction<{ user_id: number; phone_no: string; online: boolean; last_seen: string }>,
@@ -320,13 +367,13 @@ export const {
     LOGIN_ERROR_MSG,
     SIGNUP_ERROR_MSG,
     SET_LOADING,
-    SET_REFRESHING,
     SEND_MESSAGE,
     RECV_MESSAGE,
     UPDATE_MESSAGE_DECRYPTED,
     MARK_MESSAGES_SEEN,
     DELETE_MESSAGE,
     APPEND_OLDER_MESSAGES,
+    KEY_ROTATED,
     CONTACT_STATUS,
     RECV_CALL_OFFER,
     TURN_CREDS,

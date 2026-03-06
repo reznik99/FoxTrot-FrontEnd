@@ -10,7 +10,7 @@ import { DB_MSG_PAGE_SIZE } from './variables';
 
 const DB_NAME = 'foxtrot.db';
 export const DB_KEY_SERVICE = 'foxtrot-db-key';
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 // SQLite database is encrypted using SQLCipher (AES-256-CBC with HMAC-SHA512).
 // Key: 32 bytes (256-bit), stored in device Keychain.
@@ -46,7 +46,7 @@ async function getOrCreateDbKey(): Promise<string> {
             return credentials.password;
         }
     } catch (err) {
-        logger.debug('No existing database key found, generating new one');
+        logger.debug('[SQLite] No existing database key found, generating new one');
     }
 
     const keyBytes = QuickCrypto.getRandomValues(new Uint8Array(32));
@@ -57,7 +57,7 @@ async function getOrCreateDbKey(): Promise<string> {
         storage: Keychain.STORAGE_TYPE.AES_GCM_NO_AUTH,
     });
 
-    logger.debug('Generated and stored new database encryption key');
+    logger.debug('[SQLite] Generated and stored new database encryption key');
     return key;
 }
 
@@ -72,7 +72,7 @@ export async function getDb(): Promise<DB> {
 
     const encryptionKey = await getOrCreateDbKey();
     db = open({ name: DB_NAME, encryptionKey });
-    logger.debug('Database opened');
+    logger.debug('[SQLite]', DB_NAME, 'opened');
 
     initializeSchema();
     return db;
@@ -82,7 +82,7 @@ export function closeDb(): void {
     if (db) {
         db.close();
         db = null;
-        logger.debug('Database closed');
+        logger.debug('[SQLite] Database closed');
     }
 }
 
@@ -90,7 +90,7 @@ export function deleteDb(): void {
     if (db) {
         db.delete();
         db = null;
-        logger.debug('Database deleted');
+        logger.debug('[SQLite] Database deleted');
     }
 }
 
@@ -112,7 +112,7 @@ function initializeSchema(): void {
         return;
     }
 
-    logger.debug('Initializing database schema version', SCHEMA_VERSION);
+    logger.debug('[SQLite] Initializing database schema version', SCHEMA_VERSION, 'from', currentVersion);
 
     // Messages table - matches the `message` interface from reducers
     database.executeSync(`
@@ -126,7 +126,8 @@ function initializeSchema(): void {
             sender TEXT NOT NULL,
             sender_id TEXT NOT NULL,
             conversation_id TEXT NOT NULL,
-            is_decrypted INTEGER DEFAULT 0
+            is_decrypted INTEGER DEFAULT 0,
+            system INTEGER DEFAULT 0
         )
     `);
     database.executeSync(`
@@ -144,6 +145,15 @@ function initializeSchema(): void {
             peer_pic TEXT,
             peer_last_seen INTEGER DEFAULT 0,
             updated_at INTEGER NOT NULL
+        )
+    `);
+
+    // Contacts table - stores contacts for offline key change detection
+    database.executeSync(`
+        CREATE TABLE IF NOT EXISTS contacts (
+            id TEXT PRIMARY KEY,
+            phone_no TEXT NOT NULL,
+            public_key TEXT
         )
     `);
 
@@ -167,13 +177,22 @@ function initializeSchema(): void {
         ON calls(started_at DESC)
     `);
 
+    // Migration from v2 to v3: add system column and contacts table
+    if (currentVersion !== undefined && currentVersion < 3) {
+        try {
+            database.executeSync('ALTER TABLE messages ADD COLUMN system INTEGER DEFAULT 0');
+        } catch (_) {
+            // Column may already exist
+        }
+    }
+
     if (currentVersion === undefined) {
         database.executeSync('INSERT INTO schema_version (version) VALUES (?)', [SCHEMA_VERSION]);
     } else {
         database.executeSync('UPDATE schema_version SET version = ?', [SCHEMA_VERSION]);
     }
 
-    logger.debug('Database schema initialized');
+    logger.debug('[SQLite] Database schema initialized');
 }
 
 // Messages
@@ -186,7 +205,7 @@ export function dbSaveMessages(messages: message[], conversationId: string): voi
     if (messages.length === 0) return;
 
     const database = requireDb();
-    const placeholders = messages.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, 0)').join(', ');
+    const placeholders = messages.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)').join(', ');
     const params = messages.flatMap(msg => [
         msg.id,
         msg.message,
@@ -197,11 +216,12 @@ export function dbSaveMessages(messages: message[], conversationId: string): voi
         msg.sender,
         String(msg.sender_id),
         conversationId,
+        msg.system ? 1 : 0,
     ]);
 
     database.executeSync(
         `INSERT OR REPLACE INTO messages
-         (id, message, sent_at, seen, receiver, receiver_id, sender, sender_id, conversation_id, is_decrypted)
+         (id, message, sent_at, seen, receiver, receiver_id, sender, sender_id, conversation_id, is_decrypted, system)
          VALUES ${placeholders}`,
         params,
     );
@@ -211,12 +231,12 @@ export function dbGetMessages(conversationId: string, limit = DB_MSG_PAGE_SIZE, 
     const database = requireDb();
 
     const result = database.executeSync(
-        `SELECT id, message, sent_at, seen, receiver, receiver_id, sender, sender_id, is_decrypted
+        `SELECT id, message, sent_at, seen, receiver, receiver_id, sender, sender_id, is_decrypted, system
          FROM messages WHERE conversation_id = ?
          ORDER BY datetime(sent_at) DESC LIMIT ? OFFSET ?`,
         [conversationId, limit, offset],
     );
-    logger.debug('Loaded', result.rows.length, 'messages from database');
+    logger.debug('[SQLite] Loaded', result.rows.length, 'messages');
     return (result.rows || []).map(row => ({
         id: row.id as number,
         message: row.message as string,
@@ -227,6 +247,7 @@ export function dbGetMessages(conversationId: string, limit = DB_MSG_PAGE_SIZE, 
         sender: row.sender as string,
         sender_id: row.sender_id as string,
         is_decrypted: Boolean(row.is_decrypted),
+        system: Boolean(row.system),
     }));
 }
 
@@ -284,7 +305,7 @@ export function dbGetConversations(): Array<{ other_user: UserData; messageCount
         GROUP BY c.id
         ORDER BY c.updated_at DESC
     `);
-
+    logger.debug('[SQLite] Loaded', result.rows.length, 'conversations');
     return (result.rows || []).map(row => ({
         other_user: {
             id: row.peer_id as string,
@@ -390,4 +411,26 @@ export function dbDeleteCalls(ids: number[]): void {
     const database = requireDb();
     const placeholders = ids.map(() => '?').join(',');
     database.executeSync(`DELETE FROM calls WHERE id IN (${placeholders})`, ids);
+}
+
+// Contacts (for offline key change detection)
+
+export function dbSaveContacts(contacts: Array<{ id: string | number; phone_no: string; public_key?: string }>): void {
+    if (contacts.length === 0) return;
+    const database = requireDb();
+
+    const placeholders = contacts.map(() => '(?, ?, ?)').join(', ');
+    const params = contacts.flatMap(c => [String(c.id), c.phone_no, c.public_key || null]);
+    database.executeSync(`INSERT OR REPLACE INTO contacts (id, phone_no, public_key) VALUES ${placeholders}`, params);
+}
+
+export function dbGetStoredContacts(): Array<{ id: string; phone_no: string; public_key: string | null }> {
+    const database = requireDb();
+    const result = database.executeSync('SELECT id, phone_no, public_key FROM contacts');
+    logger.debug('[SQLite] Loaded', result.rows.length, 'contacts');
+    return (result.rows || []).map(row => ({
+        id: row.id as string,
+        phone_no: row.phone_no as string,
+        public_key: (row.public_key as string) || null,
+    }));
 }

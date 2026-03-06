@@ -7,6 +7,7 @@ import QuickCrypto from 'react-native-quick-crypto';
 import Toast from 'react-native-toast-message';
 
 import * as callManager from '~/global/callManager';
+import { generateSessionKeyECDH } from '~/global/crypto';
 import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { navigationRef } from '~/global/navigation';
@@ -21,9 +22,16 @@ export interface ContactStatusPayload {
     last_seen: string;
 }
 
+export interface KeyRotatedPayload {
+    user_id: number;
+    phone_no: string;
+    public_key: string;
+}
+
 export type SocketData =
     | { cmd: 'MSG' | 'CALL_OFFER' | 'CALL_ICE_CANDIDATE' | 'CALL_ANSWER'; data: SocketMessage }
-    | { cmd: 'CONTACT_STATUS'; data: ContactStatusPayload };
+    | { cmd: 'CONTACT_STATUS'; data: ContactStatusPayload }
+    | { cmd: 'KEY_ROTATED'; data: KeyRotatedPayload };
 
 export interface SocketMessage {
     sender: string;
@@ -277,7 +285,7 @@ function handleSocketError(err: any) {
     store.dispatch({ type: 'user/WEBSOCKET_ERROR', payload: message });
 }
 
-function handleSocketMessage(data: any) {
+async function handleSocketMessage(data: any) {
     try {
         const parsedData: SocketData = JSON.parse(data);
         switch (parsedData.cmd) {
@@ -341,6 +349,13 @@ function handleSocketMessage(data: any) {
             case 'CONTACT_STATUS':
                 store.dispatch({ type: 'user/CONTACT_STATUS', payload: parsedData.data });
                 break;
+            case 'KEY_ROTATED': {
+                logger.info('[Websocket] KEY_ROTATED from', parsedData.data.phone_no);
+                const { keys } = store.getState().userReducer;
+                const sessionKey = await generateSessionKeyECDH(parsedData.data.public_key, keys?.privateKey);
+                store.dispatch({ type: 'user/KEY_ROTATED', payload: { ...parsedData.data, session_key: sessionKey } });
+                break;
+            }
             default:
                 logger.debug('[Websocket] RECV unknown command:', data);
         }

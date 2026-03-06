@@ -46,7 +46,11 @@ export default function KeySetup() {
     const handleGenerate = useCallback(async () => {
         Alert.alert(
             'Generate New Keys',
-            'This will create a new identity keypair. If you already have keys on another device, those sessions will no longer work.\n\nContinue?',
+            'This will create a new identity keypair.\n\n' +
+                "- Messages you haven't opened yet will become unreadable\n" +
+                '- Sessions on other devices will stop working\n' +
+                '- Your contacts will be notified of the key change\n\n' +
+                'Continue?',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {

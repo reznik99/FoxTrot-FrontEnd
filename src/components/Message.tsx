@@ -366,8 +366,24 @@ export default class Message extends PureComponent<MProps, MState> {
 
     render = () => {
         const { item, isSent } = this.props;
-        const isEncrypted = !this.state.decryptedMessage;
         const sent_at = new Date(item.sent_at);
+
+        // System messages render with a distinct centered style
+        if (item.system) {
+            return (
+                <View style={styles.systemMessageContainer}>
+                    <Icon source="shield-alert" color="#E0A500" size={16} />
+                    <Text style={styles.systemMessageText}>{item.message}</Text>
+                    <Text style={styles.systemMessageTime}>
+                        {sent_at.toLocaleDateString() === todaysDate
+                            ? sent_at.toLocaleTimeString()
+                            : `${sent_at.toLocaleDateString()} ${sent_at.toLocaleTimeString()}`}
+                    </Text>
+                </View>
+            );
+        }
+
+        const isEncrypted = !this.state.decryptedMessage;
 
         return (
             <Pressable
@@ -499,5 +515,29 @@ const styles = StyleSheet.create({
     encryptedTextReceived: {
         color: TEXT_SECONDARY,
         fontSize: 14,
+    },
+    systemMessageContainer: {
+        alignSelf: 'center',
+        alignItems: 'center',
+        backgroundColor: '#2a2a2e',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E0A50040',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        marginVertical: 8,
+        maxWidth: '85%',
+        gap: 4,
+    },
+    systemMessageText: {
+        color: '#E0A500',
+        fontSize: 13,
+        textAlign: 'center',
+        lineHeight: 18,
+    },
+    systemMessageTime: {
+        color: TEXT_MUTED,
+        fontSize: 11,
+        marginTop: 2,
     },
 });

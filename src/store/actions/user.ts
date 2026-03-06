@@ -39,6 +39,19 @@ import { AppDispatch, RootState } from '~/store/store';
 
 const createDefaultAsyncThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: AppDispatch }>();
 
+export const syncImportedPublicKey = createDefaultAsyncThunk<void, { publicKey: string }>(
+    'syncImportedPublicKey',
+    async ({ publicKey }, thunkAPI) => {
+        const state = thunkAPI.getState().userReducer;
+        await axios.post(
+            `${API_URL}/savePublicKey`,
+            { publicKey, force: true },
+            axiosBearerConfig(state.token),
+        );
+        thunkAPI.dispatch(SELF_KEY_ROTATED({ publicKey }));
+    },
+);
+
 export const loadKeys = createDefaultAsyncThunk('loadKeys', async (_, thunkAPI) => {
     try {
         thunkAPI.dispatch(SET_LOADING(true));

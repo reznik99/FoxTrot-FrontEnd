@@ -8,7 +8,7 @@ import { deriveKeyFromPassword } from '~/global/crypto';
 import { logger } from '~/global/logger';
 import { getReadExtPermission } from '~/global/permissions';
 import { API_URL } from '~/global/variables';
-import { loadContacts, loadKeys } from '~/store/actions/user';
+import { loadContacts, loadKeys, syncImportedPublicKey } from '~/store/actions/user';
 import { store } from '~/store/store';
 
 /**
@@ -59,12 +59,19 @@ export async function importKeysFromFile(password: string, phoneNo: string): Pro
         service: `${phoneNo}-keys`,
     });
 
+    // Parse the public key from the decrypted keypair
+    const parsedKeys = JSON.parse(Buffer.from(decryptedKeys).toString());
+
     // Load into Redux
     logger.debug('Loading keys into app...');
     const success = await store.dispatch(loadKeys()).unwrap();
     if (!success) {
         throw new Error('Failed to load imported keys into app');
     }
+
+    // Sync public key to server and notify contacts if it changed
+    logger.debug('Syncing imported public key to server...');
+    await store.dispatch(syncImportedPublicKey({ publicKey: parsedKeys.publicKey })).unwrap();
 
     // Regenerate per-conversation session keys (ECDH)
     logger.debug('Regenerating conversation encryption keys...');

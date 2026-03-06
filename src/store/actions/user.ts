@@ -2,6 +2,7 @@ import { getMessaging, getToken, registerDeviceForRemoteMessages } from '@react-
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import * as Keychain from 'react-native-keychain';
+import type { CryptoKey } from 'react-native-quick-crypto/src/keys/classes';
 import Toast from 'react-native-toast-message';
 
 import { encrypt, exportKeypair, generateIdentityKeypair, generateSessionKeyECDH, importKeypair } from '~/global/crypto';
@@ -12,7 +13,6 @@ import {
     dbSaveContacts,
     dbSaveConversation,
     dbSaveMessage,
-    getDb,
 } from '~/global/database';
 import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
@@ -139,8 +139,6 @@ export const loadMessagesFromDisk = createDefaultAsyncThunk('loadMessagesFromDis
         const state = thunkAPI.getState().userReducer;
         if (state.conversations.size) return;
 
-        await getDb();
-
         const conversations = new Map<string, Conversation>();
         for (const conv of dbGetConversations()) {
             const fullConv = dbGetConversation(conv.other_user.phone_no);
@@ -151,7 +149,6 @@ export const loadMessagesFromDisk = createDefaultAsyncThunk('loadMessagesFromDis
 
         if (conversations.size) {
             thunkAPI.dispatch(LOAD_CONVERSATIONS(conversations));
-            logger.debug('Loaded', conversations.size, 'conversations from SQLite');
         }
     } catch (err: any) {
         logger.error('Error loading messages from disk:', err);
@@ -162,8 +159,6 @@ export const loadContactsFromDisk = createDefaultAsyncThunk('loadContactsFromDis
     try {
         const state = thunkAPI.getState().userReducer;
         if (state.contacts.length) return;
-
-        await getDb();
 
         const cached = dbGetStoredContacts();
         if (!cached.length) return;
@@ -207,9 +202,6 @@ export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, th
         thunkAPI.dispatch(SET_REFRESHING(true));
 
         const { user_data, token } = thunkAPI.getState().userReducer;
-
-        // Initialize database
-        await getDb();
 
         // Check last time we hit the API for messages
         const cachedLastChecked = (await readFromStorage(`messages-${user_data.id}-last-checked`)) || '0';
@@ -286,16 +278,29 @@ export const loadContacts = createDefaultAsyncThunk('loadContacts', async ({ ato
         thunkAPI.dispatch(SET_REFRESHING(true));
         const state = thunkAPI.getState().userReducer;
 
-        // Build map of known public keys for key-change detection
-        const knownKeys = new Map<string, string | null>();
+        // Build map of known contacts for key-change detection and session key reuse
+        const knownContacts = new Map<string, { public_key: string | null; session_key?: CryptoKey }>();
         for (const c of state.contacts) {
-            knownKeys.set(String(c.id), c.public_key || null);
+            knownContacts.set(String(c.id), { public_key: c.public_key || null, session_key: c.session_key });
         }
 
         // Fetch fresh contacts from API
         const response = await axios.get<UserData[]>(`${API_URL}/getContacts`, axiosBearerConfig(state.token));
         const contacts = await Promise.all<UserData>(
             response.data.map(async contact => {
+                const known = knownContacts.get(String(contact.id));
+                const keyUnchanged = known && known.public_key === (contact.public_key || null);
+
+                // Reuse existing session key if the public key hasn't changed
+                if (keyUnchanged && known.session_key) {
+                    return {
+                        ...contact,
+                        last_seen: new Date(contact.last_seen).getTime(),
+                        pic: getAvatar(contact.id),
+                        session_key: known.session_key,
+                    };
+                }
+
                 try {
                     const session_key = await generateSessionKeyECDH(contact.public_key || '', state.keys?.privateKey);
                     logger.debug('Generated session key for contact:', contact.phone_no);
@@ -313,10 +318,10 @@ export const loadContacts = createDefaultAsyncThunk('loadContacts', async ({ ato
         );
 
         // Detect key changes that happened while offline
-        if (knownKeys.size > 0) {
+        if (knownContacts.size > 0) {
             for (const contact of contacts) {
-                const previousKey = knownKeys.get(String(contact.id));
-                if (previousKey !== undefined && previousKey !== (contact.public_key || null)) {
+                const known = knownContacts.get(String(contact.id));
+                if (known && known.public_key !== (contact.public_key || null)) {
                     logger.info('Detected offline key change for:', contact.phone_no);
                     const systemMsg: message = {
                         id: -(Date.now() + Math.floor(Math.random() * 10000)),

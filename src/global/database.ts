@@ -305,7 +305,7 @@ export function dbGetConversations(): Array<{ other_user: UserData; messageCount
         GROUP BY c.id
         ORDER BY c.updated_at DESC
     `);
-
+    logger.debug('[SQLite] Loaded', result.rows.length, 'conversations');
     return (result.rows || []).map(row => ({
         other_user: {
             id: row.peer_id as string,

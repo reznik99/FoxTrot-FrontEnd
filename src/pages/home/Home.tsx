@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 
 import ConversationPeek from '~/components/ConversationPeek';
-import { dbSaveCallRecord } from '~/global/database';
+import { dbSaveCallRecord, getDb } from '~/global/database';
 import { logger } from '~/global/logger';
 import { popFromStorage, readFromStorage, StorageKeys } from '~/global/storage';
 import globalStyle from '~/global/style';
@@ -86,6 +86,7 @@ export default function Home() {
 
             // Load cached data from disk (fast, renders immediately)
             setLoadingMsg('Loading keys from TPM...');
+            await getDb();
             await Promise.all([store.dispatch(loadMessagesFromDisk()), store.dispatch(loadContactsFromDisk())]);
             setLoadingMsg('');
             // Fetch fresh data from API in background

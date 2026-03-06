@@ -73,6 +73,8 @@ export default function Home() {
                     });
                 }
             });
+            // Load SQLite databse
+            await getDb();
 
             // Load keys from KeyChain — if none exist, redirect to key setup
             setLoadingMsg('Loading keys from Secure Storage...');
@@ -85,11 +87,12 @@ export default function Home() {
 
             // Load cached data from disk (fast, renders immediately)
             setLoadingMsg('Loading keys from TPM...');
-            await getDb();
             await Promise.all([store.dispatch(loadMessagesFromDisk()), store.dispatch(loadContactsFromDisk())]);
             setLoadingMsg('');
             // Fetch fresh data from API in background
+            setRefreshing(true);
             await Promise.all([store.dispatch(loadContacts({})), store.dispatch(loadMessages())]);
+            setRefreshing(false);
         };
 
         // [background] Register Call Screen handler

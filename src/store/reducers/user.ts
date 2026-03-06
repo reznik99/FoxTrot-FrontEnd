@@ -10,7 +10,7 @@ import {
     dbSaveMessage,
     dbUpdateMessageDecrypted,
 } from '~/global/database';
-import { getAvatar } from '~/global/helper';
+import { generateLocalMessageId, getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { writeToStorage } from '~/global/storage';
 
@@ -284,7 +284,7 @@ export const userSlice = createSlice({
 
             // Insert a system message warning about the key change
             const systemMsg: message = {
-                id: -Date.now(),
+                id: generateLocalMessageId(),
                 message: `${phone_no} changed their security key. Verify their identity if this was unexpected.`,
                 sent_at: new Date().toISOString(),
                 seen: true,
@@ -313,6 +313,29 @@ export const userSlice = createSlice({
                 dbSaveMessage(systemMsg, phone_no);
             } catch (err) {
                 logger.error('Error saving key rotation system message to SQLite:', err);
+            }
+        },
+        SELF_KEY_ROTATED: (state, action: PayloadAction<{ publicKey: string }>) => {
+            state.user_data.public_key = action.payload.publicKey;
+            const now = new Date().toISOString();
+            for (const [phoneNo, conversation] of state.conversations) {
+                const systemMsg: message = {
+                    id: generateLocalMessageId(),
+                    message: 'You changed your identity keys. Previous encrypted messages can no longer be read.',
+                    sent_at: now,
+                    seen: true,
+                    reciever: phoneNo,
+                    reciever_id: conversation.other_user.id,
+                    sender: state.user_data.phone_no,
+                    sender_id: state.user_data.id,
+                    system: true,
+                };
+                conversation.messages = [systemMsg, ...conversation.messages];
+                try {
+                    dbSaveMessage(systemMsg, phoneNo);
+                } catch (err) {
+                    logger.error('Error saving self key rotation system message to SQLite:', err);
+                }
             }
         },
         CONTACT_STATUS: (
@@ -374,6 +397,7 @@ export const {
     DELETE_MESSAGE,
     APPEND_OLDER_MESSAGES,
     KEY_ROTATED,
+    SELF_KEY_ROTATED,
     CONTACT_STATUS,
     RECV_CALL_OFFER,
     TURN_CREDS,

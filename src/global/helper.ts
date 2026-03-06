@@ -50,6 +50,11 @@ export function onlineStatus(peer: { online?: boolean; last_seen?: number }): {
     return { color: SECONDARY_LITE, label: 'Offline' };
 }
 
+/** Generates a unique negative ID for locally-created messages (system messages, etc.) */
+export function generateLocalMessageId(): number {
+    return -(Date.now() + Math.floor(Math.random() * 10000));
+}
+
 export function getAvatar(identifier: string | number) {
     return `https://robohash.org/${identifier}`;
     // let value = identifier

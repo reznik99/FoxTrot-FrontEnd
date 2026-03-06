@@ -348,6 +348,13 @@ async function handleSocketMessage(data: any) {
                 break;
             case 'CONTACT_STATUS':
                 store.dispatch({ type: 'user/CONTACT_STATUS', payload: parsedData.data });
+                if (parsedData.data.online) {
+                    Toast.show({
+                        type: 'info',
+                        text1: `${parsedData.data.phone_no} is now online`,
+                        visibilityTime: 2000,
+                    });
+                }
                 break;
             case 'KEY_ROTATED': {
                 logger.info('[Websocket] KEY_ROTATED from', parsedData.data.phone_no);

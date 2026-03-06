@@ -198,7 +198,7 @@ export default function Home() {
                 data={convos}
                 keyExtractor={(item, index) => item.other_user.phone_no || String(index)}
                 renderItem={({ item }) => <ConversationPeek data={item} navigation={navigation} />}
-                ItemSeparatorComponent={Divider}
+                ItemSeparatorComponent={() => <Divider style={styles.divider} />}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                 ListEmptyComponent={renderListEmpty}
             />
@@ -248,5 +248,8 @@ const styles = StyleSheet.create({
         color: SECONDARY_LITE,
         fontSize: 16,
         marginTop: 12,
+    },
+    divider: {
+        marginLeft: 77,
     },
 });

@@ -7,7 +7,7 @@ import AvatarWithStatus from '~/components/AvatarWithStatus';
 import { dbDeleteConversation } from '~/global/database';
 import { humanTime } from '~/global/helper';
 import globalStyle from '~/global/style';
-import { ERROR_RED, SECONDARY, SECONDARY_LITE, TEXT_SECONDARY } from '~/global/variables';
+import { ERROR_RED, SECONDARY, SECONDARY_LITE, TEXT_SECONDARY, WARNING_AMBER } from '~/global/variables';
 import { RootNavigation } from '~/store/actions/auth';
 import { addContact } from '~/store/actions/user';
 import { Conversation, DELETE_CONVERSATION, message } from '~/store/reducers/user';
@@ -20,6 +20,10 @@ interface MessagePreview {
 }
 
 function getMessagePreview(msg: message): MessagePreview {
+    if (msg.system) {
+        return { text: msg.message?.substring(0, 50) || 'System message', icon: 'shield-alert' };
+    }
+
     if (!msg.is_decrypted) {
         return { text: 'Encrypted message', icon: 'shield-lock' };
     }
@@ -110,15 +114,16 @@ export default function ConversationPeek(props: IProps) {
                     {(() => {
                         const preview = getMessagePreview(lastMessage);
                         const previewColor = isNew ? TEXT_SECONDARY : SECONDARY_LITE;
+                        const isSystem = lastMessage.system;
                         if (preview.icon) {
                             return (
                                 <View style={styles.previewRow}>
-                                    <Icon source={preview.icon} size={14} color={previewColor} />
+                                    <Icon source={preview.icon} size={14} color={isSystem ? WARNING_AMBER : colors.primary} />
                                     <Text
                                         style={[
                                             globalStyle.textInfo,
                                             boldIfUnseen,
-                                            { color: previewColor, fontStyle: 'italic' },
+                                            { color: isSystem ? WARNING_AMBER : previewColor, fontStyle: 'italic' },
                                         ]}
                                         numberOfLines={1}
                                     >

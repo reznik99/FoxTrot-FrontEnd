@@ -9,7 +9,7 @@ import Toast from 'react-native-toast-message';
 import AudioPlayer from '~/components/AudioPlayer';
 import { decrypt } from '~/global/crypto';
 import { logger } from '~/global/logger';
-import { TEXT_MUTED, TEXT_SECONDARY } from '~/global/variables';
+import { TEXT_MUTED, TEXT_SECONDARY, WARNING_AMBER } from '~/global/variables';
 import { downloadMedia, getMediaCachePath } from '~/store/actions/media';
 import { message, UPDATE_MESSAGE_DECRYPTED, UserData } from '~/store/reducers/user';
 import { store } from '~/store/store';
@@ -384,7 +384,7 @@ export default class Message extends PureComponent<MProps, MState> {
         if (item.system) {
             return (
                 <View style={styles.systemMessageContainer}>
-                    <Icon source="shield-alert" color="#E0A500" size={16} />
+                    <Icon source="shield-alert" color={WARNING_AMBER} size={16} />
                     <Text style={styles.systemMessageText}>{item.message}</Text>
                     <Text style={styles.systemMessageTime}>
                         {sent_at.toLocaleDateString() === todaysDate
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     systemMessageText: {
-        color: '#E0A500',
+        color: WARNING_AMBER,
         fontSize: 13,
         textAlign: 'center',
         lineHeight: 18,

@@ -49,7 +49,8 @@ export const TEXT_MUTED = '#969393';
 export const TEXT_SECONDARY = '#ccc';
 export const DIVIDER = '#333';
 export const ONLINE_GREEN = '#039111ff';
-export const RECENTLY_ACTIVE = '#E0A500';
+export const WARNING_AMBER = '#E0A500';
+export const RECENTLY_ACTIVE = WARNING_AMBER;
 // Call Vibration pattern
 export const VibratePattern = [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000];
 // Messages read from db per conversation

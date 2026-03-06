@@ -7,7 +7,6 @@ import QuickCrypto from 'react-native-quick-crypto';
 import Toast from 'react-native-toast-message';
 
 import * as callManager from '~/global/callManager';
-import { generateSessionKeyECDH } from '~/global/crypto';
 import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { navigationRef } from '~/global/navigation';
@@ -23,8 +22,8 @@ export interface ContactStatusPayload {
 }
 
 export type SocketData =
-  | { cmd: 'MSG' | 'CALL_OFFER' | 'CALL_ICE_CANDIDATE' | 'CALL_ANSWER'; data: SocketMessage }
-  | { cmd: 'CONTACT_STATUS'; data: ContactStatusPayload };
+    | { cmd: 'MSG' | 'CALL_OFFER' | 'CALL_ICE_CANDIDATE' | 'CALL_ANSWER'; data: SocketMessage }
+    | { cmd: 'CONTACT_STATUS'; data: ContactStatusPayload };
 
 export interface SocketMessage {
     sender: string;

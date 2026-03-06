@@ -98,6 +98,7 @@ const normalizeMessage = (msg: message): message => ({
     reciever_id: String(msg.reciever_id),
     sender_id: String(msg.sender_id),
     is_decrypted: false,
+    system: false,
 });
 
 describe('database operations', () => {

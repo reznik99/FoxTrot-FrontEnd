@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Icon } from 'react-native-paper';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 const SWIPE_THRESHOLD = 60;
 const MAX_TRANSLATE = 80;
@@ -31,9 +31,7 @@ export default function SwipeableMessage({ isSent, isSystem, onSwipeReply, child
                     }
                 })
                 .onEnd(() => {
-                    const triggered = isSent
-                        ? translateX.value <= -SWIPE_THRESHOLD
-                        : translateX.value >= SWIPE_THRESHOLD;
+                    const triggered = isSent ? translateX.value <= -SWIPE_THRESHOLD : translateX.value >= SWIPE_THRESHOLD;
 
                     if (triggered) {
                         runOnJS(onSwipeReply)();
@@ -48,9 +46,7 @@ export default function SwipeableMessage({ isSent, isSystem, onSwipeReply, child
     }));
 
     const iconStyle = useAnimatedStyle(() => {
-        const progress = isSent
-            ? Math.abs(translateX.value) / SWIPE_THRESHOLD
-            : translateX.value / SWIPE_THRESHOLD;
+        const progress = isSent ? Math.abs(translateX.value) / SWIPE_THRESHOLD : translateX.value / SWIPE_THRESHOLD;
         return {
             opacity: Math.min(progress, 1),
         };
@@ -60,13 +56,7 @@ export default function SwipeableMessage({ isSent, isSystem, onSwipeReply, child
         <GestureDetector gesture={pan}>
             <View style={styles.wrapper}>
                 {/* Reply icon behind the message */}
-                <Animated.View
-                    style={[
-                        styles.iconContainer,
-                        isSent ? styles.iconRight : styles.iconLeft,
-                        iconStyle,
-                    ]}
-                >
+                <Animated.View style={[styles.iconContainer, isSent ? styles.iconRight : styles.iconLeft, iconStyle]}>
                     <Icon source="reply" size={22} color="#999" />
                 </Animated.View>
                 <Animated.View style={animatedStyle}>{children}</Animated.View>

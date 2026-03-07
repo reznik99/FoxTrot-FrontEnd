@@ -2,8 +2,6 @@ import 'react-native-gesture-handler';
 import '~/global/buffer';
 import '~/global/backgroundHandler';
 
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { StatusBar } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -15,6 +13,7 @@ import {
     StackHeaderProps,
     StackNavigationOptions,
 } from '@react-navigation/stack';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Icon, MD3DarkTheme, Provider as PaperProvider, useTheme } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
 import { Provider } from 'react-redux';

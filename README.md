@@ -8,7 +8,15 @@
 
 End-to-end encrypted messenger for Android, built with React Native and TypeScript.
 
-Backend repo: [FoxTrot-Back-End](https://github.com/reznik99/FoxTrot-Back-End)
+Backend repo: [FoxTrot-BackEnd](https://github.com/reznik99/FoxTrot-BackEnd)
+
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/conversations.png" width="250" />
+  <img src="screenshots/chat.png" width="250" />
+  <img src="screenshots/call.png" width="250" />
+</p>
 
 ## Features
 

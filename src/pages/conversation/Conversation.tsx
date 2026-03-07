@@ -70,28 +70,19 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
         [conversation.messages],
     );
 
-    const getReplyPreviewText = useCallback(
-        (messageId: number): string => {
-            const referenced = conversation.messages.find(m => m.id === messageId);
-            if (!referenced || !referenced.is_decrypted) return 'Message';
+    const handleSwipeReply = useCallback((item: message) => {
+        Vibration.vibrate(30);
+        let preview = 'Encrypted message';
+        if (item.is_decrypted) {
             try {
-                const parsed = JSON.parse(referenced.message);
-                return (parsed.message || parsed.type || 'Message').slice(0, 60);
+                const parsed = JSON.parse(item.message);
+                preview = (parsed.message || parsed.type || 'Message').slice(0, 60);
             } catch {
-                return referenced.message.slice(0, 60);
+                preview = item.message.slice(0, 60);
             }
-        },
-        [conversation.messages],
-    );
-
-    const handleSwipeReply = useCallback(
-        (item: message) => {
-            Vibration.vibrate(30);
-            const preview = item.is_decrypted ? getReplyPreviewText(item.id) : 'Encrypted message';
-            setReplyTarget({ messageId: item.id, preview });
-        },
-        [getReplyPreviewText],
-    );
+        }
+        setReplyTarget({ messageId: item.id, preview });
+    }, []);
 
     const handleScrollToMessage = useCallback(
         (messageId: number) => {

@@ -271,6 +271,7 @@ export const userSlice = createSlice({
             const { phone_no, public_key, session_key } = action.payload;
 
             const contact = state.contacts.find(c => c.phone_no === phone_no);
+            const keyChanged = !contact || contact.public_key !== public_key;
             if (contact) {
                 contact.public_key = public_key;
                 contact.session_key = session_key;
@@ -281,6 +282,8 @@ export const userSlice = createSlice({
                 conversation.other_user.public_key = public_key;
                 conversation.other_user.session_key = session_key;
             }
+
+            if (!keyChanged) return;
 
             // Insert a system message warning about the key change
             const systemMsg: message = {
@@ -316,7 +319,9 @@ export const userSlice = createSlice({
             }
         },
         SELF_KEY_ROTATED: (state, action: PayloadAction<{ publicKey: string }>) => {
+            const keyChanged = state.user_data.public_key !== action.payload.publicKey;
             state.user_data.public_key = action.payload.publicKey;
+            if (!keyChanged) return;
             const now = new Date().toISOString();
             for (const [phoneNo, conversation] of state.conversations) {
                 const systemMsg: message = {

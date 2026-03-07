@@ -2,6 +2,8 @@ import 'react-native-gesture-handler';
 import '~/global/buffer';
 import '~/global/backgroundHandler';
 
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { StatusBar } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -226,17 +228,19 @@ export default function App() {
 
     return (
         <Provider store={store}>
-            <PaperProvider theme={darkTheme}>
-                <PrimaryColorContext.Provider value={setPrimaryColor}>
-                    <StatusBar backgroundColor={DARKHEADER} barStyle="light-content" />
-                    <ErrorBoundary>
-                        <AuthNavigator />
-                    </ErrorBoundary>
-                    <ActiveCallBanner />
-                    <ErrorPortal />
-                    <Toast />
-                </PrimaryColorContext.Provider>
-            </PaperProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+                <PaperProvider theme={darkTheme}>
+                    <PrimaryColorContext.Provider value={setPrimaryColor}>
+                        <StatusBar backgroundColor={DARKHEADER} barStyle="light-content" />
+                        <ErrorBoundary>
+                            <AuthNavigator />
+                        </ErrorBoundary>
+                        <ActiveCallBanner />
+                        <ErrorPortal />
+                        <Toast />
+                    </PrimaryColorContext.Provider>
+                </PaperProvider>
+            </GestureHandlerRootView>
         </Provider>
     );
 }

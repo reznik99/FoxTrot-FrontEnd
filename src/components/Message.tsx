@@ -1,6 +1,6 @@
 import { Buffer } from 'buffer';
 import React, { PureComponent } from 'react';
-import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import RNFS from 'react-native-fs';
 import Sound from 'react-native-nitro-sound';
 import { ActivityIndicator, Icon } from 'react-native-paper';
@@ -49,6 +49,7 @@ type MProps = {
     zoomMedia: (data: string) => void;
     onLongPress: (data: MessageContextMenuData) => void;
     getMessageById: (id: number) => message | undefined;
+    onReplyPreviewPress?: (messageId: number) => void;
     conversationId: string;
     primaryColor: string;
 };
@@ -409,11 +410,19 @@ export default class Message extends PureComponent<MProps, MState> {
                 const preview = this.getReplyPreview(item.messageId);
                 return (
                     <View>
-                        <View style={styles.replyPreviewContainer}>
+                        <TouchableOpacity
+                            style={styles.replyPreviewContainer}
+                            activeOpacity={0.6}
+                            onPress={() => {
+                                if (item.messageId && this.props.onReplyPreviewPress) {
+                                    this.props.onReplyPreviewPress(item.messageId);
+                                }
+                            }}
+                        >
                             <Text style={styles.replyPreviewText} numberOfLines={2}>
                                 {preview}
                             </Text>
-                        </View>
+                        </TouchableOpacity>
                         {item.message ? <Text style={styles.text}>{item.message}</Text> : null}
                     </View>
                 );

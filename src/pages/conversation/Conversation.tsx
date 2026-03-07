@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, Vibration, View } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, FlashListRef } from '@shopify/flash-list';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { Icon, Modal, Portal, useTheme } from 'react-native-paper';
+import Toast from 'react-native-toast-message';
 import { useSelector } from 'react-redux';
 
 import FullScreenMedia from '~/components/FullScreenMedia';
 import Message, { MessageContextMenuData } from '~/components/Message';
 import MessageContextMenu from '~/components/MessageContextMenu';
 import Messaging from '~/components/Messaging';
+import SwipeableMessage from '~/components/SwipeableMessage';
 import { dbGetMessages } from '~/global/database';
 import { logger } from '~/global/logger';
 import { HomeStackParamList } from '~/global/navigation';
@@ -59,11 +61,53 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
         return [...conversation.messages].reverse();
     }, [conversation.messages]);
 
+    const listRef = useRef<FlashListRef<message>>(null);
+
     const getMessageById = useCallback(
         (id: number): message | undefined => {
             return conversation.messages.find(m => m.id === id);
         },
         [conversation.messages],
+    );
+
+    const getReplyPreviewText = useCallback(
+        (messageId: number): string => {
+            const referenced = conversation.messages.find(m => m.id === messageId);
+            if (!referenced || !referenced.is_decrypted) return 'Message';
+            try {
+                const parsed = JSON.parse(referenced.message);
+                return (parsed.message || parsed.type || 'Message').slice(0, 60);
+            } catch {
+                return referenced.message.slice(0, 60);
+            }
+        },
+        [conversation.messages],
+    );
+
+    const handleSwipeReply = useCallback(
+        (item: message) => {
+            Vibration.vibrate(30);
+            const preview = item.is_decrypted ? getReplyPreviewText(item.id) : 'Encrypted message';
+            setReplyTarget({ messageId: item.id, preview });
+        },
+        [getReplyPreviewText],
+    );
+
+    const handleScrollToMessage = useCallback(
+        (messageId: number) => {
+            const index = reversedMessages.findIndex(m => m.id === messageId);
+            if (index === -1) {
+                Toast.show({
+                    type: 'info',
+                    text1: 'Message not loaded',
+                    text2: 'Scroll up to find older messages',
+                    visibilityTime: 2000,
+                });
+                return;
+            }
+            listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+        },
+        [reversedMessages],
     );
 
     const handleLongPress = useCallback((data: MessageContextMenuData) => {
@@ -225,6 +269,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
         <View style={styles.container}>
             {/* Message list */}
             <FlashList
+                ref={listRef}
                 removeClippedSubviews={false}
                 contentContainerStyle={styles.messageList}
                 data={reversedMessages}
@@ -238,19 +283,29 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                 ListEmptyComponent={renderListEmpty}
                 ListHeaderComponent={renderListHeader}
                 ListFooterComponent={renderListFooter}
-                renderItem={({ item }) => (
-                    <Message
-                        key={item.id}
-                        item={item}
-                        peer={peer}
-                        isSent={item.sender === user_data.phone_no}
-                        zoomMedia={setZoomMedia}
-                        onLongPress={handleLongPress}
-                        getMessageById={getMessageById}
-                        conversationId={peer.phone_no}
-                        primaryColor={colors.primary}
-                    />
-                )}
+                renderItem={({ item }) => {
+                    const isSent = item.sender === user_data.phone_no;
+                    return (
+                        <SwipeableMessage
+                            isSent={isSent}
+                            isSystem={!!item.system}
+                            onSwipeReply={() => handleSwipeReply(item)}
+                        >
+                            <Message
+                                key={item.id}
+                                item={item}
+                                peer={peer}
+                                isSent={isSent}
+                                zoomMedia={setZoomMedia}
+                                onLongPress={handleLongPress}
+                                getMessageById={getMessageById}
+                                onReplyPreviewPress={handleScrollToMessage}
+                                conversationId={peer.phone_no}
+                                primaryColor={colors.primary}
+                            />
+                        </SwipeableMessage>
+                    );
+                }}
             />
             {/* Messaging controls */}
             <Messaging

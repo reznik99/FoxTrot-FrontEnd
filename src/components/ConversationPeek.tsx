@@ -39,6 +39,8 @@ function getMessagePreview(msg: message): MessagePreview {
                 return { text: 'Video', icon: 'video', isMedia: true };
             case 'AUDIO':
                 return { text: 'Audio', icon: 'microphone', isMedia: true };
+            case 'REPLY':
+                return { text: parsed.message?.substring(0, 50) || 'Reply', icon: 'reply' };
             default:
                 return { text: parsed.message?.substring(0, 50) || '' };
         }

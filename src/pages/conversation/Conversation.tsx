@@ -36,6 +36,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
     const [inputMessage, setInputMessage] = useState('');
     const [zoomMedia, setZoomMedia] = useState('');
     const [contextMenuData, setContextMenuData] = useState<MessageContextMenuData | null>(null);
+    const [replyTarget, setReplyTarget] = useState<{ messageId: number; preview: string } | null>(null);
     const [hasMore, setHasMore] = useState(conversation.messages.length >= DB_MSG_PAGE_SIZE);
     const paginationRef = useRef({
         loading: false,
@@ -57,6 +58,13 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
     const reversedMessages = useMemo(() => {
         return [...conversation.messages].reverse();
     }, [conversation.messages]);
+
+    const getMessageById = useCallback(
+        (id: number): message | undefined => {
+            return conversation.messages.find(m => m.id === id);
+        },
+        [conversation.messages],
+    );
 
     const handleLongPress = useCallback((data: MessageContextMenuData) => {
         Vibration.vibrate(50);
@@ -101,17 +109,29 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
             setLoading(true);
             setInputMessage('');
 
-            const toSend = JSON.stringify({
-                type: 'MSG',
-                message: inputMessage.trim(),
-            });
+            const toSend = replyTarget
+                ? JSON.stringify({ type: 'REPLY', message: inputMessage.trim(), messageId: replyTarget.messageId })
+                : JSON.stringify({ type: 'MSG', message: inputMessage.trim() });
+            setReplyTarget(null);
             await store.dispatch(sendMessage({ message: toSend, to_user: peer }));
         } catch (err) {
             logger.error('Error sending message:', err);
         } finally {
             setLoading(false);
         }
-    }, [inputMessage, peer]);
+    }, [inputMessage, peer, replyTarget]);
+
+    const handleSendReaction = useCallback(
+        async (emoji: string, targetMessageId: number) => {
+            try {
+                const toSend = JSON.stringify({ type: 'REPLY', message: emoji, messageId: targetMessageId });
+                await store.dispatch(sendMessage({ message: toSend, to_user: peer }));
+            } catch (err) {
+                logger.error('Error sending reaction:', err);
+            }
+        },
+        [peer],
+    );
 
     const handleSendAudio = useCallback(
         async (filePath: string, duration: number) => {
@@ -226,6 +246,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                         isSent={item.sender === user_data.phone_no}
                         zoomMedia={setZoomMedia}
                         onLongPress={handleLongPress}
+                        getMessageById={getMessageById}
                         conversationId={peer.phone_no}
                         primaryColor={colors.primary}
                     />
@@ -240,6 +261,8 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                 handleImageSelect={handleImageSelect}
                 handleSend={handleSend}
                 handleSendAudio={handleSendAudio}
+                replyTarget={replyTarget}
+                onCancelReply={() => setReplyTarget(null)}
             />
             {/* Media viewer */}
             <Portal>
@@ -259,7 +282,15 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                     contentContainerStyle={styles.contextMenuModal}
                 >
                     {contextMenuData && (
-                        <MessageContextMenu data={contextMenuData} onDismiss={() => setContextMenuData(null)} />
+                        <MessageContextMenu
+                            data={contextMenuData}
+                            onDismiss={() => setContextMenuData(null)}
+                            onReact={handleSendReaction}
+                            onReply={(messageId, preview) => {
+                                setReplyTarget({ messageId, preview });
+                                setContextMenuData(null);
+                            }}
+                        />
                     )}
                 </Modal>
             </Portal>

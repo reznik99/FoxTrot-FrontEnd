@@ -20,6 +20,8 @@ type IProps = {
     handleImageSelect: () => Promise<void>;
     handleSend: () => Promise<void>;
     handleSendAudio: (filePath: string, duration: number) => Promise<void>;
+    replyTarget: { messageId: number; preview: string } | null;
+    onCancelReply: () => void;
 };
 
 export default function Messaging(props: IProps) {
@@ -143,6 +145,20 @@ export default function Messaging(props: IProps) {
 
     return (
         <CustomKeyboardAvoidingView>
+            {/* Reply banner */}
+            {props.replyTarget && (
+                <View style={styles.replyBanner}>
+                    <View style={styles.replyBannerContent}>
+                        <Text style={styles.replyBannerLabel}>Replying to</Text>
+                        <Text style={styles.replyBannerPreview} numberOfLines={1}>
+                            {props.replyTarget.preview}
+                        </Text>
+                    </View>
+                    <TouchableOpacity onPress={props.onCancelReply} hitSlop={8}>
+                        <Icon source="close" size={18} color="#999" />
+                    </TouchableOpacity>
+                </View>
+            )}
             {/* Audio bar — above the input row */}
             {!!audioFilePath && (
                 <View style={styles.audioContainer}>
@@ -288,5 +304,27 @@ const styles = StyleSheet.create({
     },
     button: {
         padding: 10,
+    },
+    replyBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        marginHorizontal: 40,
+        marginBottom: 4,
+        backgroundColor: DARKHEADER,
+        borderRadius: 20,
+    },
+    replyBannerContent: {
+        flex: 1,
+        gap: 2,
+    },
+    replyBannerLabel: {
+        color: SECONDARY_LITE,
+        fontSize: 11,
+    },
+    replyBannerPreview: {
+        color: TEXT_SECONDARY,
+        fontSize: 13,
     },
 });

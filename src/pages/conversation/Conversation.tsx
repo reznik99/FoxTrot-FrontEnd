@@ -110,6 +110,8 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
         [reversedMessages],
     );
 
+    const cancelReply = useCallback(() => setReplyTarget(null), []);
+
     const handleLongPress = useCallback((data: MessageContextMenuData) => {
         Vibration.vibrate(50);
         setContextMenuData(data);
@@ -317,7 +319,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                 handleSend={handleSend}
                 handleSendAudio={handleSendAudio}
                 replyTarget={replyTarget}
-                onCancelReply={() => setReplyTarget(null)}
+                onCancelReply={cancelReply}
             />
             {/* Media viewer */}
             <Portal>

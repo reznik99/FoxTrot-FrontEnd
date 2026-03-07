@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -17,33 +17,31 @@ type Props = {
 export default function SwipeableMessage({ isSent, isSystem, onSwipeReply, children }: Props) {
     const translateX = useSharedValue(0);
 
-    const triggerReply = useCallback(() => {
-        onSwipeReply();
-    }, [onSwipeReply]);
+    const pan = useMemo(
+        () =>
+            Gesture.Pan()
+                .enabled(!isSystem)
+                .activeOffsetX(isSent ? -15 : 15)
+                .failOffsetY([-10, 10])
+                .onUpdate(e => {
+                    if (isSent) {
+                        translateX.value = Math.max(-MAX_TRANSLATE, Math.min(0, e.translationX));
+                    } else {
+                        translateX.value = Math.min(MAX_TRANSLATE, Math.max(0, e.translationX));
+                    }
+                })
+                .onEnd(() => {
+                    const triggered = isSent
+                        ? translateX.value <= -SWIPE_THRESHOLD
+                        : translateX.value >= SWIPE_THRESHOLD;
 
-    const pan = Gesture.Pan()
-        .enabled(!isSystem)
-        .activeOffsetX(isSent ? [-15, 0] : [0, 15])
-        .failOffsetY([-10, 10])
-        .onUpdate(e => {
-            if (isSent) {
-                // Sent: swipe left (negative)
-                translateX.value = Math.max(-MAX_TRANSLATE, Math.min(0, e.translationX));
-            } else {
-                // Received: swipe right (positive)
-                translateX.value = Math.min(MAX_TRANSLATE, Math.max(0, e.translationX));
-            }
-        })
-        .onEnd(() => {
-            const triggered = isSent
-                ? translateX.value <= -SWIPE_THRESHOLD
-                : translateX.value >= SWIPE_THRESHOLD;
-
-            if (triggered) {
-                runOnJS(triggerReply)();
-            }
-            translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
-        });
+                    if (triggered) {
+                        runOnJS(onSwipeReply)();
+                    }
+                    translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+                }),
+        [isSent, isSystem, onSwipeReply, translateX],
+    );
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ translateX: translateX.value }],

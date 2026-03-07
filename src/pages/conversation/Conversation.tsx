@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, Vibration, View } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, FlashListRef } from '@shopify/flash-list';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { Icon, Modal, Portal, useTheme } from 'react-native-paper';
+import Toast from 'react-native-toast-message';
 import { useSelector } from 'react-redux';
 
 import FullScreenMedia from '~/components/FullScreenMedia';
 import Message, { MessageContextMenuData } from '~/components/Message';
 import MessageContextMenu from '~/components/MessageContextMenu';
 import Messaging from '~/components/Messaging';
+import SwipeableMessage from '~/components/SwipeableMessage';
 import { dbGetMessages } from '~/global/database';
 import { logger } from '~/global/logger';
 import { HomeStackParamList } from '~/global/navigation';
@@ -36,6 +38,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
     const [inputMessage, setInputMessage] = useState('');
     const [zoomMedia, setZoomMedia] = useState('');
     const [contextMenuData, setContextMenuData] = useState<MessageContextMenuData | null>(null);
+    const [replyTarget, setReplyTarget] = useState<{ messageId: number; preview: string } | null>(null);
     const [hasMore, setHasMore] = useState(conversation.messages.length >= DB_MSG_PAGE_SIZE);
     const paginationRef = useRef({
         loading: false,
@@ -57,6 +60,48 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
     const reversedMessages = useMemo(() => {
         return [...conversation.messages].reverse();
     }, [conversation.messages]);
+
+    const listRef = useRef<FlashListRef<message>>(null);
+
+    const getMessageById = useCallback(
+        (id: number): message | undefined => {
+            return conversation.messages.find(m => m.id === id);
+        },
+        [conversation.messages],
+    );
+
+    const handleSwipeReply = useCallback((item: message) => {
+        Vibration.vibrate(30);
+        let preview = 'Encrypted message';
+        if (item.is_decrypted) {
+            try {
+                const parsed = JSON.parse(item.message);
+                preview = (parsed.message || parsed.type || 'Message').slice(0, 60);
+            } catch {
+                preview = item.message.slice(0, 60);
+            }
+        }
+        setReplyTarget({ messageId: item.id, preview });
+    }, []);
+
+    const handleScrollToMessage = useCallback(
+        (messageId: number) => {
+            const index = reversedMessages.findIndex(m => m.id === messageId);
+            if (index === -1) {
+                Toast.show({
+                    type: 'info',
+                    text1: 'Message not loaded',
+                    text2: 'Scroll up to find older messages',
+                    visibilityTime: 2000,
+                });
+                return;
+            }
+            listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+        },
+        [reversedMessages],
+    );
+
+    const cancelReply = useCallback(() => setReplyTarget(null), []);
 
     const handleLongPress = useCallback((data: MessageContextMenuData) => {
         Vibration.vibrate(50);
@@ -101,17 +146,29 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
             setLoading(true);
             setInputMessage('');
 
-            const toSend = JSON.stringify({
-                type: 'MSG',
-                message: inputMessage.trim(),
-            });
+            const toSend = replyTarget
+                ? JSON.stringify({ type: 'REPLY', message: inputMessage.trim(), messageId: replyTarget.messageId })
+                : JSON.stringify({ type: 'MSG', message: inputMessage.trim() });
+            setReplyTarget(null);
             await store.dispatch(sendMessage({ message: toSend, to_user: peer }));
         } catch (err) {
             logger.error('Error sending message:', err);
         } finally {
             setLoading(false);
         }
-    }, [inputMessage, peer]);
+    }, [inputMessage, peer, replyTarget]);
+
+    const handleSendReaction = useCallback(
+        async (emoji: string, targetMessageId: number) => {
+            try {
+                const toSend = JSON.stringify({ type: 'REPLY', message: emoji, messageId: targetMessageId });
+                await store.dispatch(sendMessage({ message: toSend, to_user: peer }));
+            } catch (err) {
+                logger.error('Error sending reaction:', err);
+            }
+        },
+        [peer],
+    );
 
     const handleSendAudio = useCallback(
         async (filePath: string, duration: number) => {
@@ -205,6 +262,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
         <View style={styles.container}>
             {/* Message list */}
             <FlashList
+                ref={listRef}
                 removeClippedSubviews={false}
                 contentContainerStyle={styles.messageList}
                 data={reversedMessages}
@@ -218,18 +276,29 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                 ListEmptyComponent={renderListEmpty}
                 ListHeaderComponent={renderListHeader}
                 ListFooterComponent={renderListFooter}
-                renderItem={({ item }) => (
-                    <Message
-                        key={item.id}
-                        item={item}
-                        peer={peer}
-                        isSent={item.sender === user_data.phone_no}
-                        zoomMedia={setZoomMedia}
-                        onLongPress={handleLongPress}
-                        conversationId={peer.phone_no}
-                        primaryColor={colors.primary}
-                    />
-                )}
+                renderItem={({ item }) => {
+                    const isSent = item.sender === user_data.phone_no;
+                    return (
+                        <SwipeableMessage
+                            isSent={isSent}
+                            isSystem={!!item.system}
+                            onSwipeReply={() => handleSwipeReply(item)}
+                        >
+                            <Message
+                                key={item.id}
+                                item={item}
+                                peer={peer}
+                                isSent={isSent}
+                                zoomMedia={setZoomMedia}
+                                onLongPress={handleLongPress}
+                                getMessageById={getMessageById}
+                                onReplyPreviewPress={handleScrollToMessage}
+                                conversationId={peer.phone_no}
+                                primaryColor={colors.primary}
+                            />
+                        </SwipeableMessage>
+                    );
+                }}
             />
             {/* Messaging controls */}
             <Messaging
@@ -240,6 +309,8 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                 handleImageSelect={handleImageSelect}
                 handleSend={handleSend}
                 handleSendAudio={handleSendAudio}
+                replyTarget={replyTarget}
+                onCancelReply={cancelReply}
             />
             {/* Media viewer */}
             <Portal>
@@ -259,7 +330,15 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                     contentContainerStyle={styles.contextMenuModal}
                 >
                     {contextMenuData && (
-                        <MessageContextMenu data={contextMenuData} onDismiss={() => setContextMenuData(null)} />
+                        <MessageContextMenu
+                            data={contextMenuData}
+                            onDismiss={() => setContextMenuData(null)}
+                            onReact={handleSendReaction}
+                            onReply={(messageId, preview) => {
+                                setReplyTarget({ messageId, preview });
+                                setContextMenuData(null);
+                            }}
+                        />
                     )}
                 </Modal>
             </Portal>

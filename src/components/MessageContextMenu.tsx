@@ -18,11 +18,13 @@ import { MessageContextMenuData } from './Message';
 type Props = {
     data: MessageContextMenuData;
     onDismiss: () => void;
+    onReact: (emoji: string, messageId: number) => void;
+    onReply: (messageId: number, preview: string) => void;
 };
 
 const REACTIONS = ['\u{1F44D}', '\u{2764}\u{FE0F}', '\u{1F602}', '\u{1F62E}', '\u{1F622}', '\u{1F525}'];
 
-export default function MessageContextMenu({ data, onDismiss }: Props) {
+export default function MessageContextMenu({ data, onDismiss, onReact, onReply }: Props) {
     const [infoVisible, setInfoVisible] = useState(false);
     const [mediaFileSize, setMediaFileSize] = useState<number | null>(null);
 
@@ -78,7 +80,14 @@ export default function MessageContextMenu({ data, onDismiss }: Props) {
             {/* Reaction row */}
             <View style={styles.reactionRow}>
                 {REACTIONS.map(emoji => (
-                    <TouchableOpacity key={emoji} style={styles.reactionButton} onPress={onDismiss}>
+                    <TouchableOpacity
+                        key={emoji}
+                        style={styles.reactionButton}
+                        onPress={() => {
+                            onReact(emoji, data.messageId);
+                            onDismiss();
+                        }}
+                    >
                         <Text style={styles.reactionEmoji}>{emoji}</Text>
                     </TouchableOpacity>
                 ))}
@@ -89,6 +98,14 @@ export default function MessageContextMenu({ data, onDismiss }: Props) {
                 <Pressable style={styles.menuItem} onPress={handleInfo} android_ripple={{ color: '#ffffff20' }}>
                     <Icon source="information-outline" size={20} color="#fff" />
                     <Text style={styles.menuText}>Info</Text>
+                </Pressable>
+                <Pressable
+                    style={styles.menuItem}
+                    onPress={() => onReply(data.messageId, data.text?.slice(0, 60) || data.type)}
+                    android_ripple={{ color: '#ffffff20' }}
+                >
+                    <Icon source="reply" size={20} color="#fff" />
+                    <Text style={styles.menuText}>Reply</Text>
                 </Pressable>
                 {showCopy && (
                     <Pressable style={styles.menuItem} onPress={handleCopy} android_ripple={{ color: '#ffffff20' }}>

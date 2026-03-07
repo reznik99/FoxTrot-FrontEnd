@@ -13,6 +13,7 @@ import {
     StackHeaderProps,
     StackNavigationOptions,
 } from '@react-navigation/stack';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Icon, MD3DarkTheme, Provider as PaperProvider, useTheme } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
 import { Provider } from 'react-redux';
@@ -226,17 +227,19 @@ export default function App() {
 
     return (
         <Provider store={store}>
-            <PaperProvider theme={darkTheme}>
-                <PrimaryColorContext.Provider value={setPrimaryColor}>
-                    <StatusBar backgroundColor={DARKHEADER} barStyle="light-content" />
-                    <ErrorBoundary>
-                        <AuthNavigator />
-                    </ErrorBoundary>
-                    <ActiveCallBanner />
-                    <ErrorPortal />
-                    <Toast />
-                </PrimaryColorContext.Provider>
-            </PaperProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+                <PaperProvider theme={darkTheme}>
+                    <PrimaryColorContext.Provider value={setPrimaryColor}>
+                        <StatusBar backgroundColor={DARKHEADER} barStyle="light-content" />
+                        <ErrorBoundary>
+                            <AuthNavigator />
+                        </ErrorBoundary>
+                        <ActiveCallBanner />
+                        <ErrorPortal />
+                        <Toast />
+                    </PrimaryColorContext.Provider>
+                </PaperProvider>
+            </GestureHandlerRootView>
         </Provider>
     );
 }

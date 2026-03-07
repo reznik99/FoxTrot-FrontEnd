@@ -1,6 +1,6 @@
 import { Buffer } from 'buffer';
 import React, { PureComponent } from 'react';
-import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import RNFS from 'react-native-fs';
 import Sound from 'react-native-nitro-sound';
 import { ActivityIndicator, Icon } from 'react-native-paper';
@@ -19,6 +19,7 @@ const todaysDate = new Date().toLocaleDateString();
 type decryptedMessage = {
     type: string;
     message?: string;
+    messageId?: number;
     duration?: number;
     objectKey?: string;
     fileKey?: string;
@@ -47,6 +48,8 @@ type MProps = {
     peer: UserData;
     zoomMedia: (data: string) => void;
     onLongPress: (data: MessageContextMenuData) => void;
+    getMessageById: (id: number) => message | undefined;
+    onReplyPreviewPress?: (messageId: number) => void;
     conversationId: string;
     primaryColor: string;
 };
@@ -227,6 +230,39 @@ export default class Message extends PureComponent<MProps, MState> {
         }
     };
 
+    getReplyPreview = (messageId?: number): string => {
+        if (!messageId) return 'Original message unavailable';
+
+        const referenced = this.props.getMessageById(messageId);
+        if (!referenced) return 'Original message unavailable';
+        if (!referenced.is_decrypted) return 'Encrypted message';
+
+        try {
+            const parsed = JSON.parse(referenced.message);
+            switch (parsed.type) {
+                case 'MSG': {
+                    const text = parsed.message || '';
+                    return text.length > 60 ? text.slice(0, 60) + '...' : text;
+                }
+                case 'IMG':
+                    return 'Photo';
+                case 'VIDEO':
+                    return 'Video';
+                case 'AUDIO':
+                    return 'Audio message';
+                case 'REPLY': {
+                    const replyText = parsed.message || '';
+                    return replyText.length > 60 ? replyText.slice(0, 60) + '...' : replyText;
+                }
+                default:
+                    return 'Message';
+            }
+        } catch {
+            const text = referenced.message;
+            return text.length > 60 ? text.slice(0, 60) + '...' : text;
+        }
+    };
+
     renderMessage = (item: decryptedMessage | undefined, _isSent: boolean) => {
         if (!item) {
             return;
@@ -370,6 +406,27 @@ export default class Message extends PureComponent<MProps, MState> {
                 }
                 return null;
             }
+            case 'REPLY': {
+                const preview = this.getReplyPreview(item.messageId);
+                return (
+                    <View>
+                        <TouchableOpacity
+                            style={styles.replyPreviewContainer}
+                            activeOpacity={0.6}
+                            onPress={() => {
+                                if (item.messageId && this.props.onReplyPreviewPress) {
+                                    this.props.onReplyPreviewPress(item.messageId);
+                                }
+                            }}
+                        >
+                            <Text style={styles.replyPreviewText} numberOfLines={2}>
+                                {preview}
+                            </Text>
+                        </TouchableOpacity>
+                        {item.message ? <Text style={styles.text}>{item.message}</Text> : null}
+                    </View>
+                );
+            }
             default:
                 logger.warn('Unrecognized message type:', item.type);
                 return null;
@@ -428,7 +485,7 @@ export default class Message extends PureComponent<MProps, MState> {
                     {this.renderMessage(this.state.decryptedMessage, isSent)}
                     {/* Footers of message */}
                     <View style={styles.messageFooter}>
-                        <Text style={styles.messageTime}>
+                        <Text style={[styles.messageTime, isSent && styles.messageTimeSent]}>
                             {sent_at.toLocaleDateString() === todaysDate
                                 ? sent_at.toLocaleTimeString()
                                 : sent_at.toLocaleDateString()}
@@ -467,6 +524,9 @@ const styles = StyleSheet.create({
         color: TEXT_MUTED,
         alignContent: 'flex-end',
         fontSize: 13,
+    },
+    messageTimeSent: {
+        color: '#ffffffaa',
     },
     mediaOverlay: {
         position: 'absolute',
@@ -527,6 +587,17 @@ const styles = StyleSheet.create({
     encryptedTextReceived: {
         color: TEXT_SECONDARY,
         fontSize: 14,
+    },
+    replyPreviewContainer: {
+        borderLeftWidth: 2,
+        borderLeftColor: '#ffffff66',
+        paddingLeft: 8,
+        marginBottom: 6,
+    },
+    replyPreviewText: {
+        color: '#ffffff99',
+        fontSize: 12,
+        fontStyle: 'italic',
     },
     systemMessageContainer: {
         alignSelf: 'center',

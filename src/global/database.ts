@@ -205,7 +205,7 @@ export function dbSaveMessages(messages: message[], conversationId: string): voi
     if (messages.length === 0) return;
 
     const database = requireDb();
-    const placeholders = messages.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)').join(', ');
+    const placeholders = messages.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
     const params = messages.flatMap(msg => [
         msg.id,
         msg.message,
@@ -216,6 +216,7 @@ export function dbSaveMessages(messages: message[], conversationId: string): voi
         msg.sender,
         String(msg.sender_id),
         conversationId,
+        msg.is_decrypted ? 1 : 0,
         msg.system ? 1 : 0,
     ]);
 

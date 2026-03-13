@@ -16,7 +16,7 @@ import { logger } from '~/global/logger';
 import { HomeStackParamList } from '~/global/navigation';
 import { getCameraAndMicrophonePermissions } from '~/global/permissions';
 import { DARKHEADER, SECONDARY } from '~/global/variables';
-import { uploadMedia } from '~/store/actions/media';
+import { getMediaCachePath, uploadMedia } from '~/store/actions/media';
 import { sendMessage } from '~/store/actions/user';
 import { AppDispatch } from '~/store/store';
 
@@ -147,6 +147,11 @@ export default function CameraView(props: StackScreenProps<HomeStackParamList, '
             const uploadPromise = dispatch(uploadMedia({ filePath, contentType })).unwrap();
 
             const [thumbnail, { objectKey, keyBase64, ivBase64 }] = await Promise.all([thumbnailPromise, uploadPromise]);
+
+            // Move source file into media cache so sent media is playable without re-downloading
+            RNFS.moveFile(filePath.replace('file://', ''), getMediaCachePath(objectKey)).catch(err =>
+                logger.warn('Failed to pre-cache sent media:', err),
+            );
 
             // Build E2EE message with S3 metadata (no raw file data)
             const toSend = JSON.stringify({

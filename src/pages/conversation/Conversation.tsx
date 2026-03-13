@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, Vibration, View } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
 import { FlashList, FlashListRef } from '@shopify/flash-list';
+import RNFS from 'react-native-fs';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { Icon, Modal, Portal, useTheme } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
@@ -16,7 +17,7 @@ import { dbGetMessages } from '~/global/database';
 import { logger } from '~/global/logger';
 import { HomeStackParamList } from '~/global/navigation';
 import { DB_MSG_PAGE_SIZE, SECONDARY, TEXT_MUTED } from '~/global/variables';
-import { uploadMedia } from '~/store/actions/media';
+import { getMediaCachePath, uploadMedia } from '~/store/actions/media';
 import { sendMessage } from '~/store/actions/user';
 import { APPEND_OLDER_MESSAGES, MARK_MESSAGES_SEEN, message } from '~/store/reducers/user';
 import { RootState, store } from '~/store/store';
@@ -180,6 +181,11 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                 const { objectKey, keyBase64, ivBase64 } = await store
                     .dispatch(uploadMedia({ filePath, contentType: 'audio/mp4' }))
                     .unwrap();
+
+                // Move source file into media cache so sent audio is playable without re-downloading
+                RNFS.moveFile(filePath.replace('file://', ''), getMediaCachePath(objectKey)).catch(err =>
+                    logger.warn('Failed to pre-cache sent audio:', err),
+                );
 
                 const toSend = JSON.stringify({
                     type: 'AUDIO',

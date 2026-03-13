@@ -430,19 +430,20 @@ export const sendMessage = createDefaultAsyncThunk('sendMessage', async (data: s
             axiosBearerConfig(state.token),
         );
 
-        // Save message locally using server-assigned ID
+        // Save message locally using server-assigned ID (store plaintext so sent messages are readable immediately)
         const localMessage = {
             sender: state.user_data,
             reciever: data.to_user,
             rawMessage: {
                 id: res.data.id ?? Date.now(),
-                message: encryptedMessage,
+                message: data.message,
                 sender: state.user_data.phone_no,
                 sender_id: state.user_data.id,
                 reciever: data.to_user.phone_no,
                 reciever_id: data.to_user.id,
                 sent_at: new Date().toISOString(),
                 seen: false,
+                is_decrypted: true,
             },
         };
         thunkAPI.dispatch(SEND_MESSAGE(localMessage));

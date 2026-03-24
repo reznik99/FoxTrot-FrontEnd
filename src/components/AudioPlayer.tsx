@@ -1,11 +1,14 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { GestureResponderEvent, LayoutChangeEvent, StyleSheet, TouchableOpacity, View } from 'react-native';
 import RNFS, { CachesDirectoryPath } from 'react-native-fs';
 import Sound from 'react-native-nitro-sound';
 import { Icon, Text, useTheme } from 'react-native-paper';
 
 import { logger } from '~/global/logger';
 import { TEXT_SECONDARY } from '~/global/variables';
+
+const THUMB_SIZE = 14;
+const TRACK_HEIGHT = 6;
 
 type IProps = {
     messageId: number;
@@ -15,57 +18,105 @@ type IProps = {
     isSent?: boolean;
 };
 
+type PlaybackState = 'idle' | 'playing' | 'paused';
+
 export default function AudioPlayer(props: IProps) {
     const { colors } = useTheme();
     const iconColor = props.isSent ? '#ffffffcc' : colors.primary;
-    const [audioPlaybackTime, setAudioPlaybackTime] = useState(0);
-    const [playingAudio, setPlayingAudio] = useState(false);
+    const [playbackState, setPlaybackState] = useState<PlaybackState>('idle');
+    const [currentTime, setCurrentTime] = useState(0);
     const audioFilePathRef = useRef('');
+    const trackWidthRef = useRef(0);
+    const isSeeking = useRef(false);
 
-    const playAudio = useCallback(async () => {
-        try {
-            if (!audioFilePathRef.current) {
-                if (props.audioUri) {
-                    // S3-backed: file already on disk
-                    audioFilePathRef.current = props.audioUri.replace('file://', '');
-                } else if (props.audioData) {
-                    // Legacy inline: write base64 to deterministic cache path
-                    const filePath = `${CachesDirectoryPath}/audio-${props.messageId}.m4a`;
-                    if (!(await RNFS.exists(filePath))) {
-                        await RNFS.writeFile(filePath, props.audioData, 'base64');
-                    }
-                    audioFilePathRef.current = filePath;
-                }
+    const { audioDuration } = props;
+
+    const cleanup = useCallback(() => {
+        Sound.removePlayBackListener();
+        Sound.removePlaybackEndListener();
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            cleanup();
+            Sound.stopPlayer().catch(() => {});
+        };
+    }, [cleanup]);
+
+    const resolveFilePath = useCallback(async () => {
+        if (audioFilePathRef.current) return;
+        if (props.audioUri) {
+            audioFilePathRef.current = props.audioUri.replace('file://', '');
+        } else if (props.audioData) {
+            const filePath = `${CachesDirectoryPath}/audio-${props.messageId}.m4a`;
+            if (!(await RNFS.exists(filePath))) {
+                await RNFS.writeFile(filePath, props.audioData, 'base64');
             }
-
-            await Sound.setVolume(1.0);
-            await Sound.startPlayer(audioFilePathRef.current);
-            Sound.addPlayBackListener(e => setAudioPlaybackTime(e.currentPosition));
-            Sound.addPlaybackEndListener(() => setPlayingAudio(false));
-            setPlayingAudio(true);
-        } catch (err) {
-            logger.error(err);
+            audioFilePathRef.current = filePath;
         }
     }, [props.audioUri, props.audioData, props.messageId]);
 
-    const stopAudio = useCallback(async () => {
+    const playAudio = useCallback(async () => {
         try {
-            await Sound.stopPlayer();
-            setPlayingAudio(false);
-            Sound.removePlayBackListener();
-            Sound.removePlaybackEndListener();
+            if (playbackState === 'paused') {
+                await Sound.resumePlayer();
+                setPlaybackState('playing');
+                return;
+            }
+            await resolveFilePath();
+            cleanup();
+            Sound.setSubscriptionDuration(0.05);
+            await Sound.setVolume(1.0);
+            await Sound.startPlayer(audioFilePathRef.current);
+            Sound.addPlayBackListener(e => {
+                if (!isSeeking.current) setCurrentTime(e.currentPosition);
+            });
+            Sound.addPlaybackEndListener(() => {
+                cleanup();
+                setPlaybackState('idle');
+                setCurrentTime(0);
+            });
+            setPlaybackState('playing');
+        } catch (err) {
+            logger.error(err);
+        }
+    }, [playbackState, resolveFilePath, cleanup]);
+
+    const pauseAudio = useCallback(async () => {
+        try {
+            await Sound.pausePlayer();
+            setPlaybackState('paused');
         } catch (err) {
             logger.error(err);
         }
     }, []);
 
-    const progress = props.audioDuration > 0 ? (audioPlaybackTime / props.audioDuration) * 100 : 0;
+    // Seek from a touch/drag event on the track
+    const seekFromEvent = useCallback(
+        (e: GestureResponderEvent) => {
+            if (trackWidthRef.current <= 0) return;
+            const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / trackWidthRef.current));
+            const ms = ratio * audioDuration;
+            setCurrentTime(ms);
+            if (playbackState !== 'idle') {
+                Sound.seekToPlayer(ms).catch(err => logger.error(err));
+            }
+        },
+        [audioDuration, playbackState],
+    );
+
+    const onTrackLayout = useCallback((e: LayoutChangeEvent) => {
+        trackWidthRef.current = e.nativeEvent.layout.width;
+    }, []);
+
+    const progress = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0;
+    const showThumb = playbackState !== 'idle';
 
     return (
         <View style={styles.audioContainer}>
             <View style={styles.inputContainer}>
-                {playingAudio ? (
-                    <TouchableOpacity style={styles.button} onPress={stopAudio}>
+                {playbackState === 'playing' ? (
+                    <TouchableOpacity style={styles.button} onPress={pauseAudio}>
                         <Icon source="pause" color={iconColor} size={28} />
                     </TouchableOpacity>
                 ) : (
@@ -74,12 +125,26 @@ export default function AudioPlayer(props: IProps) {
                     </TouchableOpacity>
                 )}
                 <View style={styles.progressContainer}>
-                    <View style={styles.progressTrack}>
-                        <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: iconColor }]} />
+                    <View
+                        style={styles.seekArea}
+                        onLayout={onTrackLayout}
+                        onStartShouldSetResponder={() => true}
+                        onMoveShouldSetResponder={() => true}
+                        onResponderGrant={e => {
+                            isSeeking.current = true;
+                            seekFromEvent(e);
+                        }}
+                        onResponderMove={seekFromEvent}
+                        onResponderRelease={() => {
+                            isSeeking.current = false;
+                        }}
+                    >
+                        <View style={styles.progressTrack}>
+                            <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: iconColor }]} />
+                        </View>
+                        {showThumb && <View style={[styles.thumb, { left: `${progress}%`, backgroundColor: iconColor }]} />}
                     </View>
-                    <Text style={styles.duration}>
-                        {Sound.mmssss(audioPlaybackTime ? ~~audioPlaybackTime : ~~props.audioDuration)}
-                    </Text>
+                    <Text style={styles.duration}>{Sound.mmssss(currentTime ? ~~currentTime : ~~audioDuration)}</Text>
                 </View>
             </View>
         </View>
@@ -102,14 +167,26 @@ const styles = StyleSheet.create({
         flex: 1,
         gap: 4,
     },
+    seekArea: {
+        justifyContent: 'center',
+        paddingVertical: 12,
+    },
     progressTrack: {
-        height: 4,
-        borderRadius: 2,
+        height: TRACK_HEIGHT,
+        borderRadius: TRACK_HEIGHT / 2,
         backgroundColor: '#ffffff30',
+        overflow: 'hidden',
     },
     progressFill: {
-        height: 4,
-        borderRadius: 2,
+        height: TRACK_HEIGHT,
+        borderRadius: TRACK_HEIGHT / 2,
+    },
+    thumb: {
+        position: 'absolute',
+        width: THUMB_SIZE,
+        height: THUMB_SIZE,
+        borderRadius: THUMB_SIZE / 2,
+        marginLeft: -THUMB_SIZE / 2,
     },
     duration: {
         color: TEXT_SECONDARY,

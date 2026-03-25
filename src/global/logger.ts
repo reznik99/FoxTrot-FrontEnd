@@ -30,11 +30,6 @@ export function getEntries(): LogEntry[] {
     return result;
 }
 
-export function clearEntries() {
-    head = 0;
-    count = 0;
-}
-
 function formatArgs(args: any[]): string {
     return args
         .map(arg => {

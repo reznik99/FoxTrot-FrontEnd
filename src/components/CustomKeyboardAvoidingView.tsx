@@ -7,11 +7,11 @@ function CustomKeyboardAvoidingView({ children, style }: any) {
     const [open, setOpen] = useState(false);
 
     useEffect(() => {
-        Keyboard.addListener('keyboardDidShow', () => setOpen(true));
-        Keyboard.addListener('keyboardDidHide', () => setOpen(false));
+        const showSub = Keyboard.addListener('keyboardDidShow', () => setOpen(true));
+        const hideSub = Keyboard.addListener('keyboardDidHide', () => setOpen(false));
         return () => {
-            Keyboard.removeAllListeners('keyboardDidShow');
-            Keyboard.removeAllListeners('keyboardDidHide');
+            showSub.remove();
+            hideSub.remove();
         };
     }, []);
 

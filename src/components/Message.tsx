@@ -14,8 +14,6 @@ import { downloadMedia, getMediaCachePath } from '~/store/actions/media';
 import { message, UPDATE_MESSAGE_DECRYPTED, UserData } from '~/store/reducers/user';
 import { store } from '~/store/store';
 
-const todaysDate = new Date().toLocaleDateString();
-
 type decryptedMessage = {
     type: string;
     message?: string;
@@ -444,7 +442,7 @@ export default class Message extends PureComponent<MProps, MState> {
                     <Icon source="shield-alert" color={WARNING_AMBER} size={16} />
                     <Text style={styles.systemMessageText}>{item.message}</Text>
                     <Text style={styles.systemMessageTime}>
-                        {sent_at.toLocaleDateString() === todaysDate
+                        {sent_at.toLocaleDateString() === new Date().toLocaleDateString()
                             ? sent_at.toLocaleTimeString()
                             : `${sent_at.toLocaleDateString()} ${sent_at.toLocaleTimeString()}`}
                     </Text>
@@ -486,7 +484,7 @@ export default class Message extends PureComponent<MProps, MState> {
                     {/* Footers of message */}
                     <View style={styles.messageFooter}>
                         <Text style={[styles.messageTime, isSent && styles.messageTimeSent]}>
-                            {sent_at.toLocaleDateString() === todaysDate
+                            {sent_at.toLocaleDateString() === new Date().toLocaleDateString()
                                 ? sent_at.toLocaleTimeString()
                                 : sent_at.toLocaleDateString()}
                         </Text>

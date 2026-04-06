@@ -112,7 +112,7 @@ export async function publicKeyFingerprint(peerPublic: string): Promise<string> 
         .reduce((prev, curr, i) => prev + curr + (i % 2 === 1 ? ' ' : ''), '');
 }
 
-export interface EncryptedFileResult {
+interface EncryptedFileResult {
     encrypted: Buffer<ArrayBuffer>;
     keyBase64: string;
     ivBase64: string;

@@ -78,14 +78,6 @@ export async function getDb(): Promise<DB> {
     return db;
 }
 
-export function closeDb(): void {
-    if (db) {
-        db.close();
-        db = null;
-        logger.debug('[SQLite] Database closed');
-    }
-}
-
 export function deleteDb(): void {
     if (db) {
         db.delete();

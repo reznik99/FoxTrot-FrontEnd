@@ -13,6 +13,9 @@ import { TEXT_SECONDARY } from '~/global/variables';
 const THUMB_SIZE = 14;
 const TRACK_HEIGHT = 6;
 
+// Sound is a global singleton — only one AudioPlayer can be active at a time.
+let activeMessageId: number | null = null;
+
 type IProps = {
     messageId: number;
     audioData?: string;
@@ -45,8 +48,9 @@ export default function AudioPlayer(props: IProps) {
             cleanup();
             Sound.stopPlayer().catch(() => {});
             InCallManager.setKeepScreenOn(false);
+            if (activeMessageId === props.messageId) activeMessageId = null;
         };
-    }, [cleanup]);
+    }, [cleanup, props.messageId]);
 
     const resolveFilePath = useCallback(async () => {
         if (audioFilePathRef.current) return;
@@ -63,13 +67,17 @@ export default function AudioPlayer(props: IProps) {
 
     const playAudio = useCallback(async () => {
         try {
-            if (playbackState === 'paused') {
+            // Resume only if we're still the active player
+            if (playbackState === 'paused' && activeMessageId === props.messageId) {
                 await Sound.resumePlayer();
                 setPlaybackState('playing');
+                InCallManager.setKeepScreenOn(true);
                 return;
             }
+            // Start fresh
             await resolveFilePath();
             cleanup();
+            activeMessageId = props.messageId;
             Sound.setSubscriptionDuration(0.1);
             await Sound.setVolume(1.0);
             await Sound.startPlayer(audioFilePathRef.current);
@@ -86,6 +94,7 @@ export default function AudioPlayer(props: IProps) {
                 setPlaybackState('idle');
                 setCurrentTime(0);
                 progress.value = 0;
+                activeMessageId = null;
                 InCallManager.setKeepScreenOn(false);
             });
             setPlaybackState('playing');
@@ -93,7 +102,7 @@ export default function AudioPlayer(props: IProps) {
         } catch (err) {
             logger.error(err);
         }
-    }, [playbackState, resolveFilePath, cleanup, audioDuration, progress]);
+    }, [playbackState, resolveFilePath, cleanup, audioDuration, progress, props.messageId]);
 
     const pauseAudio = useCallback(async () => {
         try {
@@ -128,11 +137,11 @@ export default function AudioPlayer(props: IProps) {
                 })
                 .onFinalize(e => {
                     isSeeking.current = false;
-                    if (trackWidthRef.current > 0 && playbackState !== 'idle') {
+                    if (trackWidthRef.current > 0 && playbackState !== 'idle' && activeMessageId === props.messageId) {
                         Sound.seekToPlayer(touchRatio(e.x) * audioDuration).catch(err => logger.error(err));
                     }
                 }),
-        [audioDuration, playbackState, progress],
+        [audioDuration, playbackState, progress, props.messageId],
     );
 
     const fillStyle = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));

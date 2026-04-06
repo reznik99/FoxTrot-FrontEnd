@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { GestureResponderEvent, LayoutChangeEvent, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { LayoutChangeEvent, StyleSheet, TouchableOpacity, View } from 'react-native';
 import RNFS, { CachesDirectoryPath } from 'react-native-fs';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Sound from 'react-native-nitro-sound';
 import { Icon, Text, useTheme } from 'react-native-paper';
 
@@ -65,7 +66,7 @@ export default function AudioPlayer(props: IProps) {
             }
             await resolveFilePath();
             cleanup();
-            Sound.setSubscriptionDuration(0.05);
+            Sound.setSubscriptionDuration(0.1);
             await Sound.setVolume(1.0);
             await Sound.startPlayer(audioFilePathRef.current);
             Sound.addPlayBackListener(e => {
@@ -91,17 +92,32 @@ export default function AudioPlayer(props: IProps) {
         }
     }, []);
 
-    // Seek from a touch/drag event on the track
-    const seekFromEvent = useCallback(
-        (e: GestureResponderEvent) => {
-            if (trackWidthRef.current <= 0) return;
-            const ratio = Math.max(0, Math.min(1, e.nativeEvent.locationX / trackWidthRef.current));
-            const ms = ratio * audioDuration;
-            setCurrentTime(ms);
-            if (playbackState !== 'idle') {
-                Sound.seekToPlayer(ms).catch(err => logger.error(err));
-            }
-        },
+    const seekGesture = useMemo(
+        () =>
+            Gesture.Pan()
+                .runOnJS(true)
+                .activeOffsetX([-5, 5])
+                .failOffsetY([-20, 20])
+                .onBegin(e => {
+                    isSeeking.current = true;
+                    if (trackWidthRef.current > 0) {
+                        const ratio = Math.max(0, Math.min(1, e.x / trackWidthRef.current));
+                        setCurrentTime(ratio * audioDuration);
+                    }
+                })
+                .onUpdate(e => {
+                    if (trackWidthRef.current > 0) {
+                        const ratio = Math.max(0, Math.min(1, e.x / trackWidthRef.current));
+                        setCurrentTime(ratio * audioDuration);
+                    }
+                })
+                .onFinalize(e => {
+                    isSeeking.current = false;
+                    if (trackWidthRef.current > 0 && playbackState !== 'idle') {
+                        const ratio = Math.max(0, Math.min(1, e.x / trackWidthRef.current));
+                        Sound.seekToPlayer(ratio * audioDuration).catch(err => logger.error(err));
+                    }
+                }),
         [audioDuration, playbackState],
     );
 
@@ -125,25 +141,14 @@ export default function AudioPlayer(props: IProps) {
                     </TouchableOpacity>
                 )}
                 <View style={styles.progressContainer}>
-                    <View
-                        style={styles.seekArea}
-                        onLayout={onTrackLayout}
-                        onStartShouldSetResponder={() => true}
-                        onMoveShouldSetResponder={() => true}
-                        onResponderGrant={e => {
-                            isSeeking.current = true;
-                            seekFromEvent(e);
-                        }}
-                        onResponderMove={seekFromEvent}
-                        onResponderRelease={() => {
-                            isSeeking.current = false;
-                        }}
-                    >
-                        <View style={styles.progressTrack}>
-                            <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: iconColor }]} />
+                    <GestureDetector gesture={seekGesture}>
+                        <View style={styles.seekArea} onLayout={onTrackLayout}>
+                            <View style={styles.progressTrack}>
+                                <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: iconColor }]} />
+                            </View>
+                            {showThumb && <View style={[styles.thumb, { left: `${progress}%`, backgroundColor: iconColor }]} />}
                         </View>
-                        {showThumb && <View style={[styles.thumb, { left: `${progress}%`, backgroundColor: iconColor }]} />}
-                    </View>
+                    </GestureDetector>
                     <Text style={styles.duration}>{Sound.mmssss(currentTime ? ~~currentTime : ~~audioDuration)}</Text>
                 </View>
             </View>

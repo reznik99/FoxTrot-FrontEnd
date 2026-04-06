@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LayoutChangeEvent, StyleSheet, TouchableOpacity, View } from 'react-native';
 import RNFS, { CachesDirectoryPath } from 'react-native-fs';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import InCallManager from 'react-native-incall-manager';
 import Sound from 'react-native-nitro-sound';
 import { Icon, Text, useTheme } from 'react-native-paper';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -28,8 +29,8 @@ export default function AudioPlayer(props: IProps) {
     const [playbackState, setPlaybackState] = useState<PlaybackState>('idle');
     const [currentTime, setCurrentTime] = useState(0);
     const audioFilePathRef = useRef('');
-    const trackWidth = useSharedValue(0);
-    const progressAnim = useSharedValue(0);
+    const trackWidthRef = useRef(0);
+    const progress = useSharedValue(0);
     const isSeeking = useRef(false);
 
     const { audioDuration } = props;
@@ -43,6 +44,7 @@ export default function AudioPlayer(props: IProps) {
         return () => {
             cleanup();
             Sound.stopPlayer().catch(() => {});
+            InCallManager.setKeepScreenOn(false);
         };
     }, [cleanup]);
 
@@ -74,7 +76,7 @@ export default function AudioPlayer(props: IProps) {
             Sound.addPlayBackListener(e => {
                 if (!isSeeking.current) {
                     setCurrentTime(e.currentPosition);
-                    progressAnim.value = withTiming(audioDuration > 0 ? e.currentPosition / audioDuration : 0, {
+                    progress.value = withTiming(audioDuration > 0 ? e.currentPosition / audioDuration : 0, {
                         duration: 100,
                     });
                 }
@@ -83,22 +85,27 @@ export default function AudioPlayer(props: IProps) {
                 cleanup();
                 setPlaybackState('idle');
                 setCurrentTime(0);
-                progressAnim.value = 0;
+                progress.value = 0;
+                InCallManager.setKeepScreenOn(false);
             });
             setPlaybackState('playing');
+            InCallManager.setKeepScreenOn(true);
         } catch (err) {
             logger.error(err);
         }
-    }, [playbackState, resolveFilePath, cleanup, audioDuration, progressAnim]);
+    }, [playbackState, resolveFilePath, cleanup, audioDuration, progress]);
 
     const pauseAudio = useCallback(async () => {
         try {
             await Sound.pausePlayer();
             setPlaybackState('paused');
+            InCallManager.setKeepScreenOn(false);
         } catch (err) {
             logger.error(err);
         }
     }, []);
+
+    const touchRatio = (x: number) => Math.max(0, Math.min(1, x / trackWidthRef.current));
 
     const seekGesture = useMemo(
         () =>
@@ -108,44 +115,28 @@ export default function AudioPlayer(props: IProps) {
                 .failOffsetY([-20, 20])
                 .onBegin(e => {
                     isSeeking.current = true;
-                    if (trackWidth.value > 0) {
-                        const ratio = Math.max(0, Math.min(1, e.x / trackWidth.value));
-                        progressAnim.value = ratio;
-                        setCurrentTime(ratio * audioDuration);
+                    if (trackWidthRef.current > 0) {
+                        progress.value = touchRatio(e.x);
+                        setCurrentTime(touchRatio(e.x) * audioDuration);
                     }
                 })
                 .onUpdate(e => {
-                    if (trackWidth.value > 0) {
-                        const ratio = Math.max(0, Math.min(1, e.x / trackWidth.value));
-                        progressAnim.value = ratio;
-                        setCurrentTime(ratio * audioDuration);
+                    if (trackWidthRef.current > 0) {
+                        progress.value = touchRatio(e.x);
+                        setCurrentTime(touchRatio(e.x) * audioDuration);
                     }
                 })
                 .onFinalize(e => {
                     isSeeking.current = false;
-                    if (trackWidth.value > 0 && playbackState !== 'idle') {
-                        const ratio = Math.max(0, Math.min(1, e.x / trackWidth.value));
-                        Sound.seekToPlayer(ratio * audioDuration).catch(err => logger.error(err));
+                    if (trackWidthRef.current > 0 && playbackState !== 'idle') {
+                        Sound.seekToPlayer(touchRatio(e.x) * audioDuration).catch(err => logger.error(err));
                     }
                 }),
-        [audioDuration, playbackState, trackWidth, progressAnim],
+        [audioDuration, playbackState, progress],
     );
 
-    const onTrackLayout = useCallback(
-        (e: LayoutChangeEvent) => {
-            trackWidth.value = e.nativeEvent.layout.width;
-        },
-        [trackWidth],
-    );
-
-    const fillStyle = useAnimatedStyle(() => ({
-        width: trackWidth.value > 0 ? progressAnim.value * trackWidth.value : 0,
-    }));
-
-    const thumbStyle = useAnimatedStyle(() => ({
-        left: trackWidth.value > 0 ? progressAnim.value * trackWidth.value : 0,
-    }));
-
+    const fillStyle = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
+    const thumbStyle = useAnimatedStyle(() => ({ left: `${progress.value * 100}%` }));
     const showThumb = playbackState !== 'idle';
 
     return (
@@ -162,7 +153,12 @@ export default function AudioPlayer(props: IProps) {
                 )}
                 <View style={styles.progressContainer}>
                     <GestureDetector gesture={seekGesture}>
-                        <View style={styles.seekArea} onLayout={onTrackLayout}>
+                        <View
+                            style={styles.seekArea}
+                            onLayout={(e: LayoutChangeEvent) => {
+                                trackWidthRef.current = e.nativeEvent.layout.width;
+                            }}
+                        >
                             <View style={styles.progressTrack}>
                                 <Animated.View style={[styles.progressFill, { backgroundColor: iconColor }, fillStyle]} />
                             </View>

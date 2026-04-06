@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 // Recording modes: tap mic → "locked" recording (tap stop to finish), hold mic → stop on release
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import InCallManager from 'react-native-incall-manager';
 import Sound, { AudioEncoderAndroidType, AudioSet } from 'react-native-nitro-sound';
 import { ActivityIndicator, Icon, Text, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -56,6 +57,7 @@ export default function Messaging(props: IProps) {
         Sound.removeRecordBackListener();
         Sound.removePlayBackListener();
         Sound.removePlaybackEndListener();
+        InCallManager.setKeepScreenOn(false);
     }, []);
 
     const stopRecording = useCallback(async () => {
@@ -63,6 +65,7 @@ export default function Messaging(props: IProps) {
         Sound.removeRecordBackListener();
         setRecording(false);
         setRecordLocked(false);
+        InCallManager.setKeepScreenOn(false);
     }, []);
 
     const onMicPress = useCallback(async () => {
@@ -90,6 +93,7 @@ export default function Messaging(props: IProps) {
             const result = await Sound.startRecorder(undefined, audioConfig);
             setAudioFilePath(result);
             setRecording(true);
+            InCallManager.setKeepScreenOn(true);
             logger.info('Recording started:', result);
         } catch (err) {
             logger.error(err);

@@ -99,7 +99,7 @@ export const generateAndSyncKeys = createDefaultAsyncThunk<boolean>('generateAnd
         const keys = await exportKeypair(keyPair);
 
         // Upload public key (force overwrite if rotating an existing key)
-        const hasExistingKeys = !!state.keys;
+        const hasExistingKeys = !!state.keys || !!state.user_data.public_key;
         logger.debug(
             `Syncing '${KeypairAlgorithm.name} ${KeypairAlgorithm.namedCurve}' public key to server (force: ${hasExistingKeys})`,
         );

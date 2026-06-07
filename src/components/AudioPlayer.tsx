@@ -3,7 +3,7 @@ import { LayoutChangeEvent, StyleSheet, TouchableOpacity, View } from 'react-nat
 import RNFS, { CachesDirectoryPath } from 'react-native-fs';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import InCallManager from 'react-native-incall-manager';
-import Sound from 'react-native-nitro-sound';
+import Sound, { createSound } from 'react-native-nitro-sound';
 import { Icon, Text, useTheme } from 'react-native-paper';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -13,8 +13,8 @@ import { TEXT_SECONDARY } from '~/global/variables';
 const THUMB_SIZE = 14;
 const TRACK_HEIGHT = 6;
 
-// Sound is a global singleton — only one AudioPlayer can be active at a time.
-let activeMessageId: number | null = null;
+// Each player owns its own Sound instance. Starting one stops whichever was active.
+let stopActivePlayer: (() => void) | null = null;
 
 type IProps = {
     messageId: number;
@@ -35,22 +35,30 @@ export default function AudioPlayer(props: IProps) {
     const trackWidthRef = useRef(0);
     const progress = useSharedValue(0);
     const isSeeking = useRef(false);
+    const soundRef = useRef<ReturnType<typeof createSound> | null>(null);
 
     const { audioDuration } = props;
 
-    const cleanup = useCallback(() => {
-        Sound.removePlayBackListener();
-        Sound.removePlaybackEndListener();
-    }, []);
+    // Stop our player and reset the UI to idle (stable identity — all deps are stable)
+    const stopSelf = useCallback(() => {
+        const sound = soundRef.current;
+        if (sound) {
+            sound.removePlayBackListener();
+            sound.removePlaybackEndListener();
+            sound.stopPlayer().catch(() => {});
+        }
+        setPlaybackState('idle');
+        setCurrentTime(0);
+        progress.value = 0;
+        InCallManager.setKeepScreenOn(false);
+    }, [progress]);
 
     useEffect(() => {
         return () => {
-            cleanup();
-            Sound.stopPlayer().catch(() => {});
-            InCallManager.setKeepScreenOn(false);
-            if (activeMessageId === props.messageId) activeMessageId = null;
+            if (stopActivePlayer === stopSelf) stopActivePlayer = null;
+            stopSelf();
         };
-    }, [cleanup, props.messageId]);
+    }, [stopSelf]);
 
     const resolveFilePath = useCallback(async () => {
         if (audioFilePathRef.current) return;
@@ -67,21 +75,21 @@ export default function AudioPlayer(props: IProps) {
 
     const playAudio = useCallback(async () => {
         try {
-            // Resume only if we're still the active player
-            if (playbackState === 'paused' && activeMessageId === props.messageId) {
-                await Sound.resumePlayer();
+            const sound = (soundRef.current ??= createSound());
+            if (playbackState === 'paused') {
+                await sound.resumePlayer();
                 setPlaybackState('playing');
                 InCallManager.setKeepScreenOn(true);
                 return;
             }
-            // Start fresh
+            // Start fresh, stopping whichever player was active
             await resolveFilePath();
-            cleanup();
-            activeMessageId = props.messageId;
-            Sound.setSubscriptionDuration(0.1);
-            await Sound.setVolume(1.0);
-            await Sound.startPlayer(audioFilePathRef.current);
-            Sound.addPlayBackListener(e => {
+            if (stopActivePlayer !== stopSelf) stopActivePlayer?.();
+            stopActivePlayer = stopSelf;
+            sound.setSubscriptionDuration(0.1);
+            await sound.setVolume(1.0);
+            await sound.startPlayer(audioFilePathRef.current);
+            sound.addPlayBackListener(e => {
                 if (!isSeeking.current) {
                     setCurrentTime(e.currentPosition);
                     progress.value = withTiming(audioDuration > 0 ? e.currentPosition / audioDuration : 0, {
@@ -89,24 +97,20 @@ export default function AudioPlayer(props: IProps) {
                     });
                 }
             });
-            Sound.addPlaybackEndListener(() => {
-                cleanup();
-                setPlaybackState('idle');
-                setCurrentTime(0);
-                progress.value = 0;
-                activeMessageId = null;
-                InCallManager.setKeepScreenOn(false);
+            sound.addPlaybackEndListener(() => {
+                if (stopActivePlayer === stopSelf) stopActivePlayer = null;
+                stopSelf();
             });
             setPlaybackState('playing');
             InCallManager.setKeepScreenOn(true);
         } catch (err) {
             logger.error(err);
         }
-    }, [playbackState, resolveFilePath, cleanup, audioDuration, progress, props.messageId]);
+    }, [playbackState, resolveFilePath, stopSelf, audioDuration, progress]);
 
     const pauseAudio = useCallback(async () => {
         try {
-            await Sound.pausePlayer();
+            await soundRef.current?.pausePlayer();
             setPlaybackState('paused');
             InCallManager.setKeepScreenOn(false);
         } catch (err) {
@@ -137,11 +141,11 @@ export default function AudioPlayer(props: IProps) {
                 })
                 .onFinalize(e => {
                     isSeeking.current = false;
-                    if (trackWidthRef.current > 0 && playbackState !== 'idle' && activeMessageId === props.messageId) {
-                        Sound.seekToPlayer(touchRatio(e.x) * audioDuration).catch(err => logger.error(err));
+                    if (trackWidthRef.current > 0 && playbackState !== 'idle') {
+                        soundRef.current?.seekToPlayer(touchRatio(e.x) * audioDuration).catch(err => logger.error(err));
                     }
                 }),
-        [audioDuration, playbackState, progress, props.messageId],
+        [audioDuration, playbackState, progress],
     );
 
     const fillStyle = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));

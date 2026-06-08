@@ -38,6 +38,7 @@ import { readFromStorage, StorageKeys } from '~/global/storage';
 // App
 import { ACCENT, DARKHEADER, DIVIDER, ERROR_RED, PRIMARY, SECONDARY, SECONDARY_LITE } from '~/global/variables';
 import * as websocketManager from '~/global/websocketManager';
+import DevTests from '~/pages/dev/DevTests';
 import { store } from '~/store/store';
 
 import {
@@ -160,6 +161,9 @@ const HomeNavigator = () => {
                 component={KeySetup}
                 options={{ title: 'Set Up Encryption', headerLeft: () => null }}
             />
+            {__DEV__ && (
+                <HomeStack.Screen name="DevTests" component={DevTests} options={{ title: 'Dev: Integration Tests' }} />
+            )}
         </HomeStack.Navigator>
     );
 };

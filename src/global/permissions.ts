@@ -73,3 +73,20 @@ export async function getMicrophoneRecordingPermission() {
     const status = await PermissionsAndroid.request(permission);
     return status === PermissionsAndroid.RESULTS.GRANTED;
 }
+
+// Required for InCallManager to route call audio to a Bluetooth headset on Android 12+.
+// Pre-31 the legacy BLUETOOTH permission is install-time, so there's nothing to request.
+export async function getBluetoothConnectPermission() {
+    if (Number(Platform.Version) < 31) {
+        return true;
+    }
+    const permission = PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT;
+
+    const hasPermission = await PermissionsAndroid.check(permission);
+    if (hasPermission) {
+        return true;
+    }
+
+    const status = await PermissionsAndroid.request(permission);
+    return status === PermissionsAndroid.RESULTS.GRANTED;
+}

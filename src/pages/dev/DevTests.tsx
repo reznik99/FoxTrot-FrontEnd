@@ -21,27 +21,31 @@ export default function DevTests() {
     const runAll = useCallback(async () => {
         setRunning(true);
         setResults({});
+        logger.info('──── INTEGRATION TESTS START ────');
+        let passed = 0;
         for (const test of allDevTests) {
             setResults(r => ({ ...r, [test.id]: { status: 'running' } }));
             const start = performance.now();
             try {
                 await test.run();
+                passed++;
                 setResults(r => ({
                     ...r,
                     [test.id]: { status: 'pass', durationMs: performance.now() - start },
                 }));
             } catch (err) {
                 logger.error(`[DevTests] ${test.id} failed:`, err);
+                // Capture into plain locals — Hermes drops the catch binding for the
+                // deferred setResults updater closure, throwing "Property 'err' doesn't exist".
+                const durationMs = performance.now() - start;
+                const message = err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : String(err);
                 setResults(r => ({
                     ...r,
-                    [test.id]: {
-                        status: 'fail',
-                        durationMs: performance.now() - start,
-                        error: err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : String(err),
-                    },
+                    [test.id]: { status: 'fail', durationMs, error: message },
                 }));
             }
         }
+        logger.info(`──── INTEGRATION TESTS FINISH (${passed}/${allDevTests.length} passed) ────`);
         setRunning(false);
     }, []);
 

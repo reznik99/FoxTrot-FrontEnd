@@ -94,7 +94,7 @@ export const cryptoTests: TestCase[] = [
                 'raw',
                 Buffer.from(TEST_KEY_BASE64, 'base64'),
                 SymmetricAlgorithm,
-                false,
+                true,
                 ['encrypt', 'decrypt'],
             );
             const plaintext = await decrypt(sessionKey, cbcSingleChunk);

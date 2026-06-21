@@ -1,3 +1,4 @@
+import { DeviceEventEmitter, EmitterSubscription } from 'react-native';
 import InCallManager from 'react-native-incall-manager';
 import Toast from 'react-native-toast-message';
 import { mediaDevices, MediaStream, RTCPeerConnection, RTCSessionDescription } from 'react-native-webrtc';
@@ -8,6 +9,7 @@ import { RTCOfferOptions } from 'react-native-webrtc/lib/typescript/RTCUtil';
 
 import { dbSaveCallRecord } from '~/global/database';
 import { logger } from '~/global/logger';
+import { getBluetoothConnectPermission } from '~/global/permissions';
 import { readFromStorage, StorageKeys } from '~/global/storage';
 import { CandidatePair, getConnStats, getRTCConfiguration, LocalCandidate, WebRTCMessage } from '~/global/webrtc';
 import { SocketData, wsSendMessage } from '~/global/websocketManager';
@@ -51,6 +53,10 @@ export interface CallManagerState {
         | undefined;
 }
 
+// Ring timeout for outgoing calls. Kept under the backend's 90s offer cache, but generous because
+// answering requires biometric unlock.
+const RING_TIMEOUT_MS = 60_000;
+
 const initialState: CallManagerState = {
     phase: CallPhase.IDLE,
     peerUser: null,
@@ -76,10 +82,13 @@ const internal = {
     callTimer: null as ReturnType<typeof setInterval> | null,
     callStatsTimer: null as ReturnType<typeof setInterval> | null,
     disconnectTimer: null as ReturnType<typeof setTimeout> | null,
+    ringTimer: null as ReturnType<typeof setTimeout> | null,
     userData: null as UserData | null,
     callOffer: null as RTCSessionDescriptionInit | null,
     pendingIceCandidates: [] as any[],
     listeners: new Set<(state: CallManagerState) => void>(),
+    audioDevices: [] as string[],
+    audioDeviceSub: null as EmitterSubscription | null,
     state: { ...initialState },
 };
 
@@ -145,7 +154,7 @@ export function answerCall(params: {
     setupStream(params);
 }
 
-export function endCall(isRemoteHangup: boolean = false) {
+export function endCall(isRemoteHangup: boolean = false, playBusytone: boolean = false) {
     if (internal.state.phase === CallPhase.IDLE || internal.state.phase === CallPhase.ENDING) {
         return;
     }
@@ -162,7 +171,7 @@ export function endCall(isRemoteHangup: boolean = false) {
                 peer_pic: internal.state.peerUser.pic,
                 direction: internal.callOffer ? 'incoming' : 'outgoing',
                 call_type: internal.state.videoEnabled ? 'video' : 'audio',
-                status: 'answered',
+                status: prevPhase === CallPhase.CONNECTED || prevPhase === CallPhase.CONNECTING ? 'answered' : 'missed',
                 duration: Math.floor(internal.state.callTime),
                 started_at: new Date(internal.state.startTime).toISOString(),
             });
@@ -189,8 +198,16 @@ export function endCall(isRemoteHangup: boolean = false) {
         });
     }
 
-    // Stop InCallManager
-    InCallManager.stop();
+    // Stop InCallManager (playBusytone => stop() plays the "unavailable" tone before tearing down)
+    internal.audioDeviceSub?.remove();
+    internal.audioDeviceSub = null;
+    internal.audioDevices = [];
+    if (internal.ringTimer) {
+        clearTimeout(internal.ringTimer);
+        internal.ringTimer = null;
+    }
+    InCallManager.stopRingback();
+    InCallManager.stop(playBusytone ? { busytone: '_DTMF_' } : undefined);
 
     // Stop timers
     clearDisconnectTimer();
@@ -244,7 +261,7 @@ export function toggleAudio() {
     const newVoiceEnabled = !internal.state.voiceEnabled;
     const audioTrack = internal.localStream.getAudioTracks()[0];
     audioTrack.enabled = newVoiceEnabled;
-    InCallManager.setMicrophoneMute(newVoiceEnabled);
+    InCallManager.setMicrophoneMute(!newVoiceEnabled);
     setState({ voiceEnabled: newVoiceEnabled });
 }
 
@@ -264,12 +281,17 @@ export function toggleCamera() {
     }
 }
 
-export function toggleSpeaker() {
+export async function toggleSpeaker() {
     if (!internal.localStream) {
         return;
     }
     const newLoudSpeaker = !internal.state.loudSpeaker;
-    InCallManager.setSpeakerphoneOn(newLoudSpeaker);
+    // Use chooseAudioRoute, not setSpeakerphoneOn — the raw speaker toggle bypasses the route
+    // manager, so turning speaker off drops to earpiece and can never return to Bluetooth.
+    // Off -> Bluetooth if a headset is connected, otherwise earpiece (chooseAudioRoute no-ops
+    // on an unavailable device, so we must pick the right target ourselves).
+    const offRoute = internal.audioDevices.includes('BLUETOOTH') ? 'BLUETOOTH' : 'EARPIECE';
+    await InCallManager.chooseAudioRoute(newLoudSpeaker ? 'SPEAKER_PHONE' : offRoute);
     setState({ loudSpeaker: newLoudSpeaker });
 }
 
@@ -283,6 +305,11 @@ export function onCallAnswer(answer: RTCSessionDescriptionInit) {
     if (!internal.peerConnection || !answer) {
         return;
     }
+    if (internal.ringTimer) {
+        clearTimeout(internal.ringTimer);
+        internal.ringTimer = null;
+    }
+    InCallManager.stopRingback();
     const offerDescription = new RTCSessionDescription(answer);
     internal.peerConnection.setRemoteDescription(offerDescription).then(() => {
         // Flush any ICE candidates that arrived before remote description was set
@@ -342,6 +369,30 @@ async function setupStream(params: {
     });
 
     try {
+        // Start InCallManager (sets communication audio mode + Bluetooth SCO) BEFORE capturing the
+        // mic. If the mic is captured first, the Bluetooth SCO uplink isn't up yet, so the BT mic
+        // isn't used (built-in mic or silence, device-dependent).
+        // BLUETOOTH_CONNECT (Android 12+) is required for the route manager to reach a BT headset.
+        await getBluetoothConnectPermission();
+        InCallManager.start({ media: videoEnabled ? 'video' : 'audio', auto: true });
+
+        // Track which audio routes exist so toggleSpeaker knows whether Bluetooth is available.
+        internal.audioDeviceSub = DeviceEventEmitter.addListener(
+            'onAudioDeviceChanged',
+            (data: { availableAudioDeviceList?: string; selectedAudioDevice?: string }) => {
+                try {
+                    internal.audioDevices = JSON.parse(data.availableAudioDeviceList ?? '[]');
+                } catch {
+                    internal.audioDevices = [];
+                }
+                // Keep the speaker icon in sync with the route the library actually picked
+                // (e.g. video auto-routes to Bluetooth when connected, not the loudspeaker).
+                if (data.selectedAudioDevice) {
+                    setState({ loudSpeaker: data.selectedAudioDevice === 'SPEAKER_PHONE' });
+                }
+            },
+        );
+
         logger.debug('startStream - Loading local MediaStreams');
         const newStream = await mediaDevices.getUserMedia({ video: true, audio: true });
 
@@ -402,8 +453,6 @@ async function setupStream(params: {
             emitState();
         });
 
-        InCallManager.start({ media: videoEnabled ? 'video' : 'audio', auto: true });
-
         logger.debug('startStream - Loading tracks');
         newStream.getTracks().forEach(track => newConnection.addTrack(track, newStream));
         newStream.getVideoTracks()[0].enabled = videoEnabled;
@@ -457,6 +506,16 @@ async function initiateCall(peerUser: UserData, userData: UserData, videoEnabled
     };
     wsSendMessage(message);
     setState({ callStatus: `${peerUser?.phone_no} : Dialing`, phase: CallPhase.DIALING });
+    InCallManager.startRingback('_DTMF_');
+
+    // Give up if the peer never answers (must stay under the backend's 90s offer cache).
+    internal.ringTimer = setTimeout(() => {
+        if (internal.state.phase !== CallPhase.DIALING) {
+            return;
+        }
+        Toast.show({ type: 'info', text1: 'No answer', text2: `${peerUser?.phone_no} did not answer` });
+        endCall(false, true);
+    }, RING_TIMEOUT_MS);
 }
 
 async function answerIncomingCall(callOffer: RTCSessionDescriptionInit, peerUser: UserData, userData: UserData) {

@@ -1,6 +1,6 @@
 {
     "name": "foxtrot",
-    "version": "1.20.11",
+    "version": "1.20.12",
     "private": true,
     "scripts": {
         "android": "react-native run-android --no-packager && react-native start",
@@ -26,13 +26,13 @@
         "@react-navigation/native": "~7.1.31",
         "@react-navigation/stack": "~7.8.2",
         "@reduxjs/toolkit": "^2.12.0",
-        "@shopify/flash-list": "^2.3.1",
-        "axios": "^1.17.0",
+        "@shopify/flash-list": "^2.3.2",
+        "axios": "^1.18.0",
         "buffer": "^6.0.3",
         "react": "^19.1.0",
         "react-native": "^0.80.3",
         "react-native-bootsplash": "^7.3.1",
-        "react-native-compressor": "^1.18.2",
+        "react-native-compressor": "^2.0.2",
         "react-native-create-thumbnail": "^2.2.0",
         "react-native-device-info": "^15.0.2",
         "react-native-elements": "~3.4.3",
@@ -43,8 +43,8 @@
         "react-native-incall-manager": "^4.2.1",
         "react-native-keychain": "~10.0.0",
         "react-native-mmkv": "^4.3.1",
-        "react-native-nitro-modules": "^0.35.4",
-        "react-native-nitro-sound": "^0.2.12",
+        "react-native-nitro-modules": "^0.35.9",
+        "react-native-nitro-sound": "^0.2.15",
         "react-native-paper": "^5.15.3",
         "react-native-push-notification": "^8.1.1",
         "react-native-quick-base64": "^3.0.0",
@@ -60,10 +60,10 @@
         "react-redux": "~9.3.0"
     },
     "devDependencies": {
-        "@babel/core": "~7.29.0",
-        "@babel/preset-env": "~7.29.5",
-        "@babel/preset-typescript": "^7.28.5",
-        "@babel/runtime": "~7.29.2",
+        "@babel/core": "~7.29.7",
+        "@babel/preset-env": "~7.29.7",
+        "@babel/preset-typescript": "^7.29.7",
+        "@babel/runtime": "~7.29.7",
         "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
         "@react-native-community/cli": "~19.1.2",
         "@react-native-community/cli-platform-android": "~19.1.2",
@@ -89,7 +89,7 @@
         "typescript": "~5.9.3"
     },
     "engines": {
-        "node": ">=20"
+        "node": ">=22"
     },
     "op-sqlite": {
         "sqlcipher": true

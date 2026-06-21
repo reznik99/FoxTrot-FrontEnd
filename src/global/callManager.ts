@@ -453,10 +453,6 @@ async function setupStream(params: {
             emitState();
         });
 
-        // Needed before start() so InCallManager can route to a Bluetooth headset on Android 12+.
-        await getBluetoothConnectPermission();
-        InCallManager.start({ media: videoEnabled ? 'video' : 'audio', auto: true });
-
         logger.debug('startStream - Loading tracks');
         newStream.getTracks().forEach(track => newConnection.addTrack(track, newStream));
         newStream.getVideoTracks()[0].enabled = videoEnabled;

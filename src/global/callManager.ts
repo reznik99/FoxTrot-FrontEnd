@@ -171,7 +171,7 @@ export function endCall(isRemoteHangup: boolean = false, playBusytone: boolean =
                 peer_pic: internal.state.peerUser.pic,
                 direction: internal.callOffer ? 'incoming' : 'outgoing',
                 call_type: internal.state.videoEnabled ? 'video' : 'audio',
-                status: 'answered',
+                status: prevPhase === CallPhase.CONNECTED || prevPhase === CallPhase.CONNECTING ? 'answered' : 'missed',
                 duration: Math.floor(internal.state.callTime),
                 started_at: new Date(internal.state.startTime).toISOString(),
             });

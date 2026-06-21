@@ -212,6 +212,17 @@ export default function Settings(props: StackScreenProps<HomeStackParamList, 'Se
                         View Logs
                     </Button>
                 </View>
+                {__DEV__ && (
+                    <View style={{ marginBottom: 10 }}>
+                        <Text variant="bodyLarge">Integration Tests</Text>
+                        <Text variant="bodySmall" style={{ color: '#999', marginBottom: 10 }}>
+                            Run on-device tests against crypto, database, and storage. Dev builds only.
+                        </Text>
+                        <Button mode="contained-tonal" icon="flask" onPress={() => props.navigation.navigate('DevTests')}>
+                            Run Tests
+                        </Button>
+                    </View>
+                )}
                 <Divider style={{ marginVertical: 15 }} />
 
                 <Text variant="titleSmall" style={{ marginBottom: 10, color: theme.colors.primary }}>

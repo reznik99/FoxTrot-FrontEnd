@@ -22,6 +22,7 @@ export type HomeStackParamList = {
     CameraView: { data: { peer: UserData; mediaPath: string; mediaType?: 'image' | 'video' } };
     Settings: undefined;
     KeySetup: undefined;
+    DevTests: undefined;
 };
 
 export type AuthStackParamList = {

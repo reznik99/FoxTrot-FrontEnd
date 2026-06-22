@@ -1,6 +1,6 @@
 {
     "name": "foxtrot",
-    "version": "1.20.12",
+    "version": "1.20.13",
     "private": true,
     "scripts": {
         "android": "react-native run-android --no-packager && react-native start",
@@ -21,10 +21,10 @@
         "@react-native-firebase/app": "~23.8.8",
         "@react-native-firebase/messaging": "~23.8.8",
         "@react-native-vector-icons/material-design-icons": "~12.5.0",
-        "@react-navigation/bottom-tabs": "^7.15.2",
-        "@react-navigation/drawer": "~7.9.2",
-        "@react-navigation/native": "~7.1.31",
-        "@react-navigation/stack": "~7.8.2",
+        "@react-navigation/bottom-tabs": "^7.18.2",
+        "@react-navigation/drawer": "~7.12.2",
+        "@react-navigation/native": "~7.3.3",
+        "@react-navigation/stack": "~7.10.5",
         "@reduxjs/toolkit": "^2.12.0",
         "@shopify/flash-list": "^2.3.2",
         "axios": "^1.18.0",

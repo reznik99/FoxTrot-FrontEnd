@@ -60,28 +60,29 @@ type MState = {
 export default class Message extends PureComponent<MProps, MState> {
     constructor(props: MProps) {
         super(props);
+        // Pre-parse already-decrypted content so the row renders its final content on first paint.
+        // Encrypted messages stay undefined (show the "Tap to decrypt" placeholder) until tapped.
+        let parsed: decryptedMessage | undefined;
+        if (props.item.is_decrypted) {
+            try {
+                parsed = JSON.parse(props.item.message);
+            } catch {
+                parsed = { type: 'MSG', message: props.item.message };
+            }
+        }
         this.state = {
             loading: false,
-            decryptedMessage: undefined,
+            decryptedMessage: parsed,
         };
     }
 
     async componentDidMount() {
-        // If message was previously decrypted, parse the content
-        if (this.props.item.is_decrypted) {
-            try {
-                const parsed = JSON.parse(this.props.item.message);
-                this.setState({ decryptedMessage: parsed });
-                // Check if media is already cached on disk so we show the correct icon
-                if ((parsed.type === 'IMG' || parsed.type === 'VIDEO' || parsed.type === 'AUDIO') && parsed.objectKey) {
-                    const cachePath = getMediaCachePath(parsed.objectKey);
-                    if (await RNFS.exists(cachePath)) {
-                        this.setState({ mediaUri: `file://${cachePath}` });
-                    }
-                }
-            } catch (err) {
-                // Parse error, treat as plain text
-                this.setState({ decryptedMessage: { type: 'MSG', message: this.props.item.message } });
+        // Show media from the on-disk cache if it's already been downloaded.
+        const parsed = this.state.decryptedMessage;
+        if (parsed && (parsed.type === 'IMG' || parsed.type === 'VIDEO' || parsed.type === 'AUDIO') && parsed.objectKey) {
+            const cachePath = getMediaCachePath(parsed.objectKey);
+            if (await RNFS.exists(cachePath)) {
+                this.setState({ mediaUri: `file://${cachePath}` });
             }
         }
     }

@@ -4,7 +4,7 @@ import { StackScreenProps } from '@react-navigation/stack';
 import { FlashList, FlashListRef } from '@shopify/flash-list';
 import RNFS from 'react-native-fs';
 import { launchImageLibrary } from 'react-native-image-picker';
-import { Icon, Modal, Portal, useTheme } from 'react-native-paper';
+import { FAB, Icon, Modal, Portal, useTheme } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
 import { useSelector } from 'react-redux';
 
@@ -57,12 +57,14 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
         }
     }, [conversation.messages, user_data.phone_no, peer.phone_no]);
 
-    // Memoize the reversed messages
-    const reversedMessages = useMemo(() => {
-        return [...conversation.messages].reverse();
-    }, [conversation.messages]);
-
     const listRef = useRef<FlashListRef<message>>(null);
+    const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+    const scrollToBottom = useCallback(() => {
+        // Inverted list: index 0 is the newest message (bottom). scrollToIndex is virtualization-aware;
+        // scrollToOffset under-shoots when the bottom isn't currently rendered.
+        listRef.current?.scrollToIndex({ index: 0, animated: true });
+    }, []);
 
     const getMessageById = useCallback(
         (id: number): message | undefined => {
@@ -87,7 +89,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
 
     const handleScrollToMessage = useCallback(
         (messageId: number) => {
-            const index = reversedMessages.findIndex(m => m.id === messageId);
+            const index = conversation.messages.findIndex(m => m.id === messageId);
             if (index === -1) {
                 Toast.show({
                     type: 'info',
@@ -99,7 +101,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
             }
             listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
         },
-        [reversedMessages],
+        [conversation.messages],
     );
 
     const cancelReply = useCallback(() => setReplyTarget(null), []);
@@ -267,45 +269,58 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
     return (
         <View style={styles.container}>
             {/* Message list */}
-            <FlashList
-                ref={listRef}
-                removeClippedSubviews={false}
-                contentContainerStyle={styles.messageList}
-                data={reversedMessages}
-                maintainVisibleContentPosition={{
-                    autoscrollToBottomThreshold: 0.25,
-                    startRenderingFromBottom: true,
-                }}
-                keyExtractor={t => t.id.toString()}
-                onStartReached={loadMoreMessages}
-                onStartReachedThreshold={0}
-                ListEmptyComponent={renderListEmpty}
-                ListHeaderComponent={renderListHeader}
-                ListFooterComponent={renderListFooter}
-                renderItem={({ item }) => {
-                    const isSent = item.sender === user_data.phone_no;
-                    return (
-                        <SwipeableMessage
-                            isSent={isSent}
-                            isSystem={!!item.system}
-                            onSwipeReply={() => handleSwipeReply(item)}
-                        >
-                            <Message
-                                key={item.id}
-                                item={item}
-                                peer={peer}
+            <View style={styles.listWrapper}>
+                <FlashList
+                    ref={listRef}
+                    inverted
+                    removeClippedSubviews={false}
+                    contentContainerStyle={styles.messageList}
+                    data={conversation.messages}
+                    keyExtractor={t => t.id.toString()}
+                    onEndReached={loadMoreMessages}
+                    onEndReachedThreshold={0}
+                    scrollEventThrottle={16}
+                    onScroll={e => {
+                        // Inverted: contentOffset.y grows as you scroll up away from the newest message.
+                        const show = e.nativeEvent.contentOffset.y > 250;
+                        if (show !== showScrollToBottom) setShowScrollToBottom(show);
+                    }}
+                    ListEmptyComponent={renderListEmpty}
+                    ListHeaderComponent={renderListFooter}
+                    ListFooterComponent={renderListHeader}
+                    renderItem={({ item }) => {
+                        const isSent = item.sender === user_data.phone_no;
+                        return (
+                            <SwipeableMessage
                                 isSent={isSent}
-                                zoomMedia={setZoomMedia}
-                                onLongPress={handleLongPress}
-                                getMessageById={getMessageById}
-                                onReplyPreviewPress={handleScrollToMessage}
-                                conversationId={peer.phone_no}
-                                primaryColor={colors.primary}
-                            />
-                        </SwipeableMessage>
-                    );
-                }}
-            />
+                                isSystem={!!item.system}
+                                onSwipeReply={() => handleSwipeReply(item)}
+                            >
+                                <Message
+                                    key={item.id}
+                                    item={item}
+                                    peer={peer}
+                                    isSent={isSent}
+                                    zoomMedia={setZoomMedia}
+                                    onLongPress={handleLongPress}
+                                    getMessageById={getMessageById}
+                                    onReplyPreviewPress={handleScrollToMessage}
+                                    conversationId={peer.phone_no}
+                                    primaryColor={colors.primary}
+                                />
+                            </SwipeableMessage>
+                        );
+                    }}
+                />
+                <FAB
+                    icon="chevron-down"
+                    size="small"
+                    color={colors.primary}
+                    visible={showScrollToBottom}
+                    onPress={scrollToBottom}
+                    style={styles.scrollToBottomFab}
+                />
+            </View>
             {/* Messaging controls */}
             <Messaging
                 loading={loading}
@@ -357,6 +372,15 @@ const styles = StyleSheet.create({
         flex: 1,
         width: '100%',
         backgroundColor: SECONDARY,
+    },
+    listWrapper: {
+        flex: 1,
+    },
+    scrollToBottomFab: {
+        position: 'absolute',
+        right: 12,
+        bottom: 12,
+        backgroundColor: '#333333', // received-message grey, opaque
     },
     messageList: {
         paddingHorizontal: 10,

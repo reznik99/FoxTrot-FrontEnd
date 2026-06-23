@@ -88,8 +88,8 @@ android {
         applicationId "com.francescogorini.foxtrot"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 82
-        versionName "1.20.13"
+        versionCode 83
+        versionName "1.20.14"
     }
     signingConfigs {
         debug {

@@ -283,7 +283,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                     ref={listRef}
                     inverted
                     // Auto-scroll to new messages when the user is near the bottom
-                    maintainVisibleContentPosition={{ autoscrollToBottomThreshold: 0.25 }}
+                    maintainVisibleContentPosition={{ autoscrollToTopThreshold: 0.25 }}
                     removeClippedSubviews={false}
                     contentContainerStyle={styles.messageList}
                     data={conversation.messages}

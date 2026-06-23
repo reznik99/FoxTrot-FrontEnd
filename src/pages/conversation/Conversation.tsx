@@ -145,17 +145,23 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
     const handleSend = useCallback(async () => {
         if (inputMessage.trim() === '') return;
 
+        // Restore the input if the send fails (sendMessage returns false; it shows its own error toast)
+        const savedInputMessage = inputMessage.trim();
+        const savedReplyTarget = replyTarget;
         try {
             setLoading(true);
             setInputMessage('');
 
-            const toSend = replyTarget
-                ? JSON.stringify({ type: 'REPLY', message: inputMessage.trim(), messageId: replyTarget.messageId })
-                : JSON.stringify({ type: 'MSG', message: inputMessage.trim() });
+            const toSend = savedReplyTarget
+                ? JSON.stringify({ type: 'REPLY', message: savedInputMessage, messageId: savedReplyTarget.messageId })
+                : JSON.stringify({ type: 'MSG', message: savedInputMessage });
             setReplyTarget(null);
-            await store.dispatch(sendMessage({ message: toSend, to_user: peer }));
+            const sent = await store.dispatch(sendMessage({ message: toSend, to_user: peer })).unwrap();
+            if (!sent) throw new Error('Message send failed');
         } catch (err) {
             logger.error('Error sending message:', err);
+            setInputMessage(savedInputMessage);
+            setReplyTarget(savedReplyTarget);
         } finally {
             setLoading(false);
         }

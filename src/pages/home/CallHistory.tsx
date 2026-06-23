@@ -45,6 +45,7 @@ export default function CallHistory() {
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
     const [records, setRecords] = useState<CallRecord[]>([]);
+    const [loaded, setLoaded] = useState(false);
     const [showDialog, setShowDialog] = useState(false);
     const [dialogMode, setDialogMode] = useState<'clear' | 'selected'>('clear');
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -65,6 +66,8 @@ export default function CallHistory() {
             setRecords(history);
         } catch (err) {
             logger.error('Failed to load call history:', err);
+        } finally {
+            setLoaded(true);
         }
     }, []);
 
@@ -154,10 +157,15 @@ export default function CallHistory() {
                 renderSectionHeader={({ section: { title } }) => <Text style={styles.sectionHeader}>{title}</Text>}
                 ItemSeparatorComponent={Divider}
                 ListEmptyComponent={
-                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 }}>
-                        <Icon source="phone-off" size={48} color={SECONDARY_LITE} />
-                        <Text style={[globalStyle.errorMsg, { color: '#fff' }]}>No calls yet.</Text>
-                    </View>
+                    loaded ? (
+                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 }}>
+                            <Icon source="phone-off" size={48} color={SECONDARY_LITE} />
+                            <Text style={[globalStyle.errorMsg, { color: '#fff' }]}>No calls yet</Text>
+                            <Text style={{ color: SECONDARY_LITE, fontSize: 13, marginTop: 4 }}>
+                                Your call history will appear here
+                            </Text>
+                        </View>
+                    ) : null
                 }
             />
             <FAB

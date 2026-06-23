@@ -486,9 +486,10 @@ export default class Message extends PureComponent<MProps, MState> {
                     <View style={styles.messageFooter}>
                         <Text style={[styles.messageTime, isSent && styles.messageTimeSent]}>
                             {sent_at.toLocaleDateString() === new Date().toLocaleDateString()
-                                ? sent_at.toLocaleTimeString()
+                                ? sent_at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                                 : sent_at.toLocaleDateString()}
                         </Text>
+                        {isSent && <Icon source="check" size={13} color="#ffffffaa" />}
                     </View>
                 </View>
             </Pressable>
@@ -565,6 +566,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignSelf: 'stretch',
         justifyContent: 'flex-end',
+        alignItems: 'center',
+        gap: 3,
     },
     audioDownloadRow: {
         flexDirection: 'row',

@@ -116,7 +116,6 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
         if (pg.loading || !pg.hasMore) return;
 
         pg.loading = true;
-        Vibration.vibrate();
         try {
             const olderMessages = dbGetMessages(peer.phone_no, DB_MSG_PAGE_SIZE, pg.offset);
             if (olderMessages.length === 0) {
@@ -144,6 +143,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
 
     const handleSend = useCallback(async () => {
         if (inputMessage.trim() === '') return;
+        Vibration.vibrate(10);
 
         // Restore the input if the send fails (sendMessage returns false; it shows its own error toast)
         const savedInputMessage = inputMessage.trim();
@@ -248,6 +248,9 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
             <View style={{ alignItems: 'center', paddingVertical: 24 }}>
                 <Icon source="message-text-outline" size={40} color="#969393" />
                 <Text style={{ color: TEXT_MUTED, marginTop: 8 }}>No messages yet</Text>
+                <Text style={{ color: TEXT_MUTED, fontSize: 13, marginTop: 2 }}>
+                    Send a message to start the conversation
+                </Text>
             </View>
         ),
         [],
@@ -280,7 +283,7 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
                     ref={listRef}
                     inverted
                     // Auto-scroll to new messages when the user is near the bottom
-                    maintainVisibleContentPosition={{ autoscrollToBottomThreshold: 0.25 }}
+                    maintainVisibleContentPosition={{ autoscrollToTopThreshold: 0.25 }}
                     removeClippedSubviews={false}
                     contentContainerStyle={styles.messageList}
                     data={conversation.messages}

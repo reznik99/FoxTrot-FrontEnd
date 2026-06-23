@@ -1,4 +1,4 @@
-import { DeviceEventEmitter, EmitterSubscription } from 'react-native';
+import { DeviceEventEmitter, EmitterSubscription, Vibration } from 'react-native';
 import InCallManager from 'react-native-incall-manager';
 import Toast from 'react-native-toast-message';
 import { mediaDevices, MediaStream, RTCPeerConnection, RTCSessionDescription } from 'react-native-webrtc';
@@ -137,6 +137,7 @@ export function startCall(params: {
         logger.warn('[CallManager] startCall called while call is active');
         return;
     }
+    Vibration.vibrate(10);
     setupStream(params);
 }
 
@@ -158,6 +159,7 @@ export function endCall(isRemoteHangup: boolean = false, playBusytone: boolean =
     if (internal.state.phase === CallPhase.IDLE || internal.state.phase === CallPhase.ENDING) {
         return;
     }
+    if (!isRemoteHangup) Vibration.vibrate(10); // buzz on a local end, not when the peer hangs up
 
     const prevPhase = internal.state.phase;
     internal.state.phase = CallPhase.ENDING;
@@ -258,6 +260,7 @@ export function toggleAudio() {
     if (!internal.localStream) {
         return;
     }
+    Vibration.vibrate(10);
     const newVoiceEnabled = !internal.state.voiceEnabled;
     const audioTrack = internal.localStream.getAudioTracks()[0];
     audioTrack.enabled = newVoiceEnabled;
@@ -285,6 +288,7 @@ export async function toggleSpeaker() {
     if (!internal.localStream) {
         return;
     }
+    Vibration.vibrate(10);
     const newLoudSpeaker = !internal.state.loudSpeaker;
     // Use chooseAudioRoute, not setSpeakerphoneOn — the raw speaker toggle bypasses the route
     // manager, so turning speaker off drops to earpiece and can never return to Bluetooth.

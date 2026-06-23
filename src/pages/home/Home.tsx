@@ -156,6 +156,7 @@ export default function Home() {
             <View style={styles.emptyContainer}>
                 <Icon source="message-text-outline" size={64} color={SECONDARY_LITE} />
                 <Text style={styles.emptyText}>No conversations yet</Text>
+                <Text style={styles.emptySubtext}>Your chats will appear here</Text>
             </View>
         ),
         [],
@@ -250,6 +251,11 @@ const styles = StyleSheet.create({
         color: SECONDARY_LITE,
         fontSize: 16,
         marginTop: 12,
+    },
+    emptySubtext: {
+        color: SECONDARY_LITE,
+        fontSize: 13,
+        marginTop: 2,
     },
     divider: {
         marginLeft: 77,

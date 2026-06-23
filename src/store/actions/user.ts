@@ -225,11 +225,14 @@ export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, th
             `${API_URL}/getConversations/?since=${lastChecked}`,
             axiosBearerConfig(token),
         );
+        logger.debug('Loaded', response.data?.length, 'new messages from API');
+        writeToStorage(`messages-${user_data.id}-last-checked`, String(Date.now()));
+
+        if (response.data.length === 0) return;
 
         // Snapshot conversations AFTER the network call returns — minimizes the window
         // where parallel dispatches (e.g. system messages) could be overwritten
         const conversations = new Map(thunkAPI.getState().userReducer.conversations);
-
         response.data.toReversed().forEach(msg => {
             const peer: UserData = {
                 id: msg.sender_id,
@@ -266,10 +269,8 @@ export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, th
                 logger.error('Error saving message to SQLite:', err);
             }
         });
-        logger.debug('Loaded', response.data?.length, 'new messages from API');
 
         thunkAPI.dispatch(LOAD_CONVERSATIONS(conversations));
-        writeToStorage(`messages-${user_data.id}-last-checked`, String(Date.now()));
     } catch (err: any) {
         logger.error('Error loading messages:', err);
         Toast.show({

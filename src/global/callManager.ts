@@ -11,7 +11,13 @@ import { dbSaveCallRecord } from '~/global/database';
 import { logger } from '~/global/logger';
 import { getBluetoothConnectPermission } from '~/global/permissions';
 import { readFromStorage, StorageKeys } from '~/global/storage';
-import { CandidatePair, getConnStats, getRTCConfiguration, LocalCandidate, WebRTCMessage } from '~/global/webrtc';
+import {
+    calculateCallDiagnostics,
+    CallDiagnostics,
+    getRTCConfiguration,
+    NativeStatsReportMap,
+    WebRTCMessage,
+} from '~/global/webrtc';
 import { SocketData, wsSendMessage } from '~/global/websocketManager';
 import { TURNCredentials, UserData } from '~/store/reducers/user';
 import { store } from '~/store/store';
@@ -42,15 +48,9 @@ export interface CallManagerState {
     showPeerStream: boolean;
     callTime: number;
     startTime: number;
-    callDelay: number;
+    callDelay: number | undefined;
     callStatus: string;
-    connectionInfo:
-        | {
-              localCandidate: LocalCandidate;
-              candidatePair: CandidatePair;
-              isRelayed: boolean;
-          }
-        | undefined;
+    diagnostics: CallDiagnostics | undefined;
 }
 
 // Ring timeout for outgoing calls. Kept under the backend's 90s offer cache, but generous because
@@ -69,9 +69,9 @@ const initialState: CallManagerState = {
     showPeerStream: false,
     callTime: 0,
     startTime: Date.now(),
-    callDelay: 0,
+    callDelay: undefined,
     callStatus: '',
-    connectionInfo: undefined,
+    diagnostics: undefined,
 };
 
 const internal = {
@@ -81,6 +81,7 @@ const internal = {
     peerStream: null as MediaStream | null,
     callTimer: null as ReturnType<typeof setInterval> | null,
     callStatsTimer: null as ReturnType<typeof setInterval> | null,
+    stats: undefined as NativeStatsReportMap | undefined,
     disconnectTimer: null as ReturnType<typeof setTimeout> | null,
     ringTimer: null as ReturnType<typeof setTimeout> | null,
     userData: null as UserData | null,
@@ -367,9 +368,9 @@ async function setupStream(params: {
         showPeerStream: videoEnabled,
         callTime: 0,
         startTime: Date.now(),
-        callDelay: 0,
+        callDelay: undefined,
         callStatus: '',
-        connectionInfo: undefined,
+        diagnostics: undefined,
     });
 
     try {
@@ -426,6 +427,7 @@ async function setupStream(params: {
         newConnection.addEventListener('connectionstatechange', _event => {
             const connState = newConnection?.connectionState;
             logger.debug('[WebRTC] connection state change:', connState);
+            pollDiagnostics();
             setState({ callStatus: `${peerUser?.phone_no} : ${connState}` });
 
             if (connState === 'connected') {
@@ -436,11 +438,10 @@ async function setupStream(params: {
                 clearDisconnectTimer();
                 endCall(true);
             }
-            checkConnectionType();
         });
         newConnection.addEventListener('iceconnectionstatechange', _event => {
             logger.debug('[WebRTC] ICE connection state change:', newConnection?.iceConnectionState);
-            checkConnectionType();
+            pollDiagnostics();
         });
         newConnection.addEventListener('track', event => {
             const newPeerStream = event.streams[0];
@@ -577,7 +578,9 @@ function onChannelMessage(event: MessageEvent<'message'>) {
                 break;
             case 'PING_REPLY':
                 const pingInMs = Date.now() - message.data;
-                setState({ callDelay: pingInMs });
+                if (typeof message.data === 'number' && Number.isFinite(pingInMs) && pingInMs >= 0) {
+                    setState({ callDelay: pingInMs });
+                }
                 break;
             case 'SWITCH_CAM':
                 setState({ mirrorPeerStream: !internal.state.mirrorPeerStream });
@@ -608,34 +611,29 @@ function calculatePing() {
         }
         const pingMsg: WebRTCMessage = { type: 'PING', data: Date.now() };
         internal.peerChannel.send(JSON.stringify(pingMsg));
-        if (!internal.state.connectionInfo) {
-            checkConnectionType();
-        }
     } catch (err) {
         logger.warn('[WebRTC] calculatePing failed:', err);
     }
 }
 
-async function checkConnectionType() {
-    if (!internal.peerConnection) {
+async function pollDiagnostics() {
+    const connection = internal.peerConnection;
+    if (!connection) {
         return;
     }
-    const reports = await getConnStats(internal.peerConnection);
-    const candidatePair = reports.find(rp => rp.type === 'candidate-pair' && rp.state === 'succeeded') as
-        | CandidatePair
-        | undefined;
-    const localCandidate = reports.find(rp => rp.type === 'local-candidate' && rp.id === candidatePair?.localCandidateId) as
-        | LocalCandidate
-        | undefined;
-    const remoteCandidate = reports.find(
-        rp => rp.type === 'remote-candidate' && rp.id === candidatePair?.remoteCandidateId,
-    ) as LocalCandidate | undefined;
-
-    if (!candidatePair || !localCandidate) {
-        return;
+    try {
+        const reports = (await connection.getStats()) as NativeStatsReportMap;
+        if (connection !== internal.peerConnection) return;
+        const diagnostics = calculateCallDiagnostics(reports, internal.stats);
+        internal.stats = reports;
+        setState({ diagnostics });
+    } catch (err) {
+        logger.warn('[WebRTC] Diagnostics unavailable:', err);
+        if (connection === internal.peerConnection) {
+            internal.stats = undefined;
+            setState({ diagnostics: undefined });
+        }
     }
-    const isRelayed = localCandidate.candidateType === 'relay' || remoteCandidate?.candidateType === 'relay';
-    setState({ connectionInfo: { localCandidate, candidatePair, isRelayed } });
 }
 
 // ============================================================================
@@ -648,10 +646,15 @@ function startTimers() {
         internal.state.callTime = (Date.now() - internal.state.startTime) / 1000;
         emitState();
     }, 1000);
-    internal.callStatsTimer = setInterval(calculatePing, 2500);
+    pollDiagnostics();
+    internal.callStatsTimer = setInterval(() => {
+        calculatePing();
+        pollDiagnostics();
+    }, 2500);
 }
 
 function stopTimers() {
+    internal.stats = undefined;
     if (internal.callTimer) {
         clearInterval(internal.callTimer);
         internal.callTimer = null;

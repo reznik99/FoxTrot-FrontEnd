@@ -1,7 +1,7 @@
 import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
-import { ActivityIndicator, Icon } from 'react-native-paper';
+import { ActivityIndicator, Button, Dialog, Icon, IconButton, Text as PaperText, Portal } from 'react-native-paper';
 import { withSafeAreaInsets, WithSafeAreaInsetsProps } from 'react-native-safe-area-context';
 import { RTCView } from 'react-native-webrtc';
 import { connect, ConnectedProps } from 'react-redux';
@@ -11,12 +11,14 @@ import { CallManagerState, formatCallTime } from '~/global/callManager';
 import { logger } from '~/global/logger';
 import { HomeStackParamList } from '~/global/navigation';
 import { DARKHEADER, DIVIDER, ERROR_RED } from '~/global/variables';
-import { getIconForConnType } from '~/global/webrtc';
+import { formatDiagnostic, getIconForConnType } from '~/global/webrtc';
 import { RootState } from '~/store/store';
 
 interface State {
     cm: CallManagerState;
     minimizeLocalStream: boolean;
+    showDiagnostics: boolean;
+    showRawStats: boolean;
 }
 
 class Call extends React.Component<Props, State> {
@@ -27,6 +29,8 @@ class Call extends React.Component<Props, State> {
         this.state = {
             cm: callManager.getState(),
             minimizeLocalStream: true,
+            showDiagnostics: false,
+            showRawStats: false,
         };
     }
 
@@ -94,9 +98,8 @@ class Call extends React.Component<Props, State> {
 
     renderCallInfo = () => {
         const { cm } = this.state;
-        const info = cm.connectionInfo;
-        const localCandidate = info?.localCandidate;
-        const connType = info?.isRelayed ? 'relay' : localCandidate?.candidateType || '';
+        const path = cm.diagnostics?.paths[0];
+        const connType = path?.connType || '';
         return (
             callManager.hasStream() && (
                 <View style={{ alignItems: 'center', gap: 2 }}>
@@ -104,8 +107,16 @@ class Call extends React.Component<Props, State> {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         {getIconForConnType(connType)}
                         <Text style={styles.headerTextSmall}>
-                            {connType || 'connecting'} · {localCandidate?.protocol || '...'} · {cm.callDelay}ms
+                            {connType || 'connecting'} · {path?.local?.protocol || '...'} · ICE RTT{' '}
+                            {formatDiagnostic(path?.rttMs, 'ms')}
                         </Text>
+                        <IconButton
+                            icon="information-outline"
+                            iconColor="#fff"
+                            size={20}
+                            accessibilityLabel="Open call diagnostics"
+                            onPress={() => this.setState({ showDiagnostics: true })}
+                        />
                     </View>
                 </View>
             )
@@ -123,6 +134,63 @@ class Call extends React.Component<Props, State> {
 
         return (
             <View style={styles.body}>
+                <Portal>
+                    <Dialog
+                        visible={this.state.showDiagnostics}
+                        onDismiss={() => this.setState({ showDiagnostics: false })}
+                        style={{ maxHeight: '85%' }}
+                    >
+                        <Dialog.Title>Call diagnostics</Dialog.Title>
+                        <Dialog.ScrollArea style={{ flexShrink: 1 }}>
+                            <ScrollView contentContainerStyle={{ paddingVertical: 16, gap: 8 }}>
+                                {!cm.diagnostics?.paths.length && <PaperText>Diagnostics unavailable</PaperText>}
+                                {!cm.diagnostics?.paths.length && (
+                                    <PaperText>
+                                        ICE RTT: n/a · Data-channel RTT: {formatDiagnostic(cm.callDelay, 'ms')}
+                                    </PaperText>
+                                )}
+                                {cm.diagnostics?.paths.map(path => (
+                                    <View key={path.transport.id} style={{ gap: 4 }}>
+                                        <PaperText>Transport: {path.transport.id}</PaperText>
+                                        <PaperText>Selected pair: {path.pair?.id ?? 'n/a'}</PaperText>
+                                        <PaperText>
+                                            ICE RTT: {formatDiagnostic(path.rttMs, 'ms')} · Data-channel RTT:{' '}
+                                            {formatDiagnostic(cm.callDelay, 'ms')}
+                                        </PaperText>
+                                        <PaperText>Sent: {formatDiagnostic(path.transport.bytesSent, 'bytes')}</PaperText>
+                                        <PaperText>
+                                            Received: {formatDiagnostic(path.transport.bytesReceived, 'bytes')}
+                                        </PaperText>
+                                        <PaperText>Send rate: {formatDiagnostic(path.sendBitrate, 'bps')}</PaperText>
+                                        <PaperText>Receive rate: {formatDiagnostic(path.receiveBitrate, 'bps')}</PaperText>
+                                        <PaperText>
+                                            Available outgoing bitrate:{' '}
+                                            {formatDiagnostic(path.pair?.availableOutgoingBitrate, 'bps')}
+                                        </PaperText>
+                                        <PaperText selectable>
+                                            Local candidate: {JSON.stringify(path.local, null, 2) ?? 'n/a'}
+                                        </PaperText>
+                                        <PaperText selectable>
+                                            Remote candidate: {JSON.stringify(path.remote, null, 2) ?? 'n/a'}
+                                        </PaperText>
+                                    </View>
+                                ))}
+                                <Button onPress={() => this.setState({ showRawStats: !this.state.showRawStats })}>
+                                    {this.state.showRawStats ? 'Hide raw stats' : 'Show raw stats'}
+                                </Button>
+                                {this.state.showRawStats && (
+                                    <>
+                                        <PaperText>Native stats may contain network addresses.</PaperText>
+                                        <PaperText selectable>{cm.diagnostics?.raw ?? 'n/a'}</PaperText>
+                                    </>
+                                )}
+                            </ScrollView>
+                        </Dialog.ScrollArea>
+                        <Dialog.Actions>
+                            <Button onPress={() => this.setState({ showDiagnostics: false })}>Close</Button>
+                        </Dialog.Actions>
+                    </Dialog>
+                </Portal>
                 {/* Header */}
                 <View style={styles.header}>
                     <Text style={styles.headerText}>{cm.callStatus}</Text>
@@ -136,7 +204,7 @@ class Call extends React.Component<Props, State> {
                             streamURL={peerStream!.toURL()}
                             mirror={cm.mirrorPeerStream}
                             objectFit={'cover'}
-                            zOrder={1}
+                            zOrder={this.state.showDiagnostics ? 0 : 1}
                         />
                     ) : (
                         <View style={[styles.stream, styles.peerPlaceholder]}>
@@ -166,7 +234,7 @@ class Call extends React.Component<Props, State> {
                             streamURL={localStream!.toURL()}
                             mirror={cm.isFrontCamera}
                             objectFit={'cover'}
-                            zOrder={2}
+                            zOrder={this.state.showDiagnostics ? 0 : 2}
                             onTouchEnd={this.toggleMinimizedStream}
                         />
                     ) : (

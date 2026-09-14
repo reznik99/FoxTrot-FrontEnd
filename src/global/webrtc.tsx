@@ -1,84 +1,70 @@
 import { Icon } from 'react-native-paper';
-import { RTCPeerConnection } from 'react-native-webrtc';
 
 import { TURNCredentials } from '~/store/reducers/user';
+
+interface NativeStatsReport {
+    id: string;
+    type: string;
+    timestamp: number;
+    selectedCandidatePairId?: string;
+    bytesSent?: number;
+    bytesReceived?: number;
+    localCandidateId?: string;
+    remoteCandidateId?: string;
+    currentRoundTripTime?: number;
+    availableOutgoingBitrate?: number;
+    candidateType?: 'host' | 'srflx' | 'prflx' | 'relay';
+    protocol?: string;
+    relayProtocol?: string;
+    address?: string;
+    port?: number;
+}
+
+export type NativeStatsReportMap = Map<string, NativeStatsReport>;
+export type CallDiagnostics = ReturnType<typeof calculateCallDiagnostics>;
+
+export function calculateCallDiagnostics(reports: NativeStatsReportMap, previous?: NativeStatsReportMap) {
+    const all = Array.from(reports.values());
+    const paths = all
+        .filter(report => report.type === 'transport')
+        .map(transport => {
+            const pair = reports.get(transport.selectedCandidatePairId ?? '');
+            const local = reports.get(pair?.localCandidateId ?? '');
+            const remote = reports.get(pair?.remoteCandidateId ?? '');
+            const old = previous?.get(transport.id);
+            const elapsed = transport.timestamp - (old?.timestamp ?? NaN);
+            const rates = (['bytesSent', 'bytesReceived'] as const).map(field => {
+                const delta = (transport[field] ?? NaN) - (old?.[field] ?? NaN);
+                // Native timestamps are milliseconds; convert byte deltas to bits per second.
+                return elapsed > 0 && delta >= 0 ? (delta * 8000) / elapsed : undefined;
+            });
+            return {
+                transport,
+                pair,
+                local,
+                remote,
+                connType:
+                    local?.candidateType === 'relay' || remote?.candidateType === 'relay'
+                        ? ('relay' as const)
+                        : local?.candidateType,
+                rttMs: pair?.currentRoundTripTime !== undefined ? pair.currentRoundTripTime * 1000 : undefined,
+                sendBitrate: rates[0],
+                receiveBitrate: rates[1],
+            };
+        });
+    return { paths, raw: JSON.stringify(all, null, 2) };
+}
+
+export function formatDiagnostic(value: number | undefined, unit: string): string {
+    return value === undefined || !Number.isFinite(value)
+        ? 'n/a'
+        : `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${unit}`;
+}
 
 export interface WebRTCMessage {
     type: 'PING' | 'PING_REPLY' | 'SWITCH_CAM' | 'MUTE_CAM' | 'CLOSE';
     data?: any;
 }
-export interface LocalCandidate {
-    timestamp: number;
-    type: 'local-candidate' | 'remote-candidate';
-    id: string;
-    transportId: string;
-
-    isRemote: boolean;
-    networkType: 'bluetooth' | 'cellular' | 'ethernet' | 'wifi' | 'wimax' | 'vpn' | 'unknown';
-
-    ip: string;
-    address: string;
-    port: number;
-
-    protocol: 'udp' | 'tcp';
-    relayProtocol: 'udp' | 'tcp';
-    candidateType: 'host' | 'srflx' | 'prflx' | 'relay';
-    priority: number;
-    foundation: string;
-
-    relatedAddress?: string;
-    relatedPort?: number;
-
-    usernameFragment: string;
-
-    vpn: boolean;
-    networkAdapterType: string;
-}
-
-export interface CandidatePair {
-    timestamp: number;
-    type: 'candidate-pair';
-    id: string;
-    transportId: string;
-
-    localCandidateId: string;
-    remoteCandidateId: string;
-
-    state: 'succeeded' | 'waiting';
-    priority: number;
-    nominated: boolean;
-    writable: boolean;
-
-    packetsSent: number;
-    packetsReceived: number;
-    bytesSent: number;
-    bytesReceived: number;
-
-    totalRoundTripTime: number;
-    currentRoundTripTime: number;
-    availableOutgoingBitrate: number;
-
-    requestsReceived: number;
-    requestsSent: number;
-    responsesReceived: number;
-    responsesSent: number;
-    consentRequestsSent: number;
-
-    packetsDiscardedOnSend: number;
-    bytesDiscardedOnSend: number;
-
-    lastPacketReceivedTimestamp: number;
-    lastPacketSentTimestamp: number;
-}
-
-export const getConnStats = async (peerConnection: RTCPeerConnection) => {
-    const stats = (await peerConnection.getStats()) as RTCStatsReport;
-    const reports: Array<CandidatePair | LocalCandidate> = [];
-    stats.forEach(report => {
-        reports.push(report);
-    });
-    return reports;
-};
 
 export const getIconForConnType = (connType: 'host' | 'srflx' | 'prflx' | 'relay' | '') => {
     switch (connType) {

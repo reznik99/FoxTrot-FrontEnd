@@ -305,6 +305,65 @@ export async function toggleSpeaker() {
 // (Called by websocket.ts when signaling messages arrive)
 // ============================================================================
 
+/**
+ * Returns true when the current call ignores, defers, or starts answering this offer.
+ * False means the WebSocket handler should show a normal incoming call.
+ */
+export function handleOfferForCurrentCall(senderId: string | number, offer: RTCSessionDescriptionInit): boolean {
+    const { phase, peerUser, isOutgoing } = internal.state;
+    const userData = internal.userData;
+
+    if (!peerUser || String(peerUser.id) !== String(senderId)) {
+        return false;
+    }
+
+    const isDialing = phase === CallPhase.STARTING || phase === CallPhase.DIALING;
+
+    // Only an outgoing attempt in STARTING or DIALING can switch to answering.
+    if (!isDialing || !isOutgoing) {
+        return true;
+    }
+
+    if (!userData) {
+        logger.warn('[CallManager] Cannot resolve call collision without local user data');
+        return true;
+    }
+
+    // Both apps follow the same rule: lower user ID keeps its outgoing offer.
+    if (Number(userData.id) < Number(senderId)) {
+        return true;
+    }
+
+    internal.callOffer = offer;
+
+    // Finish outgoing setup first. Its final checkpoint will process this offer.
+    if (phase === CallPhase.STARTING) {
+        return true;
+    }
+
+    setState({ isOutgoing: false, phase: CallPhase.CONNECTING });
+
+    if (internal.ringTimer) {
+        clearTimeout(internal.ringTimer);
+        internal.ringTimer = null;
+    }
+    InCallManager.stopRingback();
+
+    // Use the winning caller's data channel, retaining our connection and media.
+    internal.peerChannel?.close();
+    internal.peerChannel = null;
+
+    const connection = internal.peerConnection;
+    answerIncomingCall(offer, peerUser, userData).catch(err => {
+        logger.error('[WebRTC] Failed to answer crossed call:', err);
+        if (connection === internal.peerConnection) {
+            endCall(false);
+        }
+    });
+
+    return true;
+}
+
 /** Called when peer answers our outgoing call */
 export function onCallAnswer(answer: RTCSessionDescriptionInit) {
     if (!internal.peerConnection || !answer) {
@@ -318,10 +377,9 @@ export function onCallAnswer(answer: RTCSessionDescriptionInit) {
     const offerDescription = new RTCSessionDescription(answer);
     internal.peerConnection.setRemoteDescription(offerDescription).then(() => {
         // Flush any ICE candidates that arrived before remote description was set
-        internal.pendingIceCandidates.forEach(candidate => {
-            internal.peerConnection?.addIceCandidate(candidate);
-        });
+        const candidates = internal.pendingIceCandidates;
         internal.pendingIceCandidates = [];
+        candidates.forEach(onIceCandidate);
     });
     setState({ phase: CallPhase.CONNECTING });
 }
@@ -331,12 +389,15 @@ export function onIceCandidate(candidate: any) {
     if (!candidate) {
         return;
     }
-    if (!internal.peerConnection) {
-        // Buffer until connection is ready
+    const connection = internal.peerConnection;
+    // A connection can exist before its remote SDP is set; keep early candidates queued.
+    if (!connection?.remoteDescription) {
         internal.pendingIceCandidates.push(candidate);
         return;
     }
-    internal.peerConnection.addIceCandidate(candidate);
+    connection.addIceCandidate(candidate).catch(err => {
+        logger.warn('[WebRTC] Could not add ICE candidate:', err);
+    });
 }
 
 // ============================================================================
@@ -469,6 +530,12 @@ async function setupStream(params: {
 
         if (!callOffer) {
             await initiateCall(peerUser, userData, videoEnabled);
+
+            // An offer may have arrived while outgoing setup was awaiting native calls.
+            // Process it now, only if this setup still owns the connection.
+            if (internal.peerConnection === newConnection && internal.callOffer) {
+                handleOfferForCurrentCall(peerUser.id, internal.callOffer);
+            }
         } else {
             await answerIncomingCall(callOffer, peerUser, userData);
         }
@@ -549,10 +616,9 @@ async function answerIncomingCall(callOffer: RTCSessionDescriptionInit, peerUser
     wsSendMessage(message);
 
     // Flush any buffered ICE candidates
-    internal.pendingIceCandidates.forEach(candidate => {
-        internal.peerConnection?.addIceCandidate(candidate);
-    });
+    const candidates = internal.pendingIceCandidates;
     internal.pendingIceCandidates = [];
+    candidates.forEach(onIceCandidate);
 
     setState({ phase: CallPhase.CONNECTING });
 }

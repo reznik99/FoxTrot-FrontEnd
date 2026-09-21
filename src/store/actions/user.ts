@@ -2,7 +2,6 @@ import { getMessaging, getToken, registerDeviceForRemoteMessages } from '@react-
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import * as Keychain from 'react-native-keychain';
-import type { CryptoKey } from 'react-native-quick-crypto/src/keys/classes';
 import Toast from 'react-native-toast-message';
 
 import { encrypt, exportKeypair, generateIdentityKeypair, generateSessionKeyECDH, importKeypair } from '~/global/crypto';
@@ -286,75 +285,73 @@ export const loadContacts = createDefaultAsyncThunk(
     'loadContacts',
     async ({ forceDerive }: { forceDerive?: boolean }, thunkAPI) => {
         try {
+            const { token } = thunkAPI.getState().userReducer;
+            const response = await axios.get<UserData[]>(`${API_URL}/getContacts`, axiosBearerConfig(token));
+
             const state = thunkAPI.getState().userReducer;
 
-            // Build map of known contacts for key-change detection and session key reuse
-            const knownContacts = new Map<string, { public_key: string | null; session_key?: CryptoKey }>();
-            for (const c of state.contacts) {
-                knownContacts.set(String(c.id), { public_key: c.public_key || null, session_key: c.session_key });
-            }
-
-            // Fetch fresh contacts from API
-            const response = await axios.get<UserData[]>(`${API_URL}/getContacts`, axiosBearerConfig(state.token));
-            const contacts = await Promise.all<UserData>(
-                response.data.map(async contact => {
-                    const known = knownContacts.get(String(contact.id));
-                    const keyUnchanged = known && known.public_key === (contact.public_key || null);
-
-                    // Reuse existing session key if the public key hasn't changed (and we're not forcing re-derivation)
-                    if (!forceDerive && keyUnchanged && known.session_key) {
-                        return {
-                            ...contact,
-                            last_seen: new Date(contact.last_seen).getTime(),
-                            pic: getAvatar(contact.id),
-                            session_key: known.session_key,
-                        };
-                    }
-
-                    try {
-                        const session_key = await generateSessionKeyECDH(contact.public_key || '', state.keys?.privateKey);
-                        logger.debug('Generated session key for contact:', contact.phone_no);
-                        return {
-                            ...contact,
-                            last_seen: new Date(contact.last_seen).getTime(),
-                            pic: getAvatar(contact.id),
-                            session_key: session_key,
-                        };
-                    } catch (err: any) {
-                        logger.warn('Failed to generate session key:', contact.phone_no, err.message || err);
-                        return { ...contact, last_seen: new Date(contact.last_seen).getTime(), pic: getAvatar(contact.id) };
-                    }
-                }),
+            // Copy the objects too, so updating session keys cannot mutate Redux.
+            const contactsById = new Map<string, UserData>(
+                state.contacts.map(contact => [String(contact.id), { ...contact }]),
             );
 
-            // Detect key changes that happened while offline
-            if (knownContacts.size > 0) {
-                for (const contact of contacts) {
-                    const known = knownContacts.get(String(contact.id));
-                    if (known && known.public_key !== (contact.public_key || null)) {
-                        logger.info('Detected offline key change for:', contact.phone_no);
-                        const systemMsg: message = {
+            // 1. Merge API contacts and report changed keys. Keep omitted contacts.
+            for (const incoming of response.data) {
+                const previous = contactsById.get(String(incoming.id));
+                let keyChanged = false;
+
+                if (previous?.public_key) {
+                    keyChanged = previous.public_key !== incoming.public_key;
+                }
+
+                contactsById.set(String(incoming.id), {
+                    ...previous,
+                    ...incoming,
+                    public_key: incoming.public_key,
+                    last_seen: new Date(incoming.last_seen).getTime(),
+                    pic: getAvatar(incoming.id),
+                    session_key: keyChanged ? undefined : previous?.session_key,
+                });
+
+                if (keyChanged) {
+                    thunkAPI.dispatch(
+                        RECV_MESSAGE({
                             id: generateLocalMessageId(),
-                            message: `${contact.phone_no} changed their security key. Verify their identity if this was unexpected.`,
+                            message: `${incoming.phone_no} changed their security key. Verify their identity if this was unexpected.`,
                             sent_at: new Date().toISOString(),
                             seen: true,
                             reciever: state.user_data.phone_no,
                             reciever_id: state.user_data.id,
-                            sender: contact.phone_no,
-                            sender_id: contact.id,
+                            sender: incoming.phone_no,
+                            sender_id: incoming.id,
                             system: true,
-                        };
-                        thunkAPI.dispatch(RECV_MESSAGE(systemMsg));
-                    }
+                        }),
+                    );
                 }
             }
 
-            // Update Redux with fresh contacts
+            const contacts = [...contactsById.values()];
+
+            // 2. Generate missing session keys in parallel, or regenerate all when forced.
+            await Promise.all(
+                contacts.map(async contact => {
+                    if (contact.session_key && !forceDerive) {
+                        return;
+                    }
+                    try {
+                        contact.session_key = await generateSessionKeyECDH(contact.public_key || '', state.keys?.privateKey);
+                    } catch (err: any) {
+                        contact.session_key = undefined;
+                        logger.warn('Failed to generate session key:', contact.phone_no, err.message || err);
+                    }
+                }),
+            );
+
             thunkAPI.dispatch(LOAD_CONTACTS(contacts));
 
             // Persist to SQLite for future key-change detection and fast disk load
             try {
-                dbSaveContacts(contacts.map(c => ({ id: c.id, phone_no: c.phone_no, public_key: c.public_key })));
+                dbSaveContacts(contacts);
             } catch (err) {
                 logger.warn('Failed to persist contacts to SQLite:', err);
             }

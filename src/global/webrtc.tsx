@@ -1,4 +1,5 @@
 import { Icon } from 'react-native-paper';
+import type { RTCPeerConnection } from 'react-native-webrtc';
 
 import { TURNCredentials } from '~/store/reducers/user';
 
@@ -85,8 +86,12 @@ export const getIconForConnType = (connType: 'host' | 'srflx' | 'prflx' | 'relay
     }
 };
 
-export const getRTCConfiguration = (turnCredentials: TURNCredentials, relayOnly = false): RTCConfiguration => {
-    const iceServers: RTCConfiguration['iceServers'] = [
+// react-native-webrtc does not export its RTCConfiguration type, and the DOM global of the same name
+// (from tsconfig lib "dom") is not assignable to it, so derive it from the constructor instead.
+export type RNRTCConfiguration = NonNullable<ConstructorParameters<typeof RTCPeerConnection>[0]>;
+
+export const getRTCConfiguration = (turnCredentials: TURNCredentials, relayOnly = false): RNRTCConfiguration => {
+    const iceServers: RNRTCConfiguration['iceServers'] = [
         // STUN peer-to-peer
         { urls: 'stun:turn.francescogorini.com:3478' },
         { urls: 'stun:stun.l.google.com:19302' },

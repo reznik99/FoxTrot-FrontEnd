@@ -305,6 +305,15 @@ async function handleSocketMessage(data: any) {
             case 'CALL_OFFER':
                 logger.debug('[Websocket] CALL_OFFER Recieved', parsedData.data?.sender);
 
+                const handledByCurrentCall = callManager.handleOfferForCurrentCall(
+                    parsedData.data.sender_id,
+                    parsedData.data.offer,
+                );
+                if (handledByCurrentCall) {
+                    // The current call ignored, saved, or started answering this offer. Do not ring/store it again.
+                    break;
+                }
+
                 const userState = store.getState().userReducer;
                 let caller = userState.contacts.find(con => con.phone_no === parsedData.data.sender);
                 if (!caller) {

@@ -1,84 +1,117 @@
 import { Icon } from 'react-native-paper';
-import { RTCPeerConnection } from 'react-native-webrtc';
+import type { RTCPeerConnection } from 'react-native-webrtc';
 
 import { TURNCredentials } from '~/store/reducers/user';
+
+/**
+ * One entry of the W3C webrtc-stats report (https://www.w3.org/TR/webrtc-stats/). react-native-webrtc has no
+ * types for this: getStats() resolves to `any`, built from libwebrtc's stats members passed through verbatim,
+ * with only `timestamp` converted from microseconds to milliseconds. Units are the spec's.
+ */
+export interface NativeStatsReport {
+    id: string;
+    type: string;
+    timestamp: number; // ms
+    selectedCandidatePairId?: string;
+    bytesSent?: number; // bytes
+    bytesReceived?: number; // bytes
+    localCandidateId?: string;
+    remoteCandidateId?: string;
+    currentRoundTripTime?: number; // seconds
+    availableOutgoingBitrate?: number; // bits per second
+    candidateType?: 'host' | 'srflx' | 'prflx' | 'relay';
+    protocol?: string;
+    relayProtocol?: string;
+    address?: string;
+    port?: number;
+}
+
+export type NativeStatsReportMap = Map<string, NativeStatsReport>;
+
+export interface CallPath {
+    transport: NativeStatsReport;
+    pair?: NativeStatsReport;
+    local?: NativeStatsReport;
+    remote?: NativeStatsReport;
+    connType?: NativeStatsReport['candidateType'];
+    rttMs?: number; // ICE round-trip time, ms
+    sendRate?: number; // bytes per second, between the last two polls
+    receiveRate?: number; // bytes per second, between the last two polls
+    availableOutgoingBandwidth?: number; // estimated, bytes per second
+}
+
+export interface CallDiagnostics {
+    paths: CallPath[];
+    raw: string; // the entire native stats report, pretty-printed JSON
+}
+
+export function calculateCallDiagnostics(reports: NativeStatsReportMap, previous?: NativeStatsReportMap): CallDiagnostics {
+    const all = Array.from(reports.values());
+    const paths = all
+        .filter(report => report.type === 'transport')
+        .map((transport): CallPath => {
+            const pair = reports.get(transport.selectedCandidatePairId ?? '');
+            const local = reports.get(pair?.localCandidateId ?? '');
+            const remote = reports.get(pair?.remoteCandidateId ?? '');
+            const old = previous?.get(transport.id);
+            const elapsed = transport.timestamp - (old?.timestamp ?? NaN);
+            const rates = (['bytesSent', 'bytesReceived'] as const).map(field => {
+                const delta = (transport[field] ?? NaN) - (old?.[field] ?? NaN);
+                // Native timestamps are milliseconds; convert byte deltas to bytes per second.
+                return elapsed > 0 && delta >= 0 ? (delta * 1000) / elapsed : undefined;
+            });
+            return {
+                transport,
+                pair,
+                local,
+                remote,
+                connType:
+                    local?.candidateType === 'relay' || remote?.candidateType === 'relay' ? 'relay' : local?.candidateType,
+                // seconds -> ms
+                rttMs: pair?.currentRoundTripTime !== undefined ? pair.currentRoundTripTime * 1000 : undefined,
+                sendRate: rates[0],
+                receiveRate: rates[1],
+                // bits -> bytes
+                availableOutgoingBandwidth:
+                    pair?.availableOutgoingBitrate !== undefined ? pair.availableOutgoingBitrate / 8 : undefined,
+            };
+        });
+    return { paths, raw: JSON.stringify(all, null, 2) };
+}
+
+/** Summary lines for one transport path; used for both the diagnostics dialog and clipboard export. */
+export function formatCallPath(path: CallPath, dataChannelRttMs?: number): string[] {
+    return [
+        `Transport: ${path.transport.id}`,
+        `Selected pair: ${path.pair?.id ?? 'n/a'}`,
+        `ICE RTT: ${formatMs(path.rttMs)} · Data-channel RTT: ${formatMs(dataChannelRttMs)}`,
+        `Sent: ${formatBytes(path.transport.bytesSent)}`,
+        `Received: ${formatBytes(path.transport.bytesReceived)}`,
+        `Send rate: ${formatBytesPerSecond(path.sendRate)}`,
+        `Receive rate: ${formatBytesPerSecond(path.receiveRate)}`,
+        `Available outgoing bandwidth: ${formatBytesPerSecond(path.availableOutgoingBandwidth)}`,
+        `Local candidate: ${JSON.stringify(path.local, null, 2) ?? 'n/a'}`,
+        `Remote candidate: ${JSON.stringify(path.remote, null, 2) ?? 'n/a'}`,
+    ];
+}
+
+const isFiniteNumber = (value?: number): value is number => Number.isFinite(value);
+const formatNumber = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 1 });
+
+export const formatMs = (ms?: number) => (isFiniteNumber(ms) ? `${formatNumber(ms)} ms` : 'n/a');
+
+/** 1000-based KB/MB, like Android's own file sizes. */
+export const formatBytes = (bytes?: number) => {
+    if (!isFiniteNumber(bytes)) return 'n/a';
+    return bytes >= 1e6 ? `${formatNumber(bytes / 1e6)} MB` : `${formatNumber(bytes / 1e3)} KB`;
+};
+
+export const formatBytesPerSecond = (bytes?: number) => (isFiniteNumber(bytes) ? `${formatBytes(bytes)}/s` : 'n/a');
 
 export interface WebRTCMessage {
     type: 'PING' | 'PING_REPLY' | 'SWITCH_CAM' | 'MUTE_CAM' | 'CLOSE';
     data?: any;
 }
-export interface LocalCandidate {
-    timestamp: number;
-    type: 'local-candidate' | 'remote-candidate';
-    id: string;
-    transportId: string;
-
-    isRemote: boolean;
-    networkType: 'bluetooth' | 'cellular' | 'ethernet' | 'wifi' | 'wimax' | 'vpn' | 'unknown';
-
-    ip: string;
-    address: string;
-    port: number;
-
-    protocol: 'udp' | 'tcp';
-    relayProtocol: 'udp' | 'tcp';
-    candidateType: 'host' | 'srflx' | 'prflx' | 'relay';
-    priority: number;
-    foundation: string;
-
-    relatedAddress?: string;
-    relatedPort?: number;
-
-    usernameFragment: string;
-
-    vpn: boolean;
-    networkAdapterType: string;
-}
-
-export interface CandidatePair {
-    timestamp: number;
-    type: 'candidate-pair';
-    id: string;
-    transportId: string;
-
-    localCandidateId: string;
-    remoteCandidateId: string;
-
-    state: 'succeeded' | 'waiting';
-    priority: number;
-    nominated: boolean;
-    writable: boolean;
-
-    packetsSent: number;
-    packetsReceived: number;
-    bytesSent: number;
-    bytesReceived: number;
-
-    totalRoundTripTime: number;
-    currentRoundTripTime: number;
-    availableOutgoingBitrate: number;
-
-    requestsReceived: number;
-    requestsSent: number;
-    responsesReceived: number;
-    responsesSent: number;
-    consentRequestsSent: number;
-
-    packetsDiscardedOnSend: number;
-    bytesDiscardedOnSend: number;
-
-    lastPacketReceivedTimestamp: number;
-    lastPacketSentTimestamp: number;
-}
-
-export const getConnStats = async (peerConnection: RTCPeerConnection) => {
-    const stats = (await peerConnection.getStats()) as RTCStatsReport;
-    const reports: Array<CandidatePair | LocalCandidate> = [];
-    stats.forEach(report => {
-        reports.push(report);
-    });
-    return reports;
-};
 
 export const getIconForConnType = (connType: 'host' | 'srflx' | 'prflx' | 'relay' | '') => {
     switch (connType) {
@@ -99,8 +132,12 @@ export const getIconForConnType = (connType: 'host' | 'srflx' | 'prflx' | 'relay
     }
 };
 
-export const getRTCConfiguration = (turnCredentials: TURNCredentials, relayOnly = false): RTCConfiguration => {
-    const iceServers: RTCConfiguration['iceServers'] = [
+// react-native-webrtc does not export its RTCConfiguration type, and the DOM global of the same name
+// (from tsconfig lib "dom") is not assignable to it, so derive it from the constructor instead.
+export type RNRTCConfiguration = NonNullable<ConstructorParameters<typeof RTCPeerConnection>[0]>;
+
+export const getRTCConfiguration = (turnCredentials: TURNCredentials, relayOnly = false): RNRTCConfiguration => {
+    const iceServers: RNRTCConfiguration['iceServers'] = [
         // STUN peer-to-peer
         { urls: 'stun:turn.francescogorini.com:3478' },
         { urls: 'stun:stun.l.google.com:19302' },

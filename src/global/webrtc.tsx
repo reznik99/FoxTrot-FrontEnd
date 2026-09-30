@@ -3,17 +3,22 @@ import type { RTCPeerConnection } from 'react-native-webrtc';
 
 import { TURNCredentials } from '~/store/reducers/user';
 
-interface NativeStatsReport {
+/**
+ * One entry of the W3C webrtc-stats report (https://www.w3.org/TR/webrtc-stats/). react-native-webrtc has no
+ * types for this: getStats() resolves to `any`, built from libwebrtc's stats members passed through verbatim,
+ * with only `timestamp` converted from microseconds to milliseconds. Units are the spec's.
+ */
+export interface NativeStatsReport {
     id: string;
     type: string;
-    timestamp: number;
+    timestamp: number; // ms
     selectedCandidatePairId?: string;
-    bytesSent?: number;
-    bytesReceived?: number;
+    bytesSent?: number; // bytes
+    bytesReceived?: number; // bytes
     localCandidateId?: string;
     remoteCandidateId?: string;
-    currentRoundTripTime?: number;
-    availableOutgoingBitrate?: number;
+    currentRoundTripTime?: number; // seconds
+    availableOutgoingBitrate?: number; // bits per second
     candidateType?: 'host' | 'srflx' | 'prflx' | 'relay';
     protocol?: string;
     relayProtocol?: string;
@@ -22,13 +27,29 @@ interface NativeStatsReport {
 }
 
 export type NativeStatsReportMap = Map<string, NativeStatsReport>;
-export type CallDiagnostics = ReturnType<typeof calculateCallDiagnostics>;
 
-export function calculateCallDiagnostics(reports: NativeStatsReportMap, previous?: NativeStatsReportMap) {
+export interface CallPath {
+    transport: NativeStatsReport;
+    pair?: NativeStatsReport;
+    local?: NativeStatsReport;
+    remote?: NativeStatsReport;
+    connType?: NativeStatsReport['candidateType'];
+    rttMs?: number; // ICE round-trip time, ms
+    sendRate?: number; // bytes per second, between the last two polls
+    receiveRate?: number; // bytes per second, between the last two polls
+    availableOutgoingBandwidth?: number; // estimated, bytes per second
+}
+
+export interface CallDiagnostics {
+    paths: CallPath[];
+    raw: string; // the entire native stats report, pretty-printed JSON
+}
+
+export function calculateCallDiagnostics(reports: NativeStatsReportMap, previous?: NativeStatsReportMap): CallDiagnostics {
     const all = Array.from(reports.values());
     const paths = all
         .filter(report => report.type === 'transport')
-        .map(transport => {
+        .map((transport): CallPath => {
             const pair = reports.get(transport.selectedCandidatePairId ?? '');
             const local = reports.get(pair?.localCandidateId ?? '');
             const remote = reports.get(pair?.remoteCandidateId ?? '');
@@ -36,8 +57,8 @@ export function calculateCallDiagnostics(reports: NativeStatsReportMap, previous
             const elapsed = transport.timestamp - (old?.timestamp ?? NaN);
             const rates = (['bytesSent', 'bytesReceived'] as const).map(field => {
                 const delta = (transport[field] ?? NaN) - (old?.[field] ?? NaN);
-                // Native timestamps are milliseconds; convert byte deltas to bits per second.
-                return elapsed > 0 && delta >= 0 ? (delta * 8000) / elapsed : undefined;
+                // Native timestamps are milliseconds; convert byte deltas to bytes per second.
+                return elapsed > 0 && delta >= 0 ? (delta * 1000) / elapsed : undefined;
             });
             return {
                 transport,
@@ -45,22 +66,47 @@ export function calculateCallDiagnostics(reports: NativeStatsReportMap, previous
                 local,
                 remote,
                 connType:
-                    local?.candidateType === 'relay' || remote?.candidateType === 'relay'
-                        ? ('relay' as const)
-                        : local?.candidateType,
+                    local?.candidateType === 'relay' || remote?.candidateType === 'relay' ? 'relay' : local?.candidateType,
+                // seconds -> ms
                 rttMs: pair?.currentRoundTripTime !== undefined ? pair.currentRoundTripTime * 1000 : undefined,
-                sendBitrate: rates[0],
-                receiveBitrate: rates[1],
+                sendRate: rates[0],
+                receiveRate: rates[1],
+                // bits -> bytes
+                availableOutgoingBandwidth:
+                    pair?.availableOutgoingBitrate !== undefined ? pair.availableOutgoingBitrate / 8 : undefined,
             };
         });
     return { paths, raw: JSON.stringify(all, null, 2) };
 }
 
-export function formatDiagnostic(value: number | undefined, unit: string): string {
-    return value === undefined || !Number.isFinite(value)
-        ? 'n/a'
-        : `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${unit}`;
+/** Summary lines for one transport path; used for both the diagnostics dialog and clipboard export. */
+export function formatCallPath(path: CallPath, dataChannelRttMs?: number): string[] {
+    return [
+        `Transport: ${path.transport.id}`,
+        `Selected pair: ${path.pair?.id ?? 'n/a'}`,
+        `ICE RTT: ${formatMs(path.rttMs)} · Data-channel RTT: ${formatMs(dataChannelRttMs)}`,
+        `Sent: ${formatBytes(path.transport.bytesSent)}`,
+        `Received: ${formatBytes(path.transport.bytesReceived)}`,
+        `Send rate: ${formatBytesPerSecond(path.sendRate)}`,
+        `Receive rate: ${formatBytesPerSecond(path.receiveRate)}`,
+        `Available outgoing bandwidth: ${formatBytesPerSecond(path.availableOutgoingBandwidth)}`,
+        `Local candidate: ${JSON.stringify(path.local, null, 2) ?? 'n/a'}`,
+        `Remote candidate: ${JSON.stringify(path.remote, null, 2) ?? 'n/a'}`,
+    ];
 }
+
+const isFiniteNumber = (value?: number): value is number => Number.isFinite(value);
+const formatNumber = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 1 });
+
+export const formatMs = (ms?: number) => (isFiniteNumber(ms) ? `${formatNumber(ms)} ms` : 'n/a');
+
+/** 1000-based KB/MB, like Android's own file sizes. */
+export const formatBytes = (bytes?: number) => {
+    if (!isFiniteNumber(bytes)) return 'n/a';
+    return bytes >= 1e6 ? `${formatNumber(bytes / 1e6)} MB` : `${formatNumber(bytes / 1e3)} KB`;
+};
+
+export const formatBytesPerSecond = (bytes?: number) => (isFiniteNumber(bytes) ? `${formatBytes(bytes)}/s` : 'n/a');
 
 export interface WebRTCMessage {
     type: 'PING' | 'PING_REPLY' | 'SWITCH_CAM' | 'MUTE_CAM' | 'CLOSE';

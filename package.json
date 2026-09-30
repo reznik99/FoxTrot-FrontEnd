@@ -1,6 +1,6 @@
 {
     "name": "foxtrot",
-    "version": "1.20.16",
+    "version": "1.20.17",
     "private": true,
     "scripts": {
         "android": "react-native run-android --no-packager && react-native start",

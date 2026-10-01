@@ -11,7 +11,13 @@ import { dbSaveCallRecord } from '~/global/database';
 import { logger } from '~/global/logger';
 import { getBluetoothConnectPermission } from '~/global/permissions';
 import { readFromStorage, StorageKeys } from '~/global/storage';
-import { CandidatePair, getConnStats, getRTCConfiguration, LocalCandidate, WebRTCMessage } from '~/global/webrtc';
+import {
+    calculateCallDiagnostics,
+    CallDiagnostics,
+    getRTCConfiguration,
+    NativeStatsReportMap,
+    WebRTCMessage,
+} from '~/global/webrtc';
 import { SocketData, wsSendMessage } from '~/global/websocketManager';
 import { TURNCredentials, UserData } from '~/store/reducers/user';
 import { store } from '~/store/store';
@@ -42,15 +48,9 @@ export interface CallManagerState {
     showPeerStream: boolean;
     callTime: number;
     startTime: number;
-    callDelay: number;
+    callDelay: number | undefined;
     callStatus: string;
-    connectionInfo:
-        | {
-              localCandidate: LocalCandidate;
-              candidatePair: CandidatePair;
-              isRelayed: boolean;
-          }
-        | undefined;
+    diagnostics: CallDiagnostics | undefined;
 }
 
 // Ring timeout for outgoing calls. Kept under the backend's 90s offer cache, but generous because
@@ -69,9 +69,9 @@ const initialState: CallManagerState = {
     showPeerStream: false,
     callTime: 0,
     startTime: Date.now(),
-    callDelay: 0,
+    callDelay: undefined,
     callStatus: '',
-    connectionInfo: undefined,
+    diagnostics: undefined,
 };
 
 const internal = {
@@ -81,6 +81,7 @@ const internal = {
     peerStream: null as MediaStream | null,
     callTimer: null as ReturnType<typeof setInterval> | null,
     callStatsTimer: null as ReturnType<typeof setInterval> | null,
+    stats: undefined as NativeStatsReportMap | undefined,
     disconnectTimer: null as ReturnType<typeof setTimeout> | null,
     ringTimer: null as ReturnType<typeof setTimeout> | null,
     userData: null as UserData | null,
@@ -304,6 +305,65 @@ export async function toggleSpeaker() {
 // (Called by websocket.ts when signaling messages arrive)
 // ============================================================================
 
+/**
+ * Returns true when the current call ignores, defers, or starts answering this offer.
+ * False means the WebSocket handler should show a normal incoming call.
+ */
+export function handleOfferForCurrentCall(senderId: string | number, offer: RTCSessionDescriptionInit): boolean {
+    const { phase, peerUser, isOutgoing } = internal.state;
+    const userData = internal.userData;
+
+    if (!peerUser || String(peerUser.id) !== String(senderId)) {
+        return false;
+    }
+
+    const isDialing = phase === CallPhase.STARTING || phase === CallPhase.DIALING;
+
+    // Only an outgoing attempt in STARTING or DIALING can switch to answering.
+    if (!isDialing || !isOutgoing) {
+        return true;
+    }
+
+    if (!userData) {
+        logger.warn('[CallManager] Cannot resolve call collision without local user data');
+        return true;
+    }
+
+    // Both apps follow the same rule: lower user ID keeps its outgoing offer.
+    if (Number(userData.id) < Number(senderId)) {
+        return true;
+    }
+
+    internal.callOffer = offer;
+
+    // Finish outgoing setup first. Its final checkpoint will process this offer.
+    if (phase === CallPhase.STARTING) {
+        return true;
+    }
+
+    setState({ isOutgoing: false, phase: CallPhase.CONNECTING });
+
+    if (internal.ringTimer) {
+        clearTimeout(internal.ringTimer);
+        internal.ringTimer = null;
+    }
+    InCallManager.stopRingback();
+
+    // Use the winning caller's data channel, retaining our connection and media.
+    internal.peerChannel?.close();
+    internal.peerChannel = null;
+
+    const connection = internal.peerConnection;
+    answerIncomingCall(offer, peerUser, userData).catch(err => {
+        logger.error('[WebRTC] Failed to answer crossed call:', err);
+        if (connection === internal.peerConnection) {
+            endCall(false);
+        }
+    });
+
+    return true;
+}
+
 /** Called when peer answers our outgoing call */
 export function onCallAnswer(answer: RTCSessionDescriptionInit) {
     if (!internal.peerConnection || !answer) {
@@ -317,10 +377,9 @@ export function onCallAnswer(answer: RTCSessionDescriptionInit) {
     const offerDescription = new RTCSessionDescription(answer);
     internal.peerConnection.setRemoteDescription(offerDescription).then(() => {
         // Flush any ICE candidates that arrived before remote description was set
-        internal.pendingIceCandidates.forEach(candidate => {
-            internal.peerConnection?.addIceCandidate(candidate);
-        });
+        const candidates = internal.pendingIceCandidates;
         internal.pendingIceCandidates = [];
+        candidates.forEach(onIceCandidate);
     });
     setState({ phase: CallPhase.CONNECTING });
 }
@@ -330,12 +389,15 @@ export function onIceCandidate(candidate: any) {
     if (!candidate) {
         return;
     }
-    if (!internal.peerConnection) {
-        // Buffer until connection is ready
+    const connection = internal.peerConnection;
+    // A connection can exist before its remote SDP is set; keep early candidates queued.
+    if (!connection?.remoteDescription) {
         internal.pendingIceCandidates.push(candidate);
         return;
     }
-    internal.peerConnection.addIceCandidate(candidate);
+    connection.addIceCandidate(candidate).catch(err => {
+        logger.warn('[WebRTC] Could not add ICE candidate:', err);
+    });
 }
 
 // ============================================================================
@@ -367,9 +429,9 @@ async function setupStream(params: {
         showPeerStream: videoEnabled,
         callTime: 0,
         startTime: Date.now(),
-        callDelay: 0,
+        callDelay: undefined,
         callStatus: '',
-        connectionInfo: undefined,
+        diagnostics: undefined,
     });
 
     try {
@@ -426,6 +488,7 @@ async function setupStream(params: {
         newConnection.addEventListener('connectionstatechange', _event => {
             const connState = newConnection?.connectionState;
             logger.debug('[WebRTC] connection state change:', connState);
+            pollDiagnostics();
             setState({ callStatus: `${peerUser?.phone_no} : ${connState}` });
 
             if (connState === 'connected') {
@@ -436,11 +499,10 @@ async function setupStream(params: {
                 clearDisconnectTimer();
                 endCall(true);
             }
-            checkConnectionType();
         });
         newConnection.addEventListener('iceconnectionstatechange', _event => {
             logger.debug('[WebRTC] ICE connection state change:', newConnection?.iceConnectionState);
-            checkConnectionType();
+            pollDiagnostics();
         });
         newConnection.addEventListener('track', event => {
             const newPeerStream = event.streams[0];
@@ -468,6 +530,12 @@ async function setupStream(params: {
 
         if (!callOffer) {
             await initiateCall(peerUser, userData, videoEnabled);
+
+            // An offer may have arrived while outgoing setup was awaiting native calls.
+            // Process it now, only if this setup still owns the connection.
+            if (internal.peerConnection === newConnection && internal.callOffer) {
+                handleOfferForCurrentCall(peerUser.id, internal.callOffer);
+            }
         } else {
             await answerIncomingCall(callOffer, peerUser, userData);
         }
@@ -548,10 +616,9 @@ async function answerIncomingCall(callOffer: RTCSessionDescriptionInit, peerUser
     wsSendMessage(message);
 
     // Flush any buffered ICE candidates
-    internal.pendingIceCandidates.forEach(candidate => {
-        internal.peerConnection?.addIceCandidate(candidate);
-    });
+    const candidates = internal.pendingIceCandidates;
     internal.pendingIceCandidates = [];
+    candidates.forEach(onIceCandidate);
 
     setState({ phase: CallPhase.CONNECTING });
 }
@@ -577,7 +644,9 @@ function onChannelMessage(event: MessageEvent<'message'>) {
                 break;
             case 'PING_REPLY':
                 const pingInMs = Date.now() - message.data;
-                setState({ callDelay: pingInMs });
+                if (typeof message.data === 'number' && Number.isFinite(pingInMs) && pingInMs >= 0) {
+                    setState({ callDelay: pingInMs });
+                }
                 break;
             case 'SWITCH_CAM':
                 setState({ mirrorPeerStream: !internal.state.mirrorPeerStream });
@@ -608,34 +677,29 @@ function calculatePing() {
         }
         const pingMsg: WebRTCMessage = { type: 'PING', data: Date.now() };
         internal.peerChannel.send(JSON.stringify(pingMsg));
-        if (!internal.state.connectionInfo) {
-            checkConnectionType();
-        }
     } catch (err) {
         logger.warn('[WebRTC] calculatePing failed:', err);
     }
 }
 
-async function checkConnectionType() {
-    if (!internal.peerConnection) {
+async function pollDiagnostics() {
+    const connection = internal.peerConnection;
+    if (!connection) {
         return;
     }
-    const reports = await getConnStats(internal.peerConnection);
-    const candidatePair = reports.find(rp => rp.type === 'candidate-pair' && rp.state === 'succeeded') as
-        | CandidatePair
-        | undefined;
-    const localCandidate = reports.find(rp => rp.type === 'local-candidate' && rp.id === candidatePair?.localCandidateId) as
-        | LocalCandidate
-        | undefined;
-    const remoteCandidate = reports.find(
-        rp => rp.type === 'remote-candidate' && rp.id === candidatePair?.remoteCandidateId,
-    ) as LocalCandidate | undefined;
-
-    if (!candidatePair || !localCandidate) {
-        return;
+    try {
+        const reports = (await connection.getStats()) as NativeStatsReportMap;
+        if (connection !== internal.peerConnection) return;
+        const diagnostics = calculateCallDiagnostics(reports, internal.stats);
+        internal.stats = reports;
+        setState({ diagnostics });
+    } catch (err) {
+        logger.warn('[WebRTC] Diagnostics unavailable:', err);
+        if (connection === internal.peerConnection) {
+            internal.stats = undefined;
+            setState({ diagnostics: undefined });
+        }
     }
-    const isRelayed = localCandidate.candidateType === 'relay' || remoteCandidate?.candidateType === 'relay';
-    setState({ connectionInfo: { localCandidate, candidatePair, isRelayed } });
 }
 
 // ============================================================================
@@ -648,10 +712,15 @@ function startTimers() {
         internal.state.callTime = (Date.now() - internal.state.startTime) / 1000;
         emitState();
     }, 1000);
-    internal.callStatsTimer = setInterval(calculatePing, 2500);
+    pollDiagnostics();
+    internal.callStatsTimer = setInterval(() => {
+        calculatePing();
+        pollDiagnostics();
+    }, 2500);
 }
 
 function stopTimers() {
+    internal.stats = undefined;
     if (internal.callTimer) {
         clearInterval(internal.callTimer);
         internal.callTimer = null;

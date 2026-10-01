@@ -77,19 +77,14 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    // Handle duplicate libcrypto.so from op-sqlite and quick-crypto
-    packagingOptions {
-        pickFirst '**/libcrypto.so'
-    }
-
 
     namespace "com.francescogorini.foxtrot"
     defaultConfig {
         applicationId "com.francescogorini.foxtrot"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 85
-        versionName "1.20.16"
+        versionCode 86
+        versionName "1.20.17"
     }
     signingConfigs {
         debug {
@@ -129,21 +124,6 @@ dependencies {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
-    }
-}
-
-// Remove op-sqlite's libcrypto.so to use react-native-quick-crypto's version instead
-// (op-sqlite's OpenSSL is missing symbols that quick-crypto needs like EVP_MD_CTX_get_size_ex)
-gradle.projectsEvaluated {
-    tasks.matching { it.name.contains('mergeDebugNativeLibs') || it.name.contains('mergeReleaseNativeLibs') }.configureEach {
-        doFirst {
-            def opSqliteJniDir = file("${rootProject.projectDir}/../node_modules/@op-engineering/op-sqlite/android/build/intermediates/library_jni")
-            if (opSqliteJniDir.exists()) {
-                fileTree(opSqliteJniDir).matching {
-                    include '**/libcrypto.so'
-                }.each { it.delete() }
-            }
-        }
     }
 }
 

@@ -55,7 +55,7 @@ class Call extends React.Component<Props, State> {
 
     componentDidUpdate = (prevProps: Props) => {
         const isIncomingCall = !!this.props.route.params.data?.is_incoming;
-        const offerJustArrived = !prevProps.callOffer && !!this.props.callOffer;
+        const offerJustArrived = !!this.props.callOffer && prevProps.callOffer !== this.props.callOffer;
         const userJustAnswered = !prevProps.route.params.data?.is_incoming && isIncomingCall;
 
         // Only answer incoming calls, and never while a call is already running
@@ -71,6 +71,11 @@ class Call extends React.Component<Props, State> {
 
     answerIncomingCall = (callOffer: NonNullable<Props['callOffer']>) => {
         const { data } = this.props.route.params;
+        // A leftover offer from someone else must not be answered on behalf of this screen's caller
+        if (String(this.props.caller?.id) !== String(data?.peer_user?.id)) {
+            logger.warn('[Call] Ignoring offer from another caller', this.props.caller?.id, data?.peer_user?.id);
+            return;
+        }
         callManager.answerCall({
             peerUser: data?.peer_user || this.props.caller,
             videoEnabled: data?.video_enabled ?? false,

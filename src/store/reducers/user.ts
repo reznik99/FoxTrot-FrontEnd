@@ -200,7 +200,9 @@ export const userSlice = createSlice({
             } catch (err) {
                 logger.error('Error saving received message to SQLite:', err);
             }
-            writeToStorage(`messages-${state.user_data.id}-last-checked`, String(Date.now()));
+            // Server-stamped time of this message (falls back to local time if the payload has none)
+            const receivedAt = new Date(data.sent_at).getTime() || Date.now();
+            writeToStorage(`messages-${state.user_data.id}-last-checked`, String(receivedAt));
         },
         UPDATE_MESSAGE_DECRYPTED: (
             state,

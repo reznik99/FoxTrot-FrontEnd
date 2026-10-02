@@ -225,9 +225,13 @@ export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, th
             axiosBearerConfig(token),
         );
         logger.debug('Loaded', response.data?.length, 'new messages from API');
-        writeToStorage(`messages-${user_data.id}-last-checked`, String(Date.now()));
-
         if (response.data.length === 0) return;
+
+        // Watermark = newest server-stamped sent_at we received, so the device clock can't skip or re-fetch messages
+        const newest = response.data.reduce((max, msg) => Math.max(max, new Date(msg.sent_at).getTime()), 0);
+        if (newest > 0) {
+            writeToStorage(`messages-${user_data.id}-last-checked`, String(newest));
+        }
 
         // Snapshot conversations AFTER the network call returns — minimizes the window
         // where parallel dispatches (e.g. system messages) could be overwritten

@@ -13,7 +13,7 @@ import {
     dbSaveConversation,
     dbSaveMessage,
 } from '~/global/database';
-import { generateLocalMessageId, getAvatar } from '~/global/helper';
+import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { getPushNotificationPermission } from '~/global/permissions';
 import { readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
@@ -22,10 +22,10 @@ import {
     ADD_CONTACT_SUCCESS,
     Conversation,
     KEY_LOAD,
+    KEY_ROTATED,
     LOAD_CONTACTS,
     LOAD_CONVERSATIONS,
     message,
-    RECV_MESSAGE,
     SELF_KEY_ROTATED,
     SEND_MESSAGE,
     SET_LOADING,
@@ -228,10 +228,11 @@ export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, th
         if (response.data.length === 0) return;
 
         // Watermark = newest server-stamped sent_at we received, so the device clock can't skip or re-fetch messages
-        const newest = response.data.reduce((max, msg) => Math.max(max, new Date(msg.sent_at).getTime()), 0);
-        if (newest > 0) {
-            writeToStorage(`messages-${user_data.id}-last-checked`, String(newest));
-        }
+        const newest = response.data.reduce((max, msg) => {
+            const sentAt = new Date(msg.sent_at).getTime();
+            return Number.isFinite(sentAt) ? Math.max(max, sentAt) : max;
+        }, 0);
+        writeToStorage(`messages-${user_data.id}-last-checked`, String(newest || Date.now()));
 
         // Snapshot conversations AFTER the network call returns — minimizes the window
         // where parallel dispatches (e.g. system messages) could be overwritten
@@ -318,17 +319,13 @@ export const loadContacts = createDefaultAsyncThunk(
                 });
 
                 if (keyChanged) {
+                    // Same path as a live rotation: updates the key in Redux right now (so an overlapping refresh
+                    // cannot warn a second time), inserts the warning once, and persists the key.
                     thunkAPI.dispatch(
-                        RECV_MESSAGE({
-                            id: generateLocalMessageId(),
-                            message: `${incoming.phone_no} changed their security key. Verify their identity if this was unexpected.`,
-                            sent_at: new Date().toISOString(),
-                            seen: true,
-                            reciever: state.user_data.phone_no,
-                            reciever_id: state.user_data.id,
-                            sender: incoming.phone_no,
-                            sender_id: incoming.id,
-                            system: true,
+                        KEY_ROTATED({
+                            user_id: Number(incoming.id),
+                            phone_no: incoming.phone_no,
+                            public_key: incoming.public_key ?? undefined,
                         }),
                     );
                 }

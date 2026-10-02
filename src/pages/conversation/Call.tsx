@@ -45,33 +45,46 @@ class Call extends React.Component<Props, State> {
             return;
         }
 
-        // Start a new call if we have an incoming offer
-        if (this.props.callOffer) {
-            const peerUser = this.props.route.params.data?.peer_user || this.props.caller;
-            callManager.answerCall({
-                peerUser,
-                videoEnabled: this.props.route.params.data?.video_enabled ?? false,
-                userData: this.props.userData,
-                turnCreds: this.props.turnServerCreds,
-                callOffer: this.props.callOffer,
-            });
+        // Answer only when this screen was opened for an incoming call; a leftover offer in Redux
+        // must never hijack an outgoing call (that path waits for the user to tap the call button)
+        if (this.props.route.params.data?.is_incoming && this.props.callOffer) {
+            this.answerIncomingCall(this.props.callOffer);
         }
         // For outgoing calls, user taps the call button (handled in render)
     };
 
     componentDidUpdate = (prevProps: Props) => {
-        // callOffer can arrive after mount when answering from a killed app state
-        // (Call screen mounts from storage data before websocket delivers the offer)
-        if (!prevProps.callOffer && this.props.callOffer && !callManager.isActive()) {
-            const peerUser = this.props.route.params.data?.peer_user || this.props.caller;
-            callManager.answerCall({
-                peerUser,
-                videoEnabled: this.props.route.params.data?.video_enabled ?? false,
-                userData: this.props.userData,
-                turnCreds: this.props.turnServerCreds,
-                callOffer: this.props.callOffer,
-            });
+        const isIncomingCall = !!this.props.route.params.data?.is_incoming;
+        const offerJustArrived = !!this.props.callOffer && prevProps.callOffer !== this.props.callOffer;
+        const userJustAnswered = !prevProps.route.params.data?.is_incoming && isIncomingCall;
+
+        // Only answer incoming calls, and never while a call is already running
+        if (!isIncomingCall || callManager.isActive()) {
+            return;
         }
+        // Answering needs both the offer and the user's Answer tap. Whichever arrived last triggers it:
+        // the offer or the user's Answer tap (they were already on this screen when the call rang)
+        if (this.props.callOffer && (offerJustArrived || userJustAnswered)) {
+            this.answerIncomingCall(this.props.callOffer);
+        }
+    };
+
+    answerIncomingCall = (callOffer: NonNullable<Props['callOffer']>) => {
+        const { data } = this.props.route.params;
+        // A leftover offer from someone else must not be answered on behalf of this screen's caller
+        if (String(this.props.caller?.id) !== String(data?.peer_user?.id)) {
+            logger.warn('[Call] Ignoring offer from another caller', this.props.caller?.id, data?.peer_user?.id);
+            return;
+        }
+        callManager.answerCall({
+            peerUser: data?.peer_user || this.props.caller,
+            videoEnabled: data?.video_enabled ?? false,
+            userData: this.props.userData,
+            turnCreds: this.props.turnServerCreds,
+            callOffer: callOffer,
+        });
+        // Clear is_incoming, so this screen cannot auto-answer a later unrelated offer while it stays mounted
+        this.props.navigation.setParams({ data: { ...data, is_incoming: false } });
     };
 
     componentWillUnmount = () => {

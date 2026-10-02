@@ -18,7 +18,7 @@ export type HomeStackParamList = {
     Conversation: { data: { peer_user: UserData } };
     NewConversation: undefined;
     AddContact: undefined;
-    Call: { data: { peer_user: UserData; video_enabled: boolean } };
+    Call: { data: { peer_user: UserData; video_enabled: boolean; is_incoming?: boolean } };
     CameraView: { data: { peer: UserData; mediaPath: string; mediaType?: 'image' | 'video' } };
     Settings: undefined;
     KeySetup: undefined;

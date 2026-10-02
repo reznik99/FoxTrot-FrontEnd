@@ -6,6 +6,7 @@ import { RTCSessionDescription } from 'react-native-webrtc';
 import {
     dbDeleteMessage,
     dbMarkMessagesSeen,
+    dbSaveContacts,
     dbSaveConversation,
     dbSaveMessage,
     dbUpdateMessageDecrypted,
@@ -200,7 +201,11 @@ export const userSlice = createSlice({
             } catch (err) {
                 logger.error('Error saving received message to SQLite:', err);
             }
-            writeToStorage(`messages-${state.user_data.id}-last-checked`, String(Date.now()));
+            // Only real messages move the fetch watermark; locally generated system messages carry local time
+            if (!data.system) {
+                const receivedAt = new Date(data.sent_at).getTime() || Date.now();
+                writeToStorage(`messages-${state.user_data.id}-last-checked`, String(receivedAt));
+            }
         },
         UPDATE_MESSAGE_DECRYPTED: (
             state,
@@ -266,7 +271,7 @@ export const userSlice = createSlice({
         },
         KEY_ROTATED: (
             state,
-            action: PayloadAction<{ user_id: number; phone_no: string; public_key: string; session_key: CryptoKey }>,
+            action: PayloadAction<{ user_id: number; phone_no: string; public_key?: string; session_key?: CryptoKey }>,
         ) => {
             const { phone_no, public_key, session_key } = action.payload;
 
@@ -284,6 +289,13 @@ export const userSlice = createSlice({
             }
 
             if (!keyChanged) return;
+
+            // Persist the rotated key now, so a restart cannot re-detect this rotation and warn again
+            try {
+                dbSaveContacts([{ id: action.payload.user_id, phone_no, public_key }]);
+            } catch (err) {
+                logger.error('Error persisting rotated contact key to SQLite:', err);
+            }
 
             // Insert a system message warning about the key change
             const systemMsg: message = {

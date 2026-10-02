@@ -69,6 +69,7 @@ export default function Home() {
                         data: {
                             peer_user: data.caller,
                             video_enabled: data.data.type === 'video',
+                            is_incoming: true,
                         },
                     });
                 }
@@ -114,6 +115,7 @@ export default function Home() {
                 data: {
                     peer_user: data.caller,
                     video_enabled: data.data.type === 'video',
+                    is_incoming: true,
                 },
             });
         });
@@ -121,6 +123,8 @@ export default function Home() {
         RNNotificationCall.addEventListener('endCall', info => {
             logger.debug('RNNotificationCall: User ended call', info.callUUID);
             InCallManager.stopRingtone();
+            // Drop the declined/expired offer, otherwise the next outgoing call auto-answers it
+            store.dispatch({ type: 'user/RECV_CALL_OFFER', payload: undefined });
             try {
                 const data = JSON.parse(info.payload || '{}') as { caller: UserData; data: SocketMessage };
                 if (data.caller) {

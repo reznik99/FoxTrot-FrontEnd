@@ -515,14 +515,14 @@ export const registerPushNotifications = createDefaultAsyncThunk('registerPushNo
 
         logger.debug('Registering for Push Notifications');
         const granted = await getPushNotificationPermission();
-        if (granted) {
-            const messaging = getMessaging();
-            await registerDeviceForRemoteMessages(messaging);
-            const token = await getToken(messaging);
-            await axios.post(`${API_URL}/registerPushNotifications`, { token }, axiosBearerConfig(state.token));
-        } else {
-            logger.error('Push notifications permission denied');
+        if (!granted) {
+            logger.warn('Push notifications permission denied');
+            return false;
         }
+        const messaging = getMessaging();
+        await registerDeviceForRemoteMessages(messaging);
+        const token = await getToken(messaging);
+        await axios.post(`${API_URL}/registerPushNotifications`, { token }, axiosBearerConfig(state.token));
     } catch (err: any) {
         logger.error('Error Registering for Push Notifications:', err);
         Toast.show({
@@ -532,6 +532,8 @@ export const registerPushNotifications = createDefaultAsyncThunk('registerPushNo
             visibilityTime: 5000,
         });
     }
+    // Permission is allowed (a failed token registration above is reported by the toast, not as "notifications off")
+    return true;
 });
 
 export const getTURNServerCreds = createDefaultAsyncThunk('getTURNServerCreds', async (_, thunkAPI) => {

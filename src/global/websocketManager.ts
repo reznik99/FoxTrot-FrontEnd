@@ -61,6 +61,7 @@ const mgr = {
     appStateSub: null as NativeEventSubscription | null,
     netInfoSub: null as NetInfoSubscription | null,
     lastNetConnected: null as boolean | null,
+    initialLoadDone: false,
 };
 
 // --- Helpers ---
@@ -105,6 +106,7 @@ export async function stop() {
     mgr.netInfoSub = null;
     mgr.lastNetConnected = null;
     mgr.reconnectAttempt = 0;
+    mgr.initialLoadDone = false;
 
     mgr.intentionalClose = true;
     if (mgr.ws && mgr.ws.readyState !== WebSocket.CLOSED) {
@@ -114,12 +116,20 @@ export async function stop() {
     store.dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
 }
 
+/** Home calls this once its local history is loaded; before that a reconnect must not sync messages. */
+export function markInitialLoadDone() {
+    mgr.initialLoadDone = true;
+}
+
 export function reconnect() {
     mgr.reconnectAttempt = 0;
     clearReconnectTimer();
     connectWebsocket();
-    // Fetch any messages that arrived while disconnected
-    store.dispatch(loadMessages());
+    // Fetch any messages that arrived while disconnected. Not before the initial load: Redux is still empty
+    // then, so loadMessages would fetch the whole history. Home runs the first fetch itself.
+    if (mgr.initialLoadDone) {
+        store.dispatch(loadMessages());
+    }
 }
 
 // --- connect & reconnect ---

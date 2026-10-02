@@ -1,14 +1,23 @@
 import { PermissionsAndroid, Platform } from 'react-native';
 import { Camera } from 'react-native-vision-camera';
 
-export async function getPushNotificationPermission() {
-    const permission = PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS;
+import { readFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 
-    const hasPermission = await PermissionsAndroid.check(permission);
-    if (hasPermission) {
+export async function getPushNotificationPermission() {
+    // Notifications need no runtime permission before Android 13
+    if (Number(Platform.Version) < 33) {
         return true;
     }
-
+    const permission = PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS;
+    if (await PermissionsAndroid.check(permission)) {
+        return true;
+    }
+    // Ask once per install. Asking again after a refusal shows no dialog, but Android still opens and closes
+    // its permission activity, which pauses the app on every launch. The user re-enables it in Settings instead.
+    if (await readFromStorage(StorageKeys.NOTIFICATION_PERMISSION_ASKED)) {
+        return false;
+    }
+    await writeToStorage(StorageKeys.NOTIFICATION_PERMISSION_ASKED, 'true');
     const status = await PermissionsAndroid.request(permission);
     return status === PermissionsAndroid.RESULTS.GRANTED;
 }

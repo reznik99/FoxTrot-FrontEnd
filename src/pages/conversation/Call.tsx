@@ -45,8 +45,9 @@ class Call extends React.Component<Props, State> {
             return;
         }
 
-        // Start a new call if we have an incoming offer
-        if (this.props.callOffer) {
+        // Answer only when this screen was opened for an incoming call; a leftover offer in Redux
+        // must never hijack an outgoing call (that path waits for the user to tap the call button)
+        if (this.props.route.params.data?.is_incoming && this.props.callOffer) {
             const peerUser = this.props.route.params.data?.peer_user || this.props.caller;
             callManager.answerCall({
                 peerUser,
@@ -62,7 +63,12 @@ class Call extends React.Component<Props, State> {
     componentDidUpdate = (prevProps: Props) => {
         // callOffer can arrive after mount when answering from a killed app state
         // (Call screen mounts from storage data before websocket delivers the offer)
-        if (!prevProps.callOffer && this.props.callOffer && !callManager.isActive()) {
+        if (
+            this.props.route.params.data?.is_incoming &&
+            !prevProps.callOffer &&
+            this.props.callOffer &&
+            !callManager.isActive()
+        ) {
             const peerUser = this.props.route.params.data?.peer_user || this.props.caller;
             callManager.answerCall({
                 peerUser,

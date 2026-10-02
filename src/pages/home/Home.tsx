@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { AppState, FlatList, Image, Linking, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import RNNotificationCall from 'react-native-full-screen-notification-incoming-call';
 import InCallManager from 'react-native-incall-manager';
-import { ActivityIndicator, Divider, FAB, Icon, Snackbar, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Button, Divider, FAB, Icon, Snackbar, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 
@@ -35,6 +35,7 @@ export default function Home() {
     const { colors } = useTheme();
     const [loadingMsg, setLoadingMsg] = useState('');
     const [refreshing, setRefreshing] = useState(false);
+    const [notificationsOff, setNotificationsOff] = useState(false);
 
     const conversations = useSelector((state: RootState) => state.userReducer.conversations);
     const socketStatus = useSelector((state: RootState) => state.userReducer.socketStatus);
@@ -54,7 +55,10 @@ export default function Home() {
             // [background] Setup axios interceptors (before any authenticated API calls)
             setupInterceptors();
             // [background] Register device for push notifications
-            store.dispatch(registerPushNotifications());
+            store
+                .dispatch(registerPushNotifications())
+                .unwrap()
+                .then(allowed => setNotificationsOff(!allowed));
             // [background] Evict stale media cache if enabled
             readFromStorage(StorageKeys.AUTO_EVICT_CACHE).then(val => {
                 if (val === 'true') evictMediaCache();
@@ -89,6 +93,7 @@ export default function Home() {
             // Load cached data from disk (fast, renders immediately)
             setLoadingMsg('Loading keys from TPM...');
             await Promise.all([store.dispatch(loadMessagesFromDisk()), store.dispatch(loadContactsFromDisk())]);
+            websocketManager.markInitialLoadDone();
             setLoadingMsg('');
             // Fetch fresh data from API in background
             setRefreshing(true);
@@ -105,6 +110,19 @@ export default function Home() {
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    const openNotificationSettings = () => {
+        // One-shot: when the user comes back from Settings, re-check and register the push token right away
+        const sub = AppState.addEventListener('change', state => {
+            if (state !== 'active') return;
+            sub.remove();
+            store
+                .dispatch(registerPushNotifications())
+                .unwrap()
+                .then(allowed => setNotificationsOff(!allowed));
+        });
+        Linking.openSettings();
+    };
 
     const registerCallHandlers = useCallback(() => {
         RNNotificationCall.addEventListener('answer', info => {
@@ -179,6 +197,17 @@ export default function Home() {
 
     return (
         <View style={globalStyle.wrapper}>
+            {notificationsOff && (
+                <View style={styles.notice}>
+                    <Icon source="bell-off" size={18} color={colors.error} />
+                    <Text style={styles.noticeText}>
+                        Notifications are off. You won't be alerted to calls or messages while the app is closed.
+                    </Text>
+                    <Button compact onPress={openNotificationSettings}>
+                        Settings
+                    </Button>
+                </View>
+            )}
             {socketStatus === 'reconnecting' && (
                 <Snackbar visible={true} style={styles.snackbar} onDismiss={() => {}}>
                     Reconnecting to server...
@@ -234,6 +263,19 @@ const styles = StyleSheet.create({
     },
     snackbar: {
         zIndex: 100,
+    },
+    notice: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        backgroundColor: '#1f1f1f',
+    },
+    noticeText: {
+        flex: 1,
+        color: SECONDARY_LITE,
+        fontSize: 13,
     },
     loadingContainer: {
         flex: 1,

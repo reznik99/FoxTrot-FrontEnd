@@ -68,7 +68,7 @@ setBackgroundMessageHandler(messaging, async remoteMessage => {
             await getDb();
             dbSaveCallRecord({
                 peer_phone: caller.phone_no,
-                peer_id: String(caller.id),
+                peer_id: caller.id,
                 peer_pic: caller.pic,
                 direction: 'incoming',
                 call_type: eventData.type || 'audio',

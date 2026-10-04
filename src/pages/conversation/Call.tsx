@@ -72,7 +72,7 @@ class Call extends React.Component<Props, State> {
     answerIncomingCall = (callOffer: NonNullable<Props['callOffer']>) => {
         const { data } = this.props.route.params;
         // A leftover offer from someone else must not be answered on behalf of this screen's caller
-        if (String(this.props.caller?.id) !== String(data?.peer_user?.id)) {
+        if (this.props.caller?.id !== data?.peer_user?.id) {
             logger.warn('[CallScreen] Ignoring offer from another caller', this.props.caller?.id, data?.peer_user?.id);
             return;
         }

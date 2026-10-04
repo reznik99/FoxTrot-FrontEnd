@@ -148,7 +148,7 @@ export default function Home() {
                 if (data.caller) {
                     dbSaveCallRecord({
                         peer_phone: data.caller.phone_no,
-                        peer_id: String(data.caller.id),
+                        peer_id: data.caller.id,
                         peer_pic: data.caller.pic,
                         direction: 'incoming',
                         call_type: data.data?.type || 'audio',

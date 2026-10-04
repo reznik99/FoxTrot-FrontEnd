@@ -93,12 +93,12 @@ describe('loadContacts', () => {
         const lastSeen = '2026-09-17T00:00:00Z';
         const { contacts } = await refreshWith([
             // Deliberately inject a server field that must never replace the local key.
-            { ...apiBob, id: '2', online: true, last_seen: lastSeen, session_key: 'untrusted-api-value' },
+            { ...apiBob, id: 2, online: true, last_seen: lastSeen, session_key: 'untrusted-api-value' },
             { id: 4, phone_no: 'Charlie', public_key: 'charlie-public-key', last_seen: 0, online: false },
         ]);
 
         expect(contacts).toHaveLength(3);
-        expect(contacts[0]).toMatchObject({ id: '2', online: true, last_seen: Date.parse(lastSeen) });
+        expect(contacts[0]).toMatchObject({ id: 2, online: true, last_seen: Date.parse(lastSeen) });
         expect(contacts[0].session_key).toBe(existingSessionKey);
         expect(contacts[1]).toEqual(alice);
         expect(contacts[2].session_key).toBe(derivedSessionKey);

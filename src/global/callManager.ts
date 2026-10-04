@@ -181,7 +181,7 @@ export function endCall(isRemoteHangup: boolean = false, playBusytone: boolean =
         try {
             dbSaveCallRecord({
                 peer_phone: internal.state.peerUser.phone_no,
-                peer_id: String(internal.state.peerUser.id),
+                peer_id: internal.state.peerUser.id,
                 peer_pic: internal.state.peerUser.pic,
                 direction: internal.callOffer ? 'incoming' : 'outgoing',
                 call_type: internal.state.videoEnabled ? 'video' : 'audio',
@@ -320,11 +320,11 @@ export async function toggleSpeaker() {
  * Returns true when the current call ignores, defers, or starts answering this offer.
  * False means the WebSocket handler should show a normal incoming call.
  */
-export function handleOfferForCurrentCall(senderId: string | number, offer: RTCSessionDescriptionInit): boolean {
+export function handleOfferForCurrentCall(senderId: number, offer: RTCSessionDescriptionInit): boolean {
     const { phase, peerUser, isOutgoing } = internal.state;
     const userData = internal.userData;
 
-    if (!peerUser || String(peerUser.id) !== String(senderId)) {
+    if (!peerUser || peerUser.id !== senderId) {
         return false;
     }
 
@@ -341,7 +341,7 @@ export function handleOfferForCurrentCall(senderId: string | number, offer: RTCS
     }
 
     // Both apps follow the same rule: lower user ID keeps its outgoing offer.
-    if (Number(userData.id) < Number(senderId)) {
+    if (userData.id < senderId) {
         return true;
     }
 

@@ -31,9 +31,8 @@ export default function Conversation(props: StackScreenProps<HomeStackParamList,
     const conversation =
         useSelector((state: RootState) => state.userReducer.conversations.get(peer_user.phone_no)) ?? fallbackConversation;
     const peer =
-        useSelector((state: RootState) =>
-            state.userReducer.contacts.find(contact => String(contact.id) === String(peer_user.id)),
-        ) || peer_user;
+        useSelector((state: RootState) => state.userReducer.contacts.find(contact => contact.id === peer_user.id)) ||
+        peer_user;
 
     const [loading, setLoading] = useState(false);
     const [inputMessage, setInputMessage] = useState('');

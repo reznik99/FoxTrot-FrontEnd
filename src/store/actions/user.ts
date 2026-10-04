@@ -134,7 +134,7 @@ export const generateAndSyncKeys = createDefaultAsyncThunk<boolean>('generateAnd
         Toast.show({
             type: 'error',
             text1: 'Failed to generate Identity Keypair',
-            text2: err.message ?? err.toString(),
+            text2: err.response?.data?.message ?? err.message ?? err.toString(),
             visibilityTime: 5000,
         });
         return false;
@@ -298,20 +298,18 @@ export const loadContacts = createDefaultAsyncThunk(
             const state = thunkAPI.getState().userReducer;
 
             // Copy the objects too, so updating session keys cannot mutate Redux.
-            const contactsById = new Map<string, UserData>(
-                state.contacts.map(contact => [String(contact.id), { ...contact }]),
-            );
+            const contactsById = new Map<number, UserData>(state.contacts.map(contact => [contact.id, { ...contact }]));
 
             // 1. Merge API contacts and report changed keys. Keep omitted contacts.
             for (const incoming of response.data) {
-                const previous = contactsById.get(String(incoming.id));
+                const previous = contactsById.get(incoming.id);
                 let keyChanged = false;
 
                 if (previous?.public_key) {
                     keyChanged = previous.public_key !== incoming.public_key;
                 }
 
-                contactsById.set(String(incoming.id), {
+                contactsById.set(incoming.id, {
                     ...previous,
                     ...incoming,
                     public_key: incoming.public_key,
@@ -325,7 +323,7 @@ export const loadContacts = createDefaultAsyncThunk(
                     // cannot warn a second time), inserts the warning once, and persists the key.
                     thunkAPI.dispatch(
                         KEY_ROTATED({
-                            user_id: Number(incoming.id),
+                            user_id: incoming.id,
                             phone_no: incoming.phone_no,
                             public_key: incoming.public_key ?? undefined,
                         }),
@@ -373,10 +371,25 @@ export const loadContacts = createDefaultAsyncThunk(
 export const addContact = createDefaultAsyncThunk('addContact', async ({ user }: { user: UserData }, thunkAPI) => {
     try {
         const state = thunkAPI.getState().userReducer;
-        const { data } = await axios.post(`${API_URL}/addContact`, { id: user.id }, axiosBearerConfig(state.token));
+        const { data } = await axios.post<{
+            id: number;
+            phone_no: string;
+            public_key: string | null;
+            online?: boolean;
+            last_seen?: string;
+        }>(`${API_URL}/addContact`, { id: user.id }, axiosBearerConfig(state.token));
         const session_key = await generateSessionKeyECDH(data.public_key || '', state.keys?.privateKey);
+        const contact: UserData = {
+            id: data.id,
+            phone_no: data.phone_no,
+            public_key: data.public_key ?? undefined,
+            online: data.online ?? false,
+            last_seen: data.last_seen ? new Date(data.last_seen).getTime() : 0,
+            pic: getAvatar(data.id),
+            session_key,
+        };
 
-        thunkAPI.dispatch(ADD_CONTACT_SUCCESS({ ...data, pic: getAvatar(user.id), session_key }));
+        thunkAPI.dispatch(ADD_CONTACT_SUCCESS(contact));
         return true;
     } catch (err: any) {
         logger.error('Error adding contact:', err);
@@ -425,7 +438,7 @@ export const sendMessage = createDefaultAsyncThunk('sendMessage', async (data: s
 
         // Encrypt and send message
         const encryptedMessage = await encrypt(data.to_user.session_key, data.message);
-        const res = await axios.post(
+        const res = await axios.post<{ message: string; id?: number; sent_at?: string }>(
             `${API_URL}/sendMessage`,
             { message: encryptedMessage, contact_id: data.to_user.id, contact_phone_no: data.to_user.phone_no },
             axiosBearerConfig(state.token),
@@ -442,7 +455,7 @@ export const sendMessage = createDefaultAsyncThunk('sendMessage', async (data: s
                 sender_id: state.user_data.id,
                 reciever: data.to_user.phone_no,
                 reciever_id: data.to_user.id,
-                sent_at: new Date().toISOString(),
+                sent_at: res.data.sent_at ?? new Date().toISOString(),
                 seen: false,
                 is_decrypted: true,
             },

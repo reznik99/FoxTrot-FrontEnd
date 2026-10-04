@@ -33,7 +33,7 @@ export interface State {
 }
 
 export interface UserData {
-    id: string | number;
+    id: number;
     phone_no: string;
     last_seen: number;
     online: boolean;
@@ -53,9 +53,9 @@ export interface message {
     sent_at: string;
     seen: boolean;
     reciever: string;
-    reciever_id: string | number;
+    reciever_id: number;
     sender: string;
-    sender_id: string | number;
+    sender_id: number;
     is_decrypted?: boolean;
     system?: boolean;
 }
@@ -63,7 +63,7 @@ export interface message {
 export interface CallRecord {
     id: number;
     peer_phone: string;
-    peer_id: string;
+    peer_id: number;
     peer_pic?: string;
     direction: 'incoming' | 'outgoing';
     call_type: 'audio' | 'video';
@@ -83,7 +83,7 @@ const initialState: State = {
     token: '',
     keys: undefined,
     user_data: {
-        id: '',
+        id: 0,
         phone_no: '',
         pic: '',
         last_seen: 0,
@@ -110,6 +110,11 @@ export const userSlice = createSlice({
     reducers: {
         ADD_CONTACT_SUCCESS: (state, action: PayloadAction<UserData>) => {
             state.contacts.push(action.payload);
+            try {
+                dbSaveContacts([action.payload]);
+            } catch (err) {
+                logger.error('Error saving contact to SQLite:', err);
+            }
         },
         LOAD_CONTACTS: (state, action: PayloadAction<UserData[]>) => {
             state.contacts = action.payload;
@@ -166,7 +171,8 @@ export const userSlice = createSlice({
             } catch (err) {
                 logger.error('Error saving sent message to SQLite:', err);
             }
-            writeToStorage(`messages-${state.user_data.id}-last-checked`, String(Date.now()));
+            const sentAt = new Date(message.sent_at).getTime() || Date.now();
+            writeToStorage(`messages-${state.user_data.id}-last-checked`, String(sentAt));
         },
         RECV_MESSAGE: (state, action: PayloadAction<message>) => {
             const data = action.payload;

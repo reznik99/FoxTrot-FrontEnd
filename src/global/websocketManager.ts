@@ -5,6 +5,7 @@ import InCallManager from 'react-native-incall-manager';
 import PushNotification from 'react-native-push-notification';
 import QuickCrypto from 'react-native-quick-crypto';
 import Toast from 'react-native-toast-message';
+import { RTCSessionDescriptionInit } from 'react-native-webrtc/lib/typescript/RTCSessionDescription';
 
 import * as callManager from '~/global/callManager';
 import { generateSessionKeyECDH } from '~/global/crypto';
@@ -12,6 +13,7 @@ import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { navigationRef } from '~/global/navigation';
 import { VibratePattern, WEBSOCKET_URL } from '~/global/variables';
+import { RNRTCIceCandidateInit } from '~/global/webrtc';
 import { loadMessages } from '~/store/actions/user';
 import { store } from '~/store/store';
 
@@ -36,15 +38,15 @@ export type SocketData =
 export interface SocketMessage {
     id?: number;
     sender: string;
-    sender_id: string | number;
+    sender_id: number;
     reciever: string;
-    reciever_id: string | number;
+    reciever_id: number;
     message?: string;
     sent_at?: string;
     seen?: boolean;
-    offer?: any;
-    answer?: any;
-    candidate?: string;
+    offer?: RTCSessionDescriptionInit;
+    answer?: RTCSessionDescriptionInit;
+    candidate?: RNRTCIceCandidateInit;
     ring?: boolean;
     type?: 'video' | 'audio';
 }
@@ -316,6 +318,10 @@ async function handleSocketMessage(data: any) {
                 break;
             case 'CALL_OFFER':
                 logger.debug('[WebSocket] CALL_OFFER Received', parsedData.data?.sender);
+                if (!parsedData.data.offer) {
+                    logger.warn('[WebSocket] CALL_OFFER without an offer, ignored');
+                    break;
+                }
 
                 const handledByCurrentCall = callManager.handleOfferForCurrentCall(
                     parsedData.data.sender_id,
@@ -361,7 +367,9 @@ async function handleSocketMessage(data: any) {
                 break;
             case 'CALL_ANSWER':
                 logger.debug('[WebSocket] CALL_ANSWER Received', parsedData.data?.sender);
-                callManager.onCallAnswer(parsedData.data?.answer);
+                if (parsedData.data.answer) {
+                    callManager.onCallAnswer(parsedData.data.answer);
+                }
                 break;
             case 'CALL_ICE_CANDIDATE':
                 logger.debug('[WebSocket] RECV_CALL_ICE_CANDIDATE Received', parsedData.data?.sender);

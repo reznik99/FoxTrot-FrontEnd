@@ -64,7 +64,7 @@ export const loadKeys = createDefaultAsyncThunk('loadKeys', async (_, thunkAPI) 
             service: `${state.user_data.phone_no}-keys`,
         });
         if (!credentials || credentials.username !== `${state.user_data.phone_no}-keys`) {
-            logger.debug('Warn: No keys found. First time login on device');
+            logger.info('No keys found. First time login on device');
             return false;
         }
 
@@ -402,7 +402,7 @@ export const searchUsers = createDefaultAsyncThunk<UserData[], { prefix: string 
                 pic: getAvatar(user.id),
                 isContact: state.contacts.some(contact => contact.id === user.id),
             }));
-            logger.debug('Action: searchUsers, Prefix:', prefix, 'Results:', results);
+            logger.debug(`searchUsers: ${results.length} users found for prefix '${prefix}'`);
             return results;
         } catch (err: any) {
             logger.error('Error searching users:', err);

@@ -20,7 +20,7 @@ async function getMmkvKey(): Promise<string | null> {
             return credentials.password;
         }
     } catch (err) {
-        logger.debug('No existing MMKV key found');
+        logger.debug('[MMKV] No existing encryption key found');
     }
     return null;
 }
@@ -34,7 +34,7 @@ async function createMmkvKey(): Promise<string> {
         storage: Keychain.STORAGE_TYPE.AES_GCM_NO_AUTH,
     });
 
-    logger.debug('Generated and stored new MMKV encryption key');
+    logger.debug('[MMKV] Generated and stored new encryption key');
     return key;
 }
 
@@ -65,7 +65,7 @@ async function getStorage(): Promise<MMKV> {
                 id: 'foxtrot-storage',
                 encryptionKey: existingKey,
             });
-            logger.debug('MMKV storage opened with encryption');
+            logger.debug('[MMKV] Storage opened with encryption');
         } else {
             // No key exists - fresh install or needs migration
             // Open unencrypted first to preserve any existing data

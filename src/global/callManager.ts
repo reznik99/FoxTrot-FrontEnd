@@ -179,7 +179,7 @@ export function endCall(isRemoteHangup: boolean = false, playBusytone: boolean =
                 started_at: new Date(internal.state.startTime).toISOString(),
             });
         } catch (err) {
-            logger.error('Failed to save call record:', err);
+            logger.error('[CallManager] Failed to save call record:', err);
         }
     }
 
@@ -459,10 +459,10 @@ async function setupStream(params: {
             },
         );
 
-        logger.debug('startStream - Loading local MediaStreams');
+        logger.debug('[WebRTC] Loading local media streams');
         const newStream = await mediaDevices.getUserMedia({ video: true, audio: true });
 
-        logger.debug('startStream - RTCPeerConnection Init');
+        logger.debug('[WebRTC] Creating peer connection');
         const alwaysRelay = (await readFromStorage(StorageKeys.ALWAYS_RELAY_CALLS)) === 'true';
         const newConnection = new RTCPeerConnection(getRTCConfiguration(turnCreds, alwaysRelay));
 
@@ -519,7 +519,7 @@ async function setupStream(params: {
             emitState();
         });
 
-        logger.debug('startStream - Loading tracks');
+        logger.debug('[WebRTC] Adding local tracks');
         newStream.getTracks().forEach(track => newConnection.addTrack(track, newStream));
         newStream.getVideoTracks()[0].enabled = videoEnabled;
 
@@ -540,14 +540,14 @@ async function setupStream(params: {
             await answerIncomingCall(callOffer, peerUser, userData);
         }
     } catch (err: any) {
-        logger.error('startStream error:', err);
+        logger.error('[WebRTC] Stream setup failed:', err);
         endCall(false);
     }
 }
 
 async function initiateCall(peerUser: UserData, userData: UserData, videoEnabled: boolean) {
     if (!internal.peerConnection) {
-        return logger.error('call: Unable to initiate call with null peerConnection');
+        return logger.error('[WebRTC] Unable to initiate call: no peer connection');
     }
     // Create data channel
     const peerChannel = internal.peerConnection.createDataChannel(userData.phone_no);
@@ -592,7 +592,7 @@ async function initiateCall(peerUser: UserData, userData: UserData, videoEnabled
 
 async function answerIncomingCall(callOffer: RTCSessionDescriptionInit, peerUser: UserData, userData: UserData) {
     if (!internal.peerConnection) {
-        return logger.debug('answerCall: Unable to answer call with null peerConnection');
+        return logger.debug('[WebRTC] Unable to answer call: no peer connection');
     }
 
     const offerDescription = new RTCSessionDescription(callOffer);
@@ -678,7 +678,7 @@ function calculatePing() {
         const pingMsg: WebRTCMessage = { type: 'PING', data: Date.now() };
         internal.peerChannel.send(JSON.stringify(pingMsg));
     } catch (err) {
-        logger.warn('[WebRTC] calculatePing failed:', err);
+        logger.warn('[CallManager] calculatePing failed:', err);
     }
 }
 
@@ -694,7 +694,7 @@ async function pollDiagnostics() {
         internal.stats = reports;
         setState({ diagnostics });
     } catch (err) {
-        logger.warn('[WebRTC] Diagnostics unavailable:', err);
+        logger.warn('[CallManager] Diagnostics unavailable:', err);
         if (connection === internal.peerConnection) {
             internal.stats = undefined;
             setState({ diagnostics: undefined });
@@ -738,7 +738,7 @@ function startDisconnectTimer() {
     logger.debug(`[WebRTC] connection lost, waiting ${DISCONNECT_TIMEOUT_MS / 1000}s for recovery...`);
     internal.disconnectTimer = setTimeout(() => {
         internal.disconnectTimer = null;
-        logger.debug('[WebRTC] recovery timed out, ending call');
+        logger.debug('[CallManager] Recovery timed out, ending call');
         endCall(true);
     }, DISCONNECT_TIMEOUT_MS);
 }

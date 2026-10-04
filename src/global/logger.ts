@@ -9,7 +9,7 @@ export interface LogEntry {
 
 // --- Ring Buffer ---
 
-const MAX_ENTRIES = 200;
+const MAX_ENTRIES = 1000;
 const buffer: (LogEntry | null)[] = new Array(MAX_ENTRIES).fill(null);
 let head = 0;
 let count = 0;

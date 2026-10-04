@@ -157,7 +157,7 @@ async function connectWebsocket() {
         ws.onmessage = event => handleSocketMessage(event.data);
         mgr.ws = ws;
     } catch (err) {
-        logger.error('Error establishing websocket:', err);
+        logger.error('[WebSocket] Error establishing connection:', err);
         store.dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'reconnecting' });
         scheduleReconnect();
     }
@@ -167,7 +167,7 @@ async function scheduleReconnect() {
     clearReconnectTimer();
 
     if (mgr.reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
-        logger.warn('Max reconnect attempts reached');
+        logger.warn('[WebSocket] Max reconnect attempts reached');
         store.dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
         store.dispatch({ type: 'user/WEBSOCKET_ERROR', payload: 'Unable to reconnect. Please check your connection.' });
         Toast.show({
@@ -182,7 +182,7 @@ async function scheduleReconnect() {
     // No point retrying without internet — NetInfo listener will reconnect when network returns
     const netState = await NetInfo.fetch();
     if (!netState.isConnected) {
-        logger.debug('No network, waiting for connectivity');
+        logger.debug('[WebSocket] No network, waiting for connectivity');
         return;
     }
 
@@ -190,7 +190,7 @@ async function scheduleReconnect() {
     const jitter = delay * 0.2 * (Math.random() * 2 - 1);
     const finalDelay = Math.round(delay + jitter);
 
-    logger.debug(`Reconnect ${mgr.reconnectAttempt + 1}/${MAX_RECONNECT_ATTEMPTS} in ${finalDelay}ms`);
+    logger.debug(`[WebSocket] Reconnect ${mgr.reconnectAttempt + 1}/${MAX_RECONNECT_ATTEMPTS} in ${finalDelay}ms`);
     mgr.reconnectAttempt++;
 
     mgr.reconnectTimer = setTimeout(() => {
@@ -204,17 +204,17 @@ async function scheduleReconnect() {
 function handleAppStateChange(nextState: string) {
     if (nextState === 'background') {
         if (callManager.isActive()) {
-            logger.debug('App backgrounded, keeping socket open for active call');
+            logger.debug('[WebSocket] App backgrounded, keeping socket open for active call');
             return;
         }
-        logger.debug('App backgrounded, closing socket');
+        logger.debug('[WebSocket] App backgrounded, closing socket');
         if (mgr.ws && mgr.ws.readyState === WebSocket.OPEN) {
             mgr.intentionalClose = true;
             mgr.ws.close();
         }
     } else if (nextState === 'active') {
         if (isSocketDead()) {
-            logger.debug('App foregrounded, reconnecting');
+            logger.debug('[WebSocket] App foregrounded, reconnecting');
             reconnect();
         }
     }
@@ -230,7 +230,7 @@ function handleNetInfoChange(state: NetInfoState) {
     }
 
     if (wasConnected === false && isSocketDead()) {
-        logger.debug('Network restored, reconnecting WebSocket');
+        logger.debug('[WebSocket] Network restored, reconnecting');
         reconnect();
     }
 }
@@ -304,7 +304,7 @@ async function handleSocketMessage(data: any) {
                 PushNotification.localNotification({
                     channelId: 'Messages',
                     title: `Message from ${parsedData.data.sender}`,
-                    message: 'New message',
+                    message: 'Encrypted message',
                     when: parsedData.data.sent_at ? new Date(parsedData.data.sent_at).getTime() : Date.now(),
                     visibility: 'private',
                     picture: getAvatar(parsedData.data.sender_id),
@@ -313,7 +313,7 @@ async function handleSocketMessage(data: any) {
                 });
                 break;
             case 'CALL_OFFER':
-                logger.debug('[Websocket] CALL_OFFER Recieved', parsedData.data?.sender);
+                logger.debug('[WebSocket] CALL_OFFER Received', parsedData.data?.sender);
 
                 const handledByCurrentCall = callManager.handleOfferForCurrentCall(
                     parsedData.data.sender_id,
@@ -358,11 +358,11 @@ async function handleSocketMessage(data: any) {
                 });
                 break;
             case 'CALL_ANSWER':
-                logger.debug('[Websocket] CALL_ANSWER Recieved', parsedData.data?.sender);
+                logger.debug('[WebSocket] CALL_ANSWER Received', parsedData.data?.sender);
                 callManager.onCallAnswer(parsedData.data?.answer);
                 break;
             case 'CALL_ICE_CANDIDATE':
-                logger.debug('[Websocket] RECV_CALL_ICE_CANDIDATE Recieved', parsedData.data?.sender);
+                logger.debug('[WebSocket] RECV_CALL_ICE_CANDIDATE Received', parsedData.data?.sender);
                 callManager.onIceCandidate(parsedData.data?.candidate);
                 break;
             case 'CONTACT_STATUS':
@@ -376,16 +376,16 @@ async function handleSocketMessage(data: any) {
                 }
                 break;
             case 'KEY_ROTATED': {
-                logger.info('[Websocket] KEY_ROTATED from', parsedData.data.phone_no);
+                logger.info('[WebSocket] KEY_ROTATED from', parsedData.data.phone_no);
                 const { keys } = store.getState().userReducer;
                 const sessionKey = await generateSessionKeyECDH(parsedData.data.public_key, keys?.privateKey);
                 store.dispatch({ type: 'user/KEY_ROTATED', payload: { ...parsedData.data, session_key: sessionKey } });
                 break;
             }
             default:
-                logger.debug('[Websocket] RECV unknown command:', data);
+                logger.debug('[WebSocket] RECV unknown command:', data);
         }
     } catch (err: any) {
-        logger.error('[Websocket] RECV error:', err);
+        logger.error('[WebSocket] RECV error:', err);
     }
 }

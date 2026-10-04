@@ -7,9 +7,9 @@ import QuickCrypto from 'react-native-quick-crypto';
 import { dbSaveCallRecord, getDb } from '~/global/database';
 import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
+import { CallPushData } from '~/global/protocol';
 import { deleteFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { VibratePattern } from '~/global/variables';
-import { SocketMessage } from '~/global/websocketManager';
 import { UserData } from '~/store/reducers/user';
 
 const messaging = getMessaging();
@@ -22,7 +22,7 @@ setBackgroundMessageHandler(messaging, async remoteMessage => {
     if (Object.keys(caller).length === 0) {
         return logger.error('Caller data is not defined');
     }
-    const eventData = JSON.parse((remoteMessage.data?.data as string) || '{}') as SocketMessage;
+    const eventData = JSON.parse((remoteMessage.data?.data as string) || '{}') as CallPushData;
     if (Object.keys(eventData).length === 0) {
         return logger.error('Event data is not defined');
     }
@@ -68,7 +68,7 @@ setBackgroundMessageHandler(messaging, async remoteMessage => {
             await getDb();
             dbSaveCallRecord({
                 peer_phone: caller.phone_no,
-                peer_id: String(caller.id),
+                peer_id: caller.id,
                 peer_pic: caller.pic,
                 direction: 'incoming',
                 call_type: eventData.type || 'audio',

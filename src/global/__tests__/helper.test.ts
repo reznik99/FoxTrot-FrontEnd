@@ -1,4 +1,4 @@
-import { humanTime, milliseconds } from '../helper';
+import { formatCallTime, humanTime, milliseconds } from '../helper';
 
 describe('humanTime', () => {
     beforeEach(() => {
@@ -64,5 +64,17 @@ describe('humanTime', () => {
     it('should return minutes at exactly 1 minute', () => {
         const exactlyOneMinute = Date.now() - milliseconds.minute;
         expect(humanTime(exactlyOneMinute)).toBe('1 m ago');
+    });
+});
+
+describe('formatCallTime', () => {
+    it('formats seconds as HH:MM:SS', () => {
+        expect(formatCallTime(0)).toBe('00:00:00');
+        expect(formatCallTime(59)).toBe('00:00:59');
+        expect(formatCallTime(3599)).toBe('00:59:59');
+        expect(formatCallTime(3600)).toBe('01:00:00');
+        expect(formatCallTime(3660)).toBe('01:01:00');
+        expect(formatCallTime(3661.9)).toBe('01:01:01');
+        expect(formatCallTime(-5)).toBe('00:00:00');
     });
 });

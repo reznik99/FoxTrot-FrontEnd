@@ -204,9 +204,9 @@ export function dbSaveMessages(messages: message[], conversationId: string): voi
         msg.sent_at,
         msg.seen ? 1 : 0,
         msg.reciever,
-        String(msg.reciever_id),
+        msg.reciever_id,
         msg.sender,
-        String(msg.sender_id),
+        msg.sender_id,
         conversationId,
         msg.is_decrypted ? 1 : 0,
         msg.system ? 1 : 0,
@@ -236,9 +236,9 @@ export function dbGetMessages(conversationId: string, limit = DB_MSG_PAGE_SIZE, 
         sent_at: row.sent_at as string,
         seen: Boolean(row.seen),
         reciever: row.receiver as string, // typo in interface, correct in DB
-        reciever_id: row.receiver_id as string,
+        reciever_id: Number(row.receiver_id),
         sender: row.sender as string,
-        sender_id: row.sender_id as string,
+        sender_id: Number(row.sender_id),
         is_decrypted: Boolean(row.is_decrypted),
         system: Boolean(row.system),
     }));
@@ -276,15 +276,7 @@ export function dbSaveConversation(peer: UserData, updatedAt: number): void {
              peer_pic = excluded.peer_pic,
              peer_last_seen = excluded.peer_last_seen,
              updated_at = excluded.updated_at`,
-        [
-            peer.phone_no,
-            String(peer.id),
-            peer.phone_no,
-            peer.public_key || null,
-            peer.pic || null,
-            peer.last_seen || 0,
-            updatedAt,
-        ],
+        [peer.phone_no, peer.id, peer.phone_no, peer.public_key || null, peer.pic || null, peer.last_seen || 0, updatedAt],
     );
 }
 
@@ -301,7 +293,7 @@ export function dbGetConversations(): Array<{ other_user: UserData; messageCount
     logger.debug('[SQLite] Loaded', result.rows.length, 'conversations');
     return (result.rows || []).map(row => ({
         other_user: {
-            id: row.peer_id as string,
+            id: Number(row.peer_id),
             phone_no: row.peer_phone as string,
             public_key: (row.peer_public_key as string) || undefined,
             pic: (row.peer_pic as string) || undefined,
@@ -328,7 +320,7 @@ export function dbGetConversation(peerPhone: string): { other_user: UserData; me
 
     return {
         other_user: {
-            id: row.peer_id as string,
+            id: Number(row.peer_id),
             phone_no: row.peer_phone as string,
             public_key: (row.peer_public_key as string) || undefined,
             pic: (row.peer_pic as string) || undefined,
@@ -372,7 +364,7 @@ export function dbGetCallHistory(limit = 50, offset = 0): CallRecord[] {
     return (result.rows || []).map(row => ({
         id: row.id as number,
         peer_phone: row.peer_phone as string,
-        peer_id: row.peer_id as string,
+        peer_id: Number(row.peer_id),
         peer_pic: (row.peer_pic as string) || undefined,
         direction: row.direction as CallRecord['direction'],
         call_type: row.call_type as CallRecord['call_type'],
@@ -408,21 +400,21 @@ export function dbDeleteCalls(ids: number[]): void {
 
 // Contacts (for offline key change detection)
 
-export function dbSaveContacts(contacts: Array<{ id: string | number; phone_no: string; public_key?: string }>): void {
+export function dbSaveContacts(contacts: Array<{ id: number; phone_no: string; public_key?: string }>): void {
     if (contacts.length === 0) return;
     const database = requireDb();
 
     const placeholders = contacts.map(() => '(?, ?, ?)').join(', ');
-    const params = contacts.flatMap(c => [String(c.id), c.phone_no, c.public_key || null]);
+    const params = contacts.flatMap(c => [c.id, c.phone_no, c.public_key || null]);
     database.executeSync(`INSERT OR REPLACE INTO contacts (id, phone_no, public_key) VALUES ${placeholders}`, params);
 }
 
-export function dbGetStoredContacts(): Array<{ id: string; phone_no: string; public_key: string | null }> {
+export function dbGetStoredContacts(): Array<{ id: number; phone_no: string; public_key: string | null }> {
     const database = requireDb();
     const result = database.executeSync('SELECT id, phone_no, public_key FROM contacts');
     logger.debug('[SQLite] Loaded', result.rows.length, 'contacts');
     return (result.rows || []).map(row => ({
-        id: row.id as string,
+        id: Number(row.id),
         phone_no: row.phone_no as string,
         public_key: (row.public_key as string) || null,
     }));

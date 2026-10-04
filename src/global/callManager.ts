@@ -4,12 +4,13 @@ import Toast from 'react-native-toast-message';
 import { mediaDevices, MediaStream, RTCPeerConnection, RTCSessionDescription } from 'react-native-webrtc';
 import MessageEvent from 'react-native-webrtc/lib/typescript/MessageEvent';
 import RTCDataChannel from 'react-native-webrtc/lib/typescript/RTCDataChannel';
-import { RTCSessionDescriptionInit } from 'react-native-webrtc/lib/typescript/RTCSessionDescription';
 import { RTCOfferOptions } from 'react-native-webrtc/lib/typescript/RTCUtil';
 
 import { dbSaveCallRecord } from '~/global/database';
+import { formatCallTime } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { getBluetoothConnectPermission } from '~/global/permissions';
+import { CallAnswerFrame, CallIceCandidateFrame, CallOfferFrame, IceCandidate, SessionDescription } from '~/global/protocol';
 import { readFromStorage, StorageKeys } from '~/global/storage';
 import {
     calculateCallDiagnostics,
@@ -18,7 +19,7 @@ import {
     NativeStatsReportMap,
     WebRTCMessage,
 } from '~/global/webrtc';
-import { SocketData, wsSendMessage } from '~/global/websocketManager';
+import { wsSendMessage } from '~/global/websocketManager';
 import { TURNCredentials, UserData } from '~/store/reducers/user';
 import { store } from '~/store/store';
 
@@ -85,8 +86,8 @@ const internal = {
     disconnectTimer: null as ReturnType<typeof setTimeout> | null,
     ringTimer: null as ReturnType<typeof setTimeout> | null,
     userData: null as UserData | null,
-    callOffer: null as RTCSessionDescriptionInit | null,
-    pendingIceCandidates: [] as any[],
+    callOffer: null as SessionDescription | null,
+    pendingIceCandidates: [] as IceCandidate[],
     listeners: new Set<(state: CallManagerState) => void>(),
     audioDevices: [] as string[],
     audioDeviceSub: null as EmitterSubscription | null,
@@ -150,7 +151,7 @@ export function answerCall(params: {
     videoEnabled: boolean;
     userData: UserData;
     turnCreds: TURNCredentials;
-    callOffer: RTCSessionDescriptionInit;
+    callOffer: SessionDescription;
 }) {
     if (isActive()) {
         logger.warn('[CallManager] answerCall called while call is active');
@@ -181,7 +182,7 @@ export function endCall(isRemoteHangup: boolean = false, playBusytone: boolean =
         try {
             dbSaveCallRecord({
                 peer_phone: internal.state.peerUser.phone_no,
-                peer_id: String(internal.state.peerUser.id),
+                peer_id: internal.state.peerUser.id,
                 peer_pic: internal.state.peerUser.pic,
                 direction: internal.callOffer ? 'incoming' : 'outgoing',
                 call_type: internal.state.videoEnabled ? 'video' : 'audio',
@@ -320,11 +321,11 @@ export async function toggleSpeaker() {
  * Returns true when the current call ignores, defers, or starts answering this offer.
  * False means the WebSocket handler should show a normal incoming call.
  */
-export function handleOfferForCurrentCall(senderId: string | number, offer: RTCSessionDescriptionInit): boolean {
+export function handleOfferForCurrentCall(senderId: number, offer: SessionDescription): boolean {
     const { phase, peerUser, isOutgoing } = internal.state;
     const userData = internal.userData;
 
-    if (!peerUser || String(peerUser.id) !== String(senderId)) {
+    if (!peerUser || peerUser.id !== senderId) {
         return false;
     }
 
@@ -341,7 +342,7 @@ export function handleOfferForCurrentCall(senderId: string | number, offer: RTCS
     }
 
     // Both apps follow the same rule: lower user ID keeps its outgoing offer.
-    if (Number(userData.id) < Number(senderId)) {
+    if (userData.id < senderId) {
         return true;
     }
 
@@ -376,7 +377,7 @@ export function handleOfferForCurrentCall(senderId: string | number, offer: RTCS
 }
 
 /** Called when peer answers our outgoing call */
-export function onCallAnswer(answer: RTCSessionDescriptionInit) {
+export function onCallAnswer(answer: SessionDescription) {
     if (!internal.peerConnection || !answer) {
         return;
     }
@@ -396,7 +397,7 @@ export function onCallAnswer(answer: RTCSessionDescriptionInit) {
 }
 
 /** Called when we receive an ICE candidate from the peer */
-export function onIceCandidate(candidate: any) {
+export function onIceCandidate(candidate: IceCandidate) {
     if (!candidate) {
         return;
     }
@@ -420,7 +421,7 @@ async function setupStream(params: {
     videoEnabled: boolean;
     userData: UserData;
     turnCreds: TURNCredentials;
-    callOffer?: RTCSessionDescriptionInit;
+    callOffer?: SessionDescription;
 }) {
     const { peerUser, videoEnabled, userData, turnCreds, callOffer } = params;
 
@@ -484,7 +485,7 @@ async function setupStream(params: {
             if (!event.candidate) {
                 logger.debug('[WebRTC] onIceCandidate finished');
             }
-            const message: SocketData = {
+            const message: CallIceCandidateFrame = {
                 cmd: 'CALL_ICE_CANDIDATE',
                 data: {
                     sender_id: userData.id,
@@ -574,10 +575,10 @@ async function initiateCall(peerUser: UserData, userData: UserData, videoEnabled
         offerToReceiveVideo: true,
         voiceActivityDetection: true,
     };
-    let offerDescription = (await internal.peerConnection.createOffer(sessionConstraints)) as RTCSessionDescriptionInit;
+    let offerDescription = (await internal.peerConnection.createOffer(sessionConstraints)) as SessionDescription;
     await internal.peerConnection.setLocalDescription(offerDescription as RTCSessionDescription);
     // Send offer via WebSocket
-    const message: SocketData = {
+    const message: CallOfferFrame = {
         cmd: 'CALL_OFFER',
         data: {
             sender_id: userData.id,
@@ -602,7 +603,7 @@ async function initiateCall(peerUser: UserData, userData: UserData, videoEnabled
     }, RING_TIMEOUT_MS);
 }
 
-async function answerIncomingCall(callOffer: RTCSessionDescriptionInit, peerUser: UserData, userData: UserData) {
+async function answerIncomingCall(callOffer: SessionDescription, peerUser: UserData, userData: UserData) {
     if (!internal.peerConnection) {
         return logger.debug('[WebRTC] Unable to answer call: no peer connection');
     }
@@ -615,7 +616,7 @@ async function answerIncomingCall(callOffer: RTCSessionDescriptionInit, peerUser
 
     InCallManager.stopRingtone();
 
-    const message: SocketData = {
+    const message: CallAnswerFrame = {
         cmd: 'CALL_ANSWER',
         data: {
             sender_id: userData.id,
@@ -785,11 +786,4 @@ function onWebrtcError(e: any) {
         text1: 'Error occoured during call',
         text2: e.toString(),
     });
-}
-
-export function formatCallTime(callTime: number): string {
-    const hours = ~~(callTime / (60 * 60));
-    const minutes = ~~(callTime / 60);
-    const seconds = ~~(callTime - minutes * 60);
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }

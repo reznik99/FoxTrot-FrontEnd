@@ -26,7 +26,7 @@ export const integrationTests: TestCase[] = [
             // 3. Persist through the encrypted-at-rest SQLite layer
             await withTestDb(async () => {
                 const peer: UserData = {
-                    id: 'bob-id',
+                    id: 2,
                     phone_no: '+15550000000',
                     last_seen: 0,
                     online: false,
@@ -39,9 +39,9 @@ export const integrationTests: TestCase[] = [
                     sent_at: new Date(2026, 0, 1, 12, 0, 0).toISOString(),
                     seen: false,
                     reciever: peer.phone_no,
-                    reciever_id: String(peer.id),
+                    reciever_id: peer.id,
                     sender: 'alice',
-                    sender_id: 'alice-id',
+                    sender_id: 1,
                     is_decrypted: false,
                 };
                 dbSaveMessages([msg], peer.phone_no);

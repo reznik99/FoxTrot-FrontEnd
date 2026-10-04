@@ -13,7 +13,7 @@ import { assertEq, type TestCase } from '../runner';
 
 function fakePeer(suffix: string): UserData {
     return {
-        id: `peer-${suffix}`,
+        id: Number(suffix),
         phone_no: `+1555000${suffix}`,
         last_seen: 0,
         online: false,
@@ -22,16 +22,16 @@ function fakePeer(suffix: string): UserData {
     };
 }
 
-function fakeMessage(id: number, conversationId: string, body: string): message {
+function fakeMessage(id: number, peer: UserData, body: string): message {
     return {
         id,
         message: body,
         sent_at: new Date(2026, 0, 1, 12, 0, id).toISOString(),
         seen: false,
         reciever: 'me',
-        reciever_id: 'me-id',
-        sender: conversationId,
-        sender_id: conversationId,
+        reciever_id: 1,
+        sender: peer.phone_no,
+        sender_id: peer.id,
         is_decrypted: true,
     };
 }
@@ -45,7 +45,7 @@ export const databaseTests: TestCase[] = [
             await withTestDb(async () => {
                 const peer = fakePeer('001');
                 dbSaveConversation(peer, Date.now());
-                dbSaveMessages([fakeMessage(50, peer.phone_no, 'bye')], peer.phone_no);
+                dbSaveMessages([fakeMessage(50, peer, 'bye')], peer.phone_no);
                 dbDeleteConversation(peer.phone_no);
                 assertEq(dbGetMessages(peer.phone_no, 10, 0).length, 0);
                 assertEq(

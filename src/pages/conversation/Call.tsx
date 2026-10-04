@@ -8,7 +8,8 @@ import { RTCView } from 'react-native-webrtc';
 import { connect, ConnectedProps } from 'react-redux';
 
 import * as callManager from '~/global/callManager';
-import { CallManagerState, formatCallTime } from '~/global/callManager';
+import { CallManagerState } from '~/global/callManager';
+import { formatCallTime } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { HomeStackParamList } from '~/global/navigation';
 import { DARKHEADER, DIVIDER, ERROR_RED } from '~/global/variables';
@@ -72,7 +73,7 @@ class Call extends React.Component<Props, State> {
     answerIncomingCall = (callOffer: NonNullable<Props['callOffer']>) => {
         const { data } = this.props.route.params;
         // A leftover offer from someone else must not be answered on behalf of this screen's caller
-        if (String(this.props.caller?.id) !== String(data?.peer_user?.id)) {
+        if (this.props.caller?.id !== data?.peer_user?.id) {
             logger.warn('[CallScreen] Ignoring offer from another caller', this.props.caller?.id, data?.peer_user?.id);
             return;
         }

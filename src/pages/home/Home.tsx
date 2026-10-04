@@ -10,11 +10,11 @@ import { useSelector } from 'react-redux';
 import ConversationPeek from '~/components/ConversationPeek';
 import { dbSaveCallRecord, getDb } from '~/global/database';
 import { logger } from '~/global/logger';
+import { CallPushData } from '~/global/protocol';
 import { popFromStorage, readFromStorage, StorageKeys } from '~/global/storage';
 import globalStyle from '~/global/style';
 import { SECONDARY_LITE } from '~/global/variables';
 import * as websocketManager from '~/global/websocketManager';
-import { SocketMessage } from '~/global/websocketManager';
 import { RootNavigation, setupInterceptors } from '~/store/actions/auth';
 import { evictMediaCache } from '~/store/actions/media';
 import {
@@ -68,7 +68,7 @@ export default function Home() {
                 // Check if user answered a call in the background
                 const callerRaw = await popFromStorage(StorageKeys.CALL_ANSWERED_IN_BACKGROUND);
                 if (callerRaw) {
-                    const data = JSON.parse(callerRaw || '{}') as { caller: UserData; data: SocketMessage };
+                    const data = JSON.parse(callerRaw || '{}') as { caller: UserData; data: CallPushData };
                     navigation.navigate('Call', {
                         data: {
                             peer_user: data.caller,
@@ -128,7 +128,7 @@ export default function Home() {
         RNNotificationCall.addEventListener('answer', info => {
             logger.info('[RNNotificationCall] User answered call', info.callUUID);
             RNNotificationCall.backToApp();
-            const data = JSON.parse(info.payload || '{}') as { caller: UserData; data: SocketMessage };
+            const data = JSON.parse(info.payload || '{}') as { caller: UserData; data: CallPushData };
             navigation.navigate('Call', {
                 data: {
                     peer_user: data.caller,
@@ -144,11 +144,11 @@ export default function Home() {
             // Drop the declined/expired offer, otherwise the next outgoing call auto-answers it
             store.dispatch({ type: 'user/RECV_CALL_OFFER', payload: undefined });
             try {
-                const data = JSON.parse(info.payload || '{}') as { caller: UserData; data: SocketMessage };
+                const data = JSON.parse(info.payload || '{}') as { caller: UserData; data: CallPushData };
                 if (data.caller) {
                     dbSaveCallRecord({
                         peer_phone: data.caller.phone_no,
-                        peer_id: String(data.caller.id),
+                        peer_id: data.caller.id,
                         peer_pic: data.caller.pic,
                         direction: 'incoming',
                         call_type: data.data?.type || 'audio',

@@ -11,43 +11,10 @@ import { generateSessionKeyECDH } from '~/global/crypto';
 import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { navigationRef } from '~/global/navigation';
+import { CallSignalFrame, SocketFrame } from '~/global/protocol';
 import { VibratePattern, WEBSOCKET_URL } from '~/global/variables';
 import { loadMessages } from '~/store/actions/user';
 import { store } from '~/store/store';
-
-export interface ContactStatusPayload {
-    user_id: number;
-    phone_no: string;
-    online: boolean;
-    last_seen: string;
-}
-
-export interface KeyRotatedPayload {
-    user_id: number;
-    phone_no: string;
-    public_key: string;
-}
-
-export type SocketData =
-    | { cmd: 'MSG' | 'CALL_OFFER' | 'CALL_ICE_CANDIDATE' | 'CALL_ANSWER'; data: SocketMessage }
-    | { cmd: 'CONTACT_STATUS'; data: ContactStatusPayload }
-    | { cmd: 'KEY_ROTATED'; data: KeyRotatedPayload };
-
-export interface SocketMessage {
-    id?: number;
-    sender: string;
-    sender_id: string | number;
-    reciever: string;
-    reciever_id: string | number;
-    message?: string;
-    sent_at?: string;
-    seen?: boolean;
-    offer?: any;
-    answer?: any;
-    candidate?: string;
-    ring?: boolean;
-    type?: 'video' | 'audio';
-}
 
 const MAX_RECONNECT_ATTEMPTS = 10;
 const BASE_DELAY_MS = 1000;
@@ -71,7 +38,7 @@ function isSocketDead(): boolean {
     return !mgr.ws || mgr.ws.readyState === WebSocket.CLOSED || mgr.ws.readyState === WebSocket.CLOSING;
 }
 
-export function wsSendMessage(data: SocketData) {
+export function wsSendMessage(data: CallSignalFrame) {
     mgr.ws?.send(JSON.stringify(data));
 }
 
@@ -298,7 +265,7 @@ function handleSocketError(err: any) {
 
 async function handleSocketMessage(data: any) {
     try {
-        const parsedData: SocketData = JSON.parse(data);
+        const parsedData: SocketFrame = JSON.parse(data);
         switch (parsedData.cmd) {
             case 'MSG':
                 logger.info(`[WebSocket] MSG received (id ${parsedData.data.id}, from user ${parsedData.data.sender_id})`);
@@ -307,7 +274,7 @@ async function handleSocketMessage(data: any) {
                     channelId: 'Messages',
                     title: `Message from ${parsedData.data.sender}`,
                     message: 'Encrypted message',
-                    when: parsedData.data.sent_at ? new Date(parsedData.data.sent_at).getTime() : Date.now(),
+                    when: new Date(parsedData.data.sent_at).getTime() || Date.now(),
                     visibility: 'private',
                     picture: getAvatar(parsedData.data.sender_id),
                     largeIcon: 'foxtrot',
@@ -315,7 +282,12 @@ async function handleSocketMessage(data: any) {
                 });
                 break;
             case 'CALL_OFFER':
-                logger.debug('[WebSocket] CALL_OFFER Received', parsedData.data?.sender);
+                logger.debug('[WebSocket] CALL_OFFER Received', parsedData.data.sender);
+                // Peer-built payload, not validated by the server
+                if (!parsedData.data.offer?.sdp) {
+                    logger.warn('[WebSocket] CALL_OFFER without an offer, ignored');
+                    break;
+                }
 
                 const handledByCurrentCall = callManager.handleOfferForCurrentCall(
                     parsedData.data.sender_id,
@@ -336,7 +308,7 @@ async function handleSocketMessage(data: any) {
                         online: true,
                     };
                 }
-                store.dispatch({ type: 'user/RECV_CALL_OFFER', payload: { offer: parsedData.data?.offer, caller: caller } });
+                store.dispatch({ type: 'user/RECV_CALL_OFFER', payload: { offer: parsedData.data.offer, caller: caller } });
 
                 // Don't ring if offer was cached and received after app open on answer event
                 if (parsedData.data.ring === false) {
@@ -360,12 +332,17 @@ async function handleSocketMessage(data: any) {
                 });
                 break;
             case 'CALL_ANSWER':
-                logger.debug('[WebSocket] CALL_ANSWER Received', parsedData.data?.sender);
-                callManager.onCallAnswer(parsedData.data?.answer);
+                logger.debug('[WebSocket] CALL_ANSWER Received', parsedData.data.sender);
+                // Peer-built payload, not validated by the server
+                if (!parsedData.data.answer?.sdp) {
+                    logger.warn('[WebSocket] CALL_ANSWER without an answer, ignored');
+                    break;
+                }
+                callManager.onCallAnswer(parsedData.data.answer);
                 break;
             case 'CALL_ICE_CANDIDATE':
-                logger.debug('[WebSocket] RECV_CALL_ICE_CANDIDATE Received', parsedData.data?.sender);
-                callManager.onIceCandidate(parsedData.data?.candidate);
+                logger.debug('[WebSocket] RECV_CALL_ICE_CANDIDATE Received', parsedData.data.sender);
+                callManager.onIceCandidate(parsedData.data.candidate);
                 break;
             case 'CONTACT_STATUS':
                 store.dispatch({ type: 'user/CONTACT_STATUS', payload: parsedData.data });
@@ -384,8 +361,11 @@ async function handleSocketMessage(data: any) {
                 store.dispatch({ type: 'user/KEY_ROTATED', payload: { ...parsedData.data, session_key: sessionKey } });
                 break;
             }
-            default:
-                logger.debug('[WebSocket] RECV unknown command:', data);
+            default: {
+                // Compile error when a SocketFrame command has no case above
+                const unhandled: never = parsedData;
+                logger.debug('[WebSocket] RECV unknown command:', unhandled);
+            }
         }
     } catch (err: any) {
         logger.error('[WebSocket] RECV error:', err);

@@ -4,7 +4,8 @@ import { Icon } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as callManager from '~/global/callManager';
-import { CallManagerState, CallPhase, formatCallTime } from '~/global/callManager';
+import { CallManagerState, CallPhase } from '~/global/callManager';
+import { formatCallTime } from '~/global/helper';
 import { navigationRef } from '~/global/navigation';
 
 export default function ActiveCallBanner() {

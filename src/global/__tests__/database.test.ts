@@ -61,7 +61,7 @@ jest.mock('react-native-quick-crypto', () => ({
 
 // Sample test data
 const testUser: UserData = {
-    id: '101',
+    id: 101,
     phone_no: '+1111111111',
     last_seen: 1700000000000,
     online: true,
@@ -76,9 +76,9 @@ const testMessages: message[] = [
         sent_at: '2024-01-15T10:30:00.000Z',
         seen: true,
         reciever: '+1111111111',
-        reciever_id: '101',
+        reciever_id: 101,
         sender: '+0000000000',
-        sender_id: '100',
+        sender_id: 100,
     },
     {
         id: 2,
@@ -86,17 +86,15 @@ const testMessages: message[] = [
         sent_at: '2024-01-15T10:31:00.000Z',
         seen: false,
         reciever: '+0000000000',
-        reciever_id: '100',
+        reciever_id: 100,
         sender: '+1111111111',
-        sender_id: '101',
+        sender_id: 101,
     },
 ];
 
-// Normalize for comparison (DB stores IDs as strings, is_decrypted defaults to false)
+// Normalize for comparison (is_decrypted and system default to false)
 const normalizeMessage = (msg: message): message => ({
     ...msg,
-    reciever_id: String(msg.reciever_id),
-    sender_id: String(msg.sender_id),
     is_decrypted: false,
     system: false,
 });
@@ -220,7 +218,7 @@ describe('database operations', () => {
     describe('calls', () => {
         const testCallRecord: Omit<CallRecord, 'id' | 'seen'> = {
             peer_phone: '+1111111111',
-            peer_id: '101',
+            peer_id: 101,
             peer_pic: 'https://example.com/pic1.jpg',
             direction: 'outgoing',
             call_type: 'audio',

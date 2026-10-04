@@ -1,6 +1,6 @@
 {
     "name": "foxtrot",
-    "version": "1.20.20",
+    "version": "1.20.21",
     "private": true,
     "scripts": {
         "android": "react-native run-android --no-packager && react-native start",
@@ -31,7 +31,7 @@
         "buffer": "^6.0.3",
         "react": "^19.1.0",
         "react-native": "^0.80.3",
-        "react-native-bootsplash": "^7.3.3",
+        "react-native-bootsplash": "^7.3.4",
         "react-native-compressor": "^2.0.3",
         "react-native-create-thumbnail": "^2.2.0",
         "react-native-device-info": "^15.0.2",
@@ -50,7 +50,7 @@
         "react-native-quick-base64": "^3.0.1",
         "react-native-quick-crypto": "^1.1.7",
         "react-native-reanimated": "~3.19.5",
-        "react-native-safe-area-context": "~5.10.0",
+        "react-native-safe-area-context": "~5.10.1",
         "react-native-screens": "~4.11.1",
         "react-native-svg": "^15.15.5",
         "react-native-toast-message": "^2.5.2",

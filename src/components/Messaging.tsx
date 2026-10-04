@@ -94,7 +94,7 @@ export default function Messaging(props: IProps) {
             setAudioFilePath(result);
             setRecording(true);
             InCallManager.setKeepScreenOn(true);
-            logger.info('Recording started:', result);
+            logger.debug('Recording started:', result);
         } catch (err) {
             logger.error(err);
         }

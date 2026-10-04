@@ -126,7 +126,7 @@ export default function Home() {
 
     const registerCallHandlers = useCallback(() => {
         RNNotificationCall.addEventListener('answer', info => {
-            logger.debug('[RNNotificationCall] User answered call', info.callUUID);
+            logger.info('[RNNotificationCall] User answered call', info.callUUID);
             RNNotificationCall.backToApp();
             const data = JSON.parse(info.payload || '{}') as { caller: UserData; data: SocketMessage };
             navigation.navigate('Call', {

@@ -259,6 +259,6 @@ describe('loadContacts', () => {
         const { contacts } = await refreshWith([apiAlice]);
 
         expect(contacts).toHaveLength(2);
-        expect(logger.warn).toHaveBeenCalledWith('Failed to persist contacts to SQLite:', error);
+        expect(logger.error).toHaveBeenCalledWith('Failed to persist contacts to SQLite:', error);
     });
 });

@@ -139,6 +139,9 @@ export function startCall(params: {
         return;
     }
     Vibration.vibrate(10);
+    logger.info(
+        `[CallManager] Outgoing ${params.videoEnabled ? 'video' : 'audio'} call started (to user ${params.peerUser.id})`,
+    );
     setupStream(params);
 }
 
@@ -153,6 +156,9 @@ export function answerCall(params: {
         logger.warn('[CallManager] answerCall called while call is active');
         return;
     }
+    logger.info(
+        `[CallManager] Answering incoming ${params.videoEnabled ? 'video' : 'audio'} call (from user ${params.peerUser.id})`,
+    );
     setupStream(params);
 }
 
@@ -164,6 +170,11 @@ export function endCall(isRemoteHangup: boolean = false, playBusytone: boolean =
 
     const prevPhase = internal.state.phase;
     internal.state.phase = CallPhase.ENDING;
+    logger.info(
+        `[CallManager] Call ended (${isRemoteHangup ? 'remote' : 'local'} hangup, was ${prevPhase}, ${formatCallTime(
+            internal.state.callTime,
+        )})`,
+    );
 
     // Persist call record
     if (internal.state.peerUser && prevPhase !== CallPhase.STARTING) {
@@ -492,6 +503,7 @@ async function setupStream(params: {
             setState({ callStatus: `${peerUser?.phone_no} : ${connState}` });
 
             if (connState === 'connected') {
+                logger.info('[CallManager] Call connected');
                 clearDisconnectTimer();
             } else if (connState === 'disconnected') {
                 startDisconnectTimer();
@@ -512,9 +524,9 @@ async function setupStream(params: {
         });
         newConnection.addEventListener('datachannel', event => {
             internal.peerChannel = event.channel;
-            event.channel.addEventListener('open', e => logger.info('[WebRTC] Channel opened:', e.channel.label));
+            event.channel.addEventListener('open', e => logger.debug('[WebRTC] Channel opened:', e.channel.label));
             event.channel.addEventListener('error', onWebrtcError);
-            event.channel.addEventListener('close', e => logger.info('[WebRTC] Channel closed:', e));
+            event.channel.addEventListener('close', e => logger.debug('[WebRTC] Channel closed:', e));
             event.channel.addEventListener('message', onChannelMessage);
             emitState();
         });
@@ -551,9 +563,9 @@ async function initiateCall(peerUser: UserData, userData: UserData, videoEnabled
     }
     // Create data channel
     const peerChannel = internal.peerConnection.createDataChannel(userData.phone_no);
-    peerChannel.addEventListener('open', e => logger.info('[WebRTC] Channel opened:', e.channel.label));
+    peerChannel.addEventListener('open', e => logger.debug('[WebRTC] Channel opened:', e.channel.label));
     peerChannel.addEventListener('error', onWebrtcError);
-    peerChannel.addEventListener('close', e => logger.info('[WebRTC] Channel closed:', e));
+    peerChannel.addEventListener('close', e => logger.debug('[WebRTC] Channel closed:', e));
     peerChannel.addEventListener('message', onChannelMessage);
     internal.peerChannel = peerChannel;
     // Create offer

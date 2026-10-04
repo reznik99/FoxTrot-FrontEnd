@@ -34,6 +34,7 @@ export type SocketData =
     | { cmd: 'KEY_ROTATED'; data: KeyRotatedPayload };
 
 export interface SocketMessage {
+    id?: number;
     sender: string;
     sender_id: string | number;
     reciever: string;
@@ -167,7 +168,7 @@ async function scheduleReconnect() {
     clearReconnectTimer();
 
     if (mgr.reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
-        logger.warn('[WebSocket] Max reconnect attempts reached');
+        logger.error('[WebSocket] Max reconnect attempts reached');
         store.dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'disconnected' });
         store.dispatch({ type: 'user/WEBSOCKET_ERROR', payload: 'Unable to reconnect. Please check your connection.' });
         Toast.show({
@@ -238,7 +239,7 @@ function handleNetInfoChange(state: NetInfoState) {
 // --- WebSocket event handlers ---
 
 function handleSocketOpen() {
-    logger.debug('[WebSocket] opened successfully');
+    logger.info('[WebSocket] Connected');
     mgr.intentionalClose = false;
     mgr.reconnectAttempt = 0;
     store.dispatch({ type: 'user/WEBSOCKET_STATUS', payload: 'connected' });
@@ -300,6 +301,7 @@ async function handleSocketMessage(data: any) {
         const parsedData: SocketData = JSON.parse(data);
         switch (parsedData.cmd) {
             case 'MSG':
+                logger.info(`[WebSocket] MSG received (id ${parsedData.data.id}, from user ${parsedData.data.sender_id})`);
                 store.dispatch({ type: 'user/RECV_MESSAGE', payload: parsedData.data });
                 PushNotification.localNotification({
                     channelId: 'Messages',

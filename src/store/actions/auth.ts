@@ -47,6 +47,7 @@ export const logIn = createAsyncThunk('logIn', async ({ username, password }: lo
 
         // Save data in redux store
         thunkAPI.dispatch(LOGGED_IN({ token: res.data.token, user_data: user_data }));
+        logger.info('Logged in');
         return true;
     } catch (err: any) {
         logger.error('Error logging in:', err);
@@ -90,6 +91,7 @@ export const signUp = createAsyncThunk(
             // Save data in phone storage
             writeToStorage(StorageKeys.USER_DATA, JSON.stringify(response.data?.user_data || { phone_no: username }));
             thunkAPI.dispatch(SIGNED_UP(response.data?.user_data || { phone_no: username }));
+            logger.info('Signed up');
 
             Toast.show({
                 type: 'success',
@@ -110,7 +112,7 @@ export const signUp = createAsyncThunk(
 
 export type { RootNavigation } from '~/global/navigation';
 export const logOut = createAsyncThunk('logOut', async ({ navigation }: { navigation: RootNavigation }, thunkAPI) => {
-    logger.debug('Logging out');
+    logger.info('Logging out');
     // Clear redux state
     thunkAPI.dispatch(LOGOUT(undefined));
     // Clear storage

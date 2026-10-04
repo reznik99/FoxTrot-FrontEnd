@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ActivityIndicator, Button, Icon, Text, useTheme } from 'react-native-paper';
@@ -9,6 +9,7 @@ import PasswordInput from '~/components/PasswordInput';
 import { exportKeysToFile } from '~/global/keyExport';
 import { importKeysFromFile } from '~/global/keyImport';
 import { logger } from '~/global/logger';
+import { checkPasswordStrength, MinKeyExportPasswordScore } from '~/global/password';
 import { SECONDARY, SECONDARY_LITE } from '~/global/variables';
 import { RootNavigation } from '~/store/actions/auth';
 import { generateAndSyncKeys } from '~/store/actions/user';
@@ -108,7 +109,16 @@ export default function KeySetup() {
         }
     }, [password, phoneNo, navigateAway]);
 
+    const exportStrength = useMemo(
+        () => checkPasswordStrength(password, [phoneNo], MinKeyExportPasswordScore),
+        [password, phoneNo],
+    );
+
     const handleExport = useCallback(async () => {
+        if (!exportStrength.acceptable) {
+            Alert.alert('Password too weak', exportStrength.hint || 'Use a longer, less predictable password.');
+            return;
+        }
         if (!password.trim()) {
             return;
         }
@@ -131,7 +141,7 @@ export default function KeySetup() {
             setPassword('');
             setMode('choice');
         }
-    }, [password, phoneNo]);
+    }, [password, phoneNo, exportStrength]);
 
     if (loading) {
         return (
@@ -192,10 +202,11 @@ export default function KeySetup() {
                         mode="outlined"
                         autoComplete="off"
                         onChangeText={setPassword}
+                        strength={{ inputs: [phoneNo], minScore: MinKeyExportPasswordScore }}
                     />
                 </View>
 
-                <Button mode="contained" onPress={handleExport} disabled={!password.trim()} style={styles.button}>
+                <Button mode="contained" onPress={handleExport} disabled={!exportStrength.acceptable} style={styles.button}>
                     Export Keys
                 </Button>
                 <Button mode="text" onPress={() => setMode('choice')} textColor={SECONDARY_LITE} style={styles.button}>

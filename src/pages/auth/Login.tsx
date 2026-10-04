@@ -90,7 +90,7 @@ export default function Login(props: StackScreenProps<AuthStackParamList, 'Login
         if (millisecondsSince(new Date(creds.time)) < milliseconds.hour / 2) {
             const tokenIsValid = await store.dispatch(validateToken(creds.auth_token)).unwrap();
             if (tokenIsValid) {
-                logger.debug('JWT auth token still valid, skipping login...');
+                logger.info('Auto-login with valid JWT');
                 props.navigation.replace('App');
                 return;
             }

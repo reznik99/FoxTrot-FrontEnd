@@ -7,6 +7,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import PasswordInput from '~/components/PasswordInput';
 import { logger } from '~/global/logger';
 import { AuthStackParamList } from '~/global/navigation';
+import { MinAccountPasswordScore } from '~/global/password';
 import { SECONDARY_LITE } from '~/global/variables';
 import { signUp } from '~/store/actions/auth';
 import { AppDispatch, RootState } from '~/store/store';
@@ -66,6 +67,7 @@ export default function Signup(props: StackScreenProps<AuthStackParamList, 'Sign
                     onChangeText={val => setPassword(val.trim())}
                     value={password}
                     label="Password"
+                    strength={{ inputs: [username], minScore: MinAccountPasswordScore }}
                     outlineColor={signupErr && !password ? 'red' : undefined}
                 />
                 <PasswordInput

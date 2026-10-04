@@ -14,7 +14,7 @@ import { UserData } from '~/store/reducers/user';
 
 const messaging = getMessaging();
 setBackgroundMessageHandler(messaging, async remoteMessage => {
-    logger.info('Message handled in the background!', remoteMessage);
+    logger.info('Incoming call push received');
     // Stop duplicate ringtones
     InCallManager.stopRingtone();
     // Parse event & caller data
@@ -28,7 +28,7 @@ setBackgroundMessageHandler(messaging, async remoteMessage => {
     }
     // Register call event listeners
     RNNotificationCall.addEventListener('answer', async info => {
-        logger.debug('RNNotificationCall: User answered call', info.callUUID);
+        logger.info('[RNNotificationCall] User answered call', info.callUUID);
         RNNotificationCall.backToApp();
         if (!info.payload) {
             logger.error('Background notification data is not defined after call-screen passthrough:', info);
@@ -39,7 +39,7 @@ setBackgroundMessageHandler(messaging, async remoteMessage => {
         // User will be opening app and authenticating after this...
     });
     RNNotificationCall.addEventListener('endCall', async info => {
-        logger.debug('RNNotificationCall: User ended call', info.callUUID);
+        logger.debug('[RNNotificationCall] User ended call', info.callUUID);
         // Stop ringing
         InCallManager.stopRingtone();
 

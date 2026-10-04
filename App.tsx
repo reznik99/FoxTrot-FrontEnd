@@ -3,7 +3,7 @@ import '~/global/buffer';
 import '~/global/backgroundHandler';
 
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
-import { StatusBar } from 'react-native';
+import { Platform, StatusBar } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createDrawerNavigator, DrawerContentComponentProps, DrawerNavigationOptions } from '@react-navigation/drawer';
 import { DarkTheme as NavDarkTheme, NavigationContainer, RouteProp } from '@react-navigation/native';
@@ -13,6 +13,7 @@ import {
     StackHeaderProps,
     StackNavigationOptions,
 } from '@react-navigation/stack';
+import DeviceInfo from 'react-native-device-info';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Icon, MD3DarkTheme, Provider as PaperProvider, useTheme } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
@@ -54,6 +55,12 @@ import {
     Settings,
     Signup,
 } from './src';
+
+logger.info(
+    `App started v${DeviceInfo.getVersion()} (${DeviceInfo.getBuildNumber()}), Android ${DeviceInfo.getSystemVersion()} (API ${
+        Platform.Version
+    })`,
+);
 
 const defaultHeaderOptions: StackNavigationOptions & DrawerNavigationOptions = {
     headerStyle: {

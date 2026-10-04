@@ -126,7 +126,7 @@ export default function Home() {
 
     const registerCallHandlers = useCallback(() => {
         RNNotificationCall.addEventListener('answer', info => {
-            logger.debug('RNNotificationCall: User answered call', info.callUUID);
+            logger.info('[RNNotificationCall] User answered call', info.callUUID);
             RNNotificationCall.backToApp();
             const data = JSON.parse(info.payload || '{}') as { caller: UserData; data: SocketMessage };
             navigation.navigate('Call', {
@@ -139,7 +139,7 @@ export default function Home() {
         });
         // endCall only fires when the call is declined or times out (never after answer)
         RNNotificationCall.addEventListener('endCall', info => {
-            logger.debug('RNNotificationCall: User ended call', info.callUUID);
+            logger.debug('[RNNotificationCall] User ended call', info.callUUID);
             InCallManager.stopRingtone();
             // Drop the declined/expired offer, otherwise the next outgoing call auto-answers it
             store.dispatch({ type: 'user/RECV_CALL_OFFER', payload: undefined });

@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -9,7 +10,7 @@ export interface LogEntry {
 
 // --- Ring Buffer ---
 
-const MAX_ENTRIES = 200;
+const MAX_ENTRIES = 1000;
 const buffer: (LogEntry | null)[] = new Array(MAX_ENTRIES).fill(null);
 let head = 0;
 let count = 0;
@@ -82,7 +83,9 @@ export function getFormattedLogs(): string {
     const entries = getEntries();
     const version = DeviceInfo.getVersion();
     const build = DeviceInfo.getBuildNumber();
-    const header = `Foxtrot v${version} (${build}) — ${new Date().toISOString()}\n${'—'.repeat(50)}\n`;
+    const header = `Foxtrot v${version} (${build}), Android ${DeviceInfo.getSystemVersion()} (API ${
+        Platform.Version
+    }) — ${new Date().toISOString()}\n${'—'.repeat(50)}\n`;
     const lines = entries.map(e => {
         const d = new Date(e.timestamp);
         const ts =

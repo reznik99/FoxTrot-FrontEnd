@@ -64,7 +64,7 @@ export const loadKeys = createDefaultAsyncThunk('loadKeys', async (_, thunkAPI) 
             service: `${state.user_data.phone_no}-keys`,
         });
         if (!credentials || credentials.username !== `${state.user_data.phone_no}-keys`) {
-            logger.debug('Warn: No keys found. First time login on device');
+            logger.info('No keys found. First time login on device');
             return false;
         }
 
@@ -72,6 +72,7 @@ export const loadKeys = createDefaultAsyncThunk('loadKeys', async (_, thunkAPI) 
 
         // Store keypair in memory
         thunkAPI.dispatch(KEY_LOAD(keys));
+        logger.info('Identity keys loaded');
         return true;
     } catch (err: any) {
         logger.error('Error loading keys:', err, JSON.stringify(await Keychain.getSupportedBiometryType()));
@@ -118,6 +119,7 @@ export const generateAndSyncKeys = createDefaultAsyncThunk<boolean>('generateAnd
 
         // Store keypair in memory
         thunkAPI.dispatch(KEY_LOAD(keyPair));
+        logger.info('Generated new identity keys');
 
         // Re-derive all session keys with the new private key
         if (hasExistingKeys) {
@@ -224,7 +226,7 @@ export const loadMessages = createDefaultAsyncThunk('loadMessages', async (_, th
             `${API_URL}/getConversations/?since=${lastChecked}`,
             axiosBearerConfig(token),
         );
-        logger.debug('Loaded', response.data?.length, 'new messages from API');
+        logger.info('Loaded', response.data?.length, 'new messages from API');
         if (response.data.length === 0) return;
 
         // Watermark = newest server-stamped sent_at we received, so the device clock can't skip or re-fetch messages
@@ -354,7 +356,7 @@ export const loadContacts = createDefaultAsyncThunk(
             try {
                 dbSaveContacts(contacts);
             } catch (err) {
-                logger.warn('Failed to persist contacts to SQLite:', err);
+                logger.error('Failed to persist contacts to SQLite:', err);
             }
         } catch (err: any) {
             logger.error('Error loading contacts:', err);
@@ -402,7 +404,7 @@ export const searchUsers = createDefaultAsyncThunk<UserData[], { prefix: string 
                 pic: getAvatar(user.id),
                 isContact: state.contacts.some(contact => contact.id === user.id),
             }));
-            logger.debug('Action: searchUsers, Prefix:', prefix, 'Results:', results);
+            logger.debug(`searchUsers: ${results.length} users found for prefix '${prefix}'`);
             return results;
         } catch (err: any) {
             logger.error('Error searching users:', err);
@@ -446,6 +448,7 @@ export const sendMessage = createDefaultAsyncThunk('sendMessage', async (data: s
             },
         };
         thunkAPI.dispatch(SEND_MESSAGE(localMessage));
+        logger.info(`Message sent (id ${localMessage.rawMessage.id}, to user ${data.to_user.id})`);
         return true;
     } catch (err: any) {
         logger.error('Error sending message:', err);
@@ -523,6 +526,7 @@ export const registerPushNotifications = createDefaultAsyncThunk('registerPushNo
         await registerDeviceForRemoteMessages(messaging);
         const token = await getToken(messaging);
         await axios.post(`${API_URL}/registerPushNotifications`, { token }, axiosBearerConfig(state.token));
+        logger.info('Push token registered');
     } catch (err: any) {
         logger.error('Error Registering for Push Notifications:', err);
         Toast.show({

@@ -304,7 +304,7 @@ async function handleSocketMessage(data: any) {
                 PushNotification.localNotification({
                     channelId: 'Messages',
                     title: `Message from ${parsedData.data.sender}`,
-                    message: parsedData.data?.message || '',
+                    message: 'New message',
                     when: parsedData.data.sent_at ? new Date(parsedData.data.sent_at).getTime() : Date.now(),
                     visibility: 'private',
                     picture: getAvatar(parsedData.data.sender_id),

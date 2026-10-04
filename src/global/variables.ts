@@ -21,7 +21,7 @@ export const LegacySymmetricAlgorithm = {
 export const SaltLenGCM = 12;
 export const SaltLenCBC = 16;
 export const SaltLenPBKDF2 = 16;
-export const PBKDF2Iterations = 250_000;
+export const PBKDF2Iterations = 600_000; // OWASP minimum for PBKDF2-HMAC-SHA256
 
 export const KeychainOpts = {
     authenticationPrompt: {

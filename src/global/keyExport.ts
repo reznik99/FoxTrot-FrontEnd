@@ -43,7 +43,6 @@ export async function exportKeysToFile(password: string, phoneNo: string): Promi
         Buffer.from(iv).toString('base64') +
         '\n' +
         Buffer.from(encryptedIKeys).toString('base64');
-    logger.debug('File: \n', file);
 
     const hasPermission = await getWriteExtPermission();
     if (!hasPermission) {
@@ -53,5 +52,6 @@ export async function exportKeysToFile(password: string, phoneNo: string): Promi
     const fullPath = RNFS.DownloadDirectoryPath + `/${phoneNo}-keys-${Date.now()}.txt`;
     // Delete file first, RNFS bug causes malformed writes if overwriting: https://github.com/itinance/react-native-fs/issues/700
     await RNFS.writeFile(fullPath, file);
+    logger.info(`Exported encrypted keys to ${fullPath} (${PBKDF2Iterations} PBKDF2 rounds, ${file.length} bytes)`);
     return fullPath;
 }

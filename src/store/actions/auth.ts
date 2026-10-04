@@ -7,6 +7,7 @@ import Toast from 'react-native-toast-message';
 import { getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { navigationRef, RootNavigation } from '~/global/navigation';
+import { checkPasswordStrength, MinAccountPasswordScore } from '~/global/password';
 import { deleteFromStorage, StorageKeys, writeToStorage } from '~/global/storage';
 import { API_URL, KeychainOpts } from '~/global/variables';
 
@@ -69,6 +70,13 @@ export const signUp = createAsyncThunk(
             return false;
         } else if (username.length <= 3) {
             thunkAPI.dispatch(SIGNUP_ERROR_MSG('Username too short!'));
+            return false;
+        }
+        const strength = checkPasswordStrength(password, [username], MinAccountPasswordScore);
+        if (!strength.acceptable) {
+            thunkAPI.dispatch(
+                SIGNUP_ERROR_MSG(`Password too weak. ${strength.hint || 'Use a longer, less predictable password.'}`),
+            );
             return false;
         }
         thunkAPI.dispatch(SIGNUP_ERROR_MSG(''));

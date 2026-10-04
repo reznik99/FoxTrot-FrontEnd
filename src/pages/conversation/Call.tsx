@@ -8,7 +8,8 @@ import { RTCView } from 'react-native-webrtc';
 import { connect, ConnectedProps } from 'react-redux';
 
 import * as callManager from '~/global/callManager';
-import { CallManagerState, formatCallTime } from '~/global/callManager';
+import { CallManagerState } from '~/global/callManager';
+import { formatCallTime } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { HomeStackParamList } from '~/global/navigation';
 import { DARKHEADER, DIVIDER, ERROR_RED } from '~/global/variables';

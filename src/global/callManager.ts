@@ -7,6 +7,7 @@ import RTCDataChannel from 'react-native-webrtc/lib/typescript/RTCDataChannel';
 import { RTCOfferOptions } from 'react-native-webrtc/lib/typescript/RTCUtil';
 
 import { dbSaveCallRecord } from '~/global/database';
+import { formatCallTime } from '~/global/helper';
 import { logger } from '~/global/logger';
 import { getBluetoothConnectPermission } from '~/global/permissions';
 import { CallAnswerFrame, CallIceCandidateFrame, CallOfferFrame, IceCandidate, SessionDescription } from '~/global/protocol';
@@ -785,11 +786,4 @@ function onWebrtcError(e: any) {
         text1: 'Error occoured during call',
         text2: e.toString(),
     });
-}
-
-export function formatCallTime(callTime: number): string {
-    const hours = ~~(callTime / (60 * 60));
-    const minutes = ~~(callTime / 60);
-    const seconds = ~~(callTime - minutes * 60);
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }

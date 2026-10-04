@@ -1,7 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { WebCryptoKeyPair } from 'react-native-quick-crypto';
 import type { CryptoKey } from 'react-native-quick-crypto/src/keys/classes';
-import { RTCSessionDescription } from 'react-native-webrtc';
 
 import {
     dbDeleteMessage,
@@ -13,6 +12,7 @@ import {
 } from '~/global/database';
 import { generateLocalMessageId, getAvatar } from '~/global/helper';
 import { logger } from '~/global/logger';
+import { SessionDescription } from '~/global/protocol';
 import { writeToStorage } from '~/global/storage';
 
 export interface State {
@@ -25,7 +25,7 @@ export interface State {
     socketStatus: 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
     socketErr: string;
     caller?: UserData;
-    callOffer?: RTCSessionDescription;
+    callOffer?: SessionDescription;
     turnServerCredentials: TURNCredentials;
     loading: boolean;
     loginErr: string;
@@ -380,7 +380,7 @@ export const userSlice = createSlice({
                 conversation.other_user.last_seen = lastSeenMs;
             }
         },
-        RECV_CALL_OFFER: (state, action: PayloadAction<{ offer: RTCSessionDescription; caller: UserData }>) => {
+        RECV_CALL_OFFER: (state, action: PayloadAction<{ offer: SessionDescription; caller: UserData }>) => {
             state.callOffer = action.payload?.offer;
             state.caller = action.payload?.caller;
         },

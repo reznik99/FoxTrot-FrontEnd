@@ -64,8 +64,9 @@ export function getAvatar(identifier: string | number) {
 
 /** Elapsed call time in seconds as HH:MM:SS */
 export function formatCallTime(callTime: number): string {
-    const hours = Math.floor(callTime / 3600);
-    const minutes = Math.floor((callTime % 3600) / 60);
-    const seconds = Math.floor(callTime % 60);
+    const elapsed = Math.max(0, callTime);
+    const hours = Math.floor(elapsed / 3600);
+    const minutes = Math.floor((elapsed % 3600) / 60);
+    const seconds = Math.floor(elapsed % 60);
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }

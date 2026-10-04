@@ -75,5 +75,6 @@ describe('formatCallTime', () => {
         expect(formatCallTime(3600)).toBe('01:00:00');
         expect(formatCallTime(3660)).toBe('01:01:00');
         expect(formatCallTime(3661.9)).toBe('01:01:01');
+        expect(formatCallTime(-5)).toBe('00:00:00');
     });
 });

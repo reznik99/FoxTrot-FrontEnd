@@ -1,5 +1,5 @@
 /**
- * WebSocket and push wire contract. Kept identical to Foxtrot-Frontend/src/global/protocol.ts.
+ * WebSocket and push wire contract. Kept byte-identical in Foxtrot-Backend/src/protocol.ts and Foxtrot-Frontend/src/global/protocol.ts.
  * Every websocket frame is `{ cmd, data }`; `cmd` selects the shape of `data`.
  */
 
